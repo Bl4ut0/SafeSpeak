@@ -12,6 +12,8 @@ artifacts/
 node_modules/
 dist/
 coverage/
+*.sdPlugin/bin/
+*.sdPlugin/logs/
 secrets.json
 *.pfx
 *.snk

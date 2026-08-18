@@ -1,0 +1,157 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "SafeSpeak",
+  "Version": "0.1.0.0",
+  "Author": "Bl4ut0",
+  "Description": "Physical controls for the local SafeSpeak TTS safety application.",
+  "Category": "SafeSpeak",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "Icon": "imgs/plugin/marketplace",
+  "UUID": "com.bl4ut0.safespeak",
+  "CodePath": "bin/plugin.js",
+  "SDKVersion": 3,
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "Nodejs": {
+    "Version": "24",
+    "Debug": "enabled"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Actions": [
+    {
+      "Name": "Arm or Disarm TTS",
+      "UUID": "com.bl4ut0.safespeak.toggle-armed",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Arm or disarm SafeSpeak TTS. SafeSpeak must be connected before it can be armed.",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "TTS\nDisarmed", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/control/key", "Title": "TTS\nArmed", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Automatic Playback",
+      "UUID": "com.bl4ut0.safespeak.toggle-auto",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Enable or disable automatic playback of approved messages.",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Auto\nOff", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/control/key", "Title": "Auto\nOn", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Play Next Approved Message",
+      "UUID": "com.bl4ut0.safespeak.play-next",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Play the next approved message from the SafeSpeak queue.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Play\nNext", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Skip Current Message",
+      "UUID": "com.bl4ut0.safespeak.skip",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Stop and skip the current spoken message.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Skip", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Pause or Resume Queue",
+      "UUID": "com.bl4ut0.safespeak.toggle-pause",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Pause or resume the approved-message queue.",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Queue\nRunning", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/control/key", "Title": "Queue\nPaused", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Clear Queue",
+      "UUID": "com.bl4ut0.safespeak.clear",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Remove every waiting message from the SafeSpeak queue.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Clear\nQueue", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Emergency Stop and Clear",
+      "UUID": "com.bl4ut0.safespeak.emergency-stop",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Disarm TTS, disable automatic playback, and clear the queue immediately.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "STOP\nAND CLEAR", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Report SafeSpeak Status",
+      "UUID": "com.bl4ut0.safespeak.status",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Request SafeSpeak connection, armed, and queue status.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Status", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Cycle Audience Mode",
+      "UUID": "com.bl4ut0.safespeak.cycle-audience",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Cycle who is eligible to submit messages for TTS.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Audience", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Cycle Moderation Strictness",
+      "UUID": "com.bl4ut0.safespeak.cycle-strictness",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Cycle the SafeSpeak moderation strictness level.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Safety\nLevel", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "English-only Mode",
+      "UUID": "com.bl4ut0.safespeak.toggle-english",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Enable or disable English-only TTS moderation.",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "English\nOff", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/control/key", "Title": "English\nOnly", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Play Preset Message",
+      "UUID": "com.bl4ut0.safespeak.play-preset",
+      "Icon": "imgs/actions/control/icon",
+      "Tooltip": "Ask SafeSpeak to play a message configured for this button.",
+      "PropertyInspectorPath": "ui/play-preset.html",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/control/key", "Title": "Preset", "TitleAlignment": "bottom" }
+      ]
+    }
+  ]
+}

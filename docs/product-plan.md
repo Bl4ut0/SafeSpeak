@@ -122,6 +122,8 @@ Requirements:
 6. Self-diagnostics and privacy-safe support export.
 7. Installer and real-machine acceptance test.
 
+Current development status (August 2026): milestone 1 has a tested foundation; milestone 2 has an accessible first-run shell; and milestone 4 has a validated control-protocol/plugin foundation. These are not release-complete. Spoken audio, the local classifier, policy configuration, diagnostics, packaging, and real-machine acceptance remain open.
+
 ## Out of scope for the first release
 
 - Direct connection to TikTok without TikFinity.

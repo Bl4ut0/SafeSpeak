@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore .NET dependencies
+        run: dotnet restore SafeSpeak.sln
+
+      - name: Verify .NET formatting
+        run: dotnet format SafeSpeak.sln --verify-no-changes --no-restore
+
+      - name: Build .NET projects
+        run: dotnet build SafeSpeak.sln --configuration Release --no-restore
+
+      - name: Run .NET tests
+        run: dotnet test SafeSpeak.sln --configuration Release --no-build
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: streamdeck/package-lock.json
+
+      - name: Install Stream Deck dependencies
+        working-directory: streamdeck
+        run: npm ci
+
+      - name: Check Stream Deck TypeScript
+        working-directory: streamdeck
+        run: npm run check
+
+      - name: Test Stream Deck protocol
+        working-directory: streamdeck
+        run: npm test
+
+      - name: Build Stream Deck plugin
+        working-directory: streamdeck
+        run: npm run build
+
+      - name: Validate Stream Deck package
+        working-directory: streamdeck
+        run: npm run validate
