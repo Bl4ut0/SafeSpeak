@@ -1,27 +1,81 @@
 using System.Windows;
+using System.Windows.Input;
+using SafeSpeak.App.Accessibility;
 using SafeSpeak.Infrastructure.Settings;
 
 namespace SafeSpeak.App;
 
 public partial class AccessibilitySetupWindow : Window
 {
-    public AccessibilitySetupWindow(AccessibilityMode initialMode)
+    internal const string SpokenPrompt =
+        "Welcome to SafeSpeak. Would you like SafeSpeak spoken guidance enabled? " +
+        "Press Enter or Y for yes. Press N for no. Press P for partially sighted mode.";
+
+    private readonly ISpokenGuidanceService _spokenGuidance;
+    private readonly bool _announcePrompt;
+
+    public AccessibilitySetupWindow(
+        AccessibilityMode initialMode,
+        ISpokenGuidanceService spokenGuidance,
+        bool announcePrompt)
     {
+        SelectedMode = initialMode;
+        _spokenGuidance = spokenGuidance;
+        _announcePrompt = announcePrompt;
         InitializeComponent();
-        FullyBlindOption.IsChecked = initialMode == AccessibilityMode.FullyBlind;
-        PartiallySightedOption.IsChecked = initialMode == AccessibilityMode.PartiallySighted;
-        StandardOption.IsChecked = initialMode == AccessibilityMode.Standard;
-        Loaded += (_, _) => FullyBlindOption.Focus();
+        Loaded += Window_Loaded;
+        Closed += (_, _) => _spokenGuidance.Stop();
     }
 
-    public AccessibilityMode SelectedMode => PartiallySightedOption.IsChecked == true
-        ? AccessibilityMode.PartiallySighted
-        : StandardOption.IsChecked == true
-            ? AccessibilityMode.Standard
-            : AccessibilityMode.FullyBlind;
+    public AccessibilityMode SelectedMode { get; private set; }
 
-    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    public bool SpokenGuidanceEnabled => SelectedMode is not AccessibilityMode.Standard;
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        YesButton.Focus();
+        if (_announcePrompt)
+        {
+            _spokenGuidance.Speak(SpokenPrompt);
+        }
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers != ModifierKeys.None)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Y:
+                Complete(AccessibilityMode.FullyBlind);
+                e.Handled = true;
+                break;
+            case Key.N:
+                Complete(AccessibilityMode.Standard);
+                e.Handled = true;
+                break;
+            case Key.P:
+                Complete(AccessibilityMode.PartiallySighted);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void YesButton_Click(object sender, RoutedEventArgs e) =>
+        Complete(AccessibilityMode.FullyBlind);
+
+    private void NoButton_Click(object sender, RoutedEventArgs e) =>
+        Complete(AccessibilityMode.Standard);
+
+    private void PartiallySightedButton_Click(object sender, RoutedEventArgs e) =>
+        Complete(AccessibilityMode.PartiallySighted);
+
+    private void Complete(AccessibilityMode mode)
+    {
+        SelectedMode = mode;
         DialogResult = true;
     }
 }

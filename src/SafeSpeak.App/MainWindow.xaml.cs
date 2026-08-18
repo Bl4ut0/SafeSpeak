@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using SafeSpeak.App.Accessibility;
 using SafeSpeak.Core.Control;
 using SafeSpeak.Infrastructure.Settings;
 
@@ -9,14 +10,20 @@ public partial class MainWindow : Window
 {
     private readonly SafeSpeakRuntime _runtime;
     private readonly AppSettingsStore _settingsStore;
+    private readonly ISpokenGuidanceService _spokenGuidance;
     private AppSettings _settings;
     private SafeSpeakControlState? _lastState;
 
-    public MainWindow(SafeSpeakRuntime runtime, AppSettings settings, AppSettingsStore settingsStore)
+    public MainWindow(
+        SafeSpeakRuntime runtime,
+        AppSettings settings,
+        AppSettingsStore settingsStore,
+        ISpokenGuidanceService spokenGuidance)
     {
         _runtime = runtime;
         _settings = settings;
         _settingsStore = settingsStore;
+        _spokenGuidance = spokenGuidance;
         InitializeComponent();
         _runtime.StateChanged += Runtime_StateChanged;
         _runtime.ActivityChanged += Runtime_ActivityChanged;
@@ -28,17 +35,22 @@ public partial class MainWindow : Window
 
         string modeDescription = settings.AccessibilityMode switch
         {
-            AccessibilityMode.FullyBlind => "Fully blind screen-reader mode",
+            AccessibilityMode.FullyBlind => "Fully blind spoken-guidance mode",
             AccessibilityMode.PartiallySighted => "Partially sighted mode",
             _ => "Standard accessibility mode",
         };
         LiveStatus.Text = $"{modeDescription} active. Waiting for TikFinity on this computer.";
         UpdateState(_runtime.State);
+        Loaded += (_, _) => Announce(LiveStatus.Text);
     }
 
     private async void AccessibilitySettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var setupWindow = new AccessibilitySetupWindow(_settings.AccessibilityMode)
+        bool guidanceWasEnabled = _settings.SpokenGuidanceEnabled;
+        var setupWindow = new AccessibilitySetupWindow(
+            _settings.AccessibilityMode,
+            _spokenGuidance,
+            announcePrompt: guidanceWasEnabled)
         {
             Owner = this,
         };
@@ -47,9 +59,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        _settings = _settings with { AccessibilityMode = setupWindow.SelectedMode };
+        _settings = _settings with
+        {
+            AccessibilityMode = setupWindow.SelectedMode,
+            SpokenGuidanceEnabled = setupWindow.SpokenGuidanceEnabled,
+        };
         await _settingsStore.SaveAsync(_settings);
-        LiveStatus.Text = "Accessibility preference saved.";
+        string message = _settings.SpokenGuidanceEnabled
+            ? "Spoken guidance enabled. Accessibility preference saved."
+            : "Spoken guidance disabled. Accessibility preference saved.";
+        LiveStatus.Text = message;
+        if (_settings.SpokenGuidanceEnabled || guidanceWasEnabled)
+        {
+            _spokenGuidance.Speak(message);
+        }
     }
 
     private async void ControlButton_Click(object sender, RoutedEventArgs e)
@@ -60,7 +83,7 @@ public partial class MainWindow : Window
         }
 
         ControlResponse response = await _runtime.HandleAsync(new ControlRequest("command", command));
-        LiveStatus.Text = response.Message ?? (response.Success ? "Action completed." : "Action failed.");
+        SetStatus(response.Message ?? (response.Success ? "Action completed." : "Action failed."));
     }
 
     private void Runtime_StateChanged(object? sender, SafeSpeakControlState state)
@@ -78,20 +101,20 @@ public partial class MainWindow : Window
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.Invoke(() => LiveStatus.Text = message);
+            Dispatcher.Invoke(() => SetStatus(message));
             return;
         }
 
-        LiveStatus.Text = message;
+        SetStatus(message);
     }
 
     private void UpdateState(SafeSpeakControlState state)
     {
         if (_lastState is not null && _lastState.Connected != state.Connected)
         {
-            LiveStatus.Text = state.Connected
+            SetStatus(state.Connected
                 ? "TikFinity connected. SafeSpeak remains disarmed until you arm it."
-                : "TikFinity disconnected. TTS and automatic playback were disabled.";
+                : "TikFinity disconnected. TTS and automatic playback were disabled.");
         }
 
         ConnectionValue.Text = state.Connected ? "Connected" : "Disconnected";
@@ -101,5 +124,19 @@ public partial class MainWindow : Window
             (state.QueuePaused ? ", paused" : string.Empty);
         EnglishOnlyValue.Text = state.EnglishOnly ? "On" : "Off";
         _lastState = state;
+    }
+
+    private void SetStatus(string message)
+    {
+        LiveStatus.Text = message;
+        Announce(message);
+    }
+
+    private void Announce(string message)
+    {
+        if (_settings.SpokenGuidanceEnabled)
+        {
+            _spokenGuidance.Speak(message);
+        }
     }
 }

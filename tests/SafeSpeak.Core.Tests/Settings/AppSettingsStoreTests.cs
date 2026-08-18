@@ -17,6 +17,7 @@ public sealed class AppSettingsStoreTests
             {
                 FirstRunComplete = true,
                 AccessibilityMode = AccessibilityMode.PartiallySighted,
+                SpokenGuidanceEnabled = true,
                 EnglishOnly = false,
                 AutomaticPlayback = true,
             };
@@ -48,8 +49,30 @@ public sealed class AppSettingsStoreTests
 
             Assert.False(settings.FirstRunComplete);
             Assert.Equal(AccessibilityMode.FullyBlind, settings.AccessibilityMode);
+            Assert.False(settings.SpokenGuidanceEnabled);
             Assert.True(settings.EnglishOnly);
             Assert.False(settings.AutomaticPlayback);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task LegacyFullyBlindSettingsEnableSpokenGuidance()
+    {
+        string path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(
+                path,
+                "{\"firstRunComplete\":true,\"accessibilityMode\":0,\"englishOnly\":true}");
+            var store = new AppSettingsStore(path);
+
+            AppSettings settings = await store.LoadAsync();
+
+            Assert.True(settings.SpokenGuidanceEnabled);
         }
         finally
         {

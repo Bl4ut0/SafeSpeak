@@ -4,7 +4,8 @@ SafeSpeak is intended to be independently operable by a fully blind streamer aft
 
 ## Implemented foundation
 
-- The first launch asks whether the user is fully blind, partially sighted, or wants standard operation. Fully blind is the safe default.
+- The first launch speaks a yes/no question through the local Windows voice before requiring navigation. Enter or Y enables fully blind spoken guidance, N declines it, and P enables partially sighted guidance.
+- SafeSpeak spoken guidance reads only safe status and action summaries. It complements NVDA, JAWS, and Narrator rather than presenting itself as a replacement screen reader.
 - Setup and dashboard UI use native WPF radio buttons, buttons, group boxes, and text controls.
 - Tab order follows document order and all actions work from the keyboard.
 - Controls have visible labels and UI Automation names or help text where extra context is needed.

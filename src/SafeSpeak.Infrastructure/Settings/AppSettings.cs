@@ -13,6 +13,8 @@ public sealed record AppSettings
 
     public AccessibilityMode AccessibilityMode { get; init; } = AccessibilityMode.FullyBlind;
 
+    public bool SpokenGuidanceEnabled { get; init; }
+
     public bool EnglishOnly { get; init; } = true;
 
     public bool AutomaticPlayback { get; init; }

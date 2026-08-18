@@ -24,7 +24,18 @@ public sealed class AppSettingsStore(string? settingsPath = null)
             }
 
             await using FileStream stream = File.OpenRead(_settingsPath);
-            return await JsonSerializer.DeserializeAsync<AppSettings>(stream, JsonOptions, cancellationToken) ?? new();
+            using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            AppSettings settings = document.Deserialize<AppSettings>(JsonOptions) ?? new();
+
+            if (!document.RootElement.TryGetProperty("spokenGuidanceEnabled", out _))
+            {
+                settings = settings with
+                {
+                    SpokenGuidanceEnabled = settings.AccessibilityMode is not AccessibilityMode.Standard,
+                };
+            }
+
+            return settings;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {

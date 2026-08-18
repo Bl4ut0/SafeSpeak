@@ -1,4 +1,5 @@
 using System.Windows;
+using SafeSpeak.App.Accessibility;
 using SafeSpeak.Core.Chat;
 using SafeSpeak.Infrastructure.Control;
 using SafeSpeak.Infrastructure.Settings;
@@ -11,6 +12,7 @@ public partial class App : Application
     private readonly CancellationTokenSource _shutdown = new();
     private TikFinityWebSocketClient? _tikFinity;
     private StreamDeckCommandServer? _commandServer;
+    private ISpokenGuidanceService? _spokenGuidance;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -18,12 +20,17 @@ public partial class App : Application
 
         try
         {
+            _spokenGuidance = new WindowsSpokenGuidanceService();
             var settingsStore = new AppSettingsStore();
             AppSettings settings = await settingsStore.LoadAsync(_shutdown.Token);
+            bool testFirstRun = e.Args.Contains("--test-first-run", StringComparer.OrdinalIgnoreCase);
 
-            if (!settings.FirstRunComplete)
+            if (!settings.FirstRunComplete || testFirstRun)
             {
-                var setupWindow = new AccessibilitySetupWindow(settings.AccessibilityMode);
+                var setupWindow = new AccessibilitySetupWindow(
+                    settings.AccessibilityMode,
+                    _spokenGuidance,
+                    announcePrompt: true);
                 if (setupWindow.ShowDialog() != true)
                 {
                     Shutdown();
@@ -34,8 +41,12 @@ public partial class App : Application
                 {
                     FirstRunComplete = true,
                     AccessibilityMode = setupWindow.SelectedMode,
+                    SpokenGuidanceEnabled = setupWindow.SpokenGuidanceEnabled,
                 };
-                await settingsStore.SaveAsync(settings, _shutdown.Token);
+                if (!testFirstRun)
+                {
+                    await settingsStore.SaveAsync(settings, _shutdown.Token);
+                }
             }
 
             var runtime = new SafeSpeakRuntime(settings.EnglishOnly);
@@ -47,7 +58,7 @@ public partial class App : Application
             _tikFinity.MessageReceived += (_, message) =>
                 _ = runtime.ProcessChatMessageAsync(message, _shutdown.Token).AsTask();
 
-            var mainWindow = new MainWindow(runtime, settings, settingsStore);
+            var mainWindow = new MainWindow(runtime, settings, settingsStore, _spokenGuidance);
             MainWindow = mainWindow;
             mainWindow.Show();
 
@@ -60,6 +71,7 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
+            _spokenGuidance?.Speak("SafeSpeak could not start. A visible error message is available.");
             MessageBox.Show(
                 $"SafeSpeak could not start. {exception.Message}",
                 "SafeSpeak startup error",
@@ -74,6 +86,7 @@ public partial class App : Application
         _shutdown.Cancel();
         _commandServer?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _tikFinity?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _spokenGuidance?.Dispose();
         _shutdown.Dispose();
         base.OnExit(e);
     }

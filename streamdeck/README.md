@@ -35,8 +35,12 @@ After installing and launching Elgato Stream Deck desktop, link the development 
 
 ```powershell
 npx streamdeck link com.bl4ut0.safespeak.sdPlugin
+npx streamdeck dev
+npx streamdeck restart com.bl4ut0.safespeak
 ```
 
 Then restart the plugin or Stream Deck, drag SafeSpeak actions into a test profile, and run the SafeSpeak Windows app. The `Play Preset Message` action exposes its message in Elgato's property inspector.
 
 The generated plugin is under `com.bl4ut0.safespeak.sdPlugin`. Run `scripts/generate-assets.ps1` to regenerate its marketplace PNG icons.
+
+The development plugin has been smoke-tested with Stream Deck 7.5.1: Elgato fetched its managed Node.js 24 runtime, started the plugin, detected a connected 5×3 Stream Deck, and logged `Plugin connected`. No SafeSpeak action or profile entry was added during that test.
