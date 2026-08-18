@@ -11,7 +11,7 @@ public sealed class SafeSpeakRuntime : IControlCommandHandler
     private readonly Blocklist _blocklist = new(["badword"]);
     private readonly UserRateLimiter _rateLimiter = new();
     private readonly IToxicityClassifier _classifier = new UnavailableToxicityClassifier();
-    private bool _connected;
+    private ConnectionState _connectionState = ConnectionState.Disconnected;
     private bool _armed;
     private bool _automaticPlayback;
     private bool _englishOnly;
@@ -26,17 +26,23 @@ public sealed class SafeSpeakRuntime : IControlCommandHandler
     public event EventHandler<string>? ActivityChanged;
 
     public SafeSpeakControlState State => new(
-        _connected,
+        _connectionState == ConnectionState.Connected,
         _armed,
         _automaticPlayback,
         _queue.IsPaused,
         _englishOnly,
         _queue.Count);
 
-    public void SetConnected(bool connected)
+    public ConnectionState ConnectionState => _connectionState;
+
+    public int QueueCapacity => _queue.Capacity;
+
+    public IReadOnlyList<TtsQueueItem> GetQueueSnapshot() => _queue.Snapshot();
+
+    public void SetConnectionState(ConnectionState state)
     {
-        _connected = connected;
-        if (!connected)
+        _connectionState = state;
+        if (state != ConnectionState.Connected)
         {
             _armed = false;
             _automaticPlayback = false;
@@ -49,7 +55,7 @@ public sealed class SafeSpeakRuntime : IControlCommandHandler
         ChatMessage message,
         CancellationToken cancellationToken = default)
     {
-        if (!_connected || !_armed)
+        if (_connectionState != ConnectionState.Connected || !_armed)
         {
             return;
         }
@@ -115,7 +121,7 @@ public sealed class SafeSpeakRuntime : IControlCommandHandler
 
     private CommandOutcome ToggleArmed()
     {
-        if (!_connected)
+        if (_connectionState != ConnectionState.Connected)
         {
             _armed = false;
             return CommandOutcome.Failure("Cannot arm: TikFinity is disconnected");
@@ -167,9 +173,10 @@ public sealed class SafeSpeakRuntime : IControlCommandHandler
     }
 
     private CommandOutcome BuildStatus() => CommandOutcome.Successful(
-        $"TikFinity {(_connected ? "connected" : "disconnected")}. " +
+        $"TikFinity bridge {_connectionState.ToString().ToLowerInvariant()}. " +
         $"TTS {(_armed ? "armed" : "disarmed")}. " +
-        $"Queue contains {_queue.Count} messages.");
+        $"Queue contains {_queue.Count} messages{(_queue.IsPaused ? " and is paused" : string.Empty)}. " +
+        $"English-only mode {(_englishOnly ? "enabled" : "disabled")}.");
 
     private void PublishState() => StateChanged?.Invoke(this, State);
 

@@ -7,9 +7,12 @@ SafeSpeak is intended to be independently operable by a fully blind streamer aft
 - The first launch speaks a yes/no question through the local Windows voice before requiring navigation. Enter or Y enables fully blind spoken guidance, N declines it, and P enables partially sighted guidance.
 - SafeSpeak spoken guidance reads only safe status and action summaries. It complements NVDA, JAWS, and Narrator rather than presenting itself as a replacement screen reader.
 - Setup and dashboard UI use native WPF radio buttons, buttons, group boxes, and text controls.
-- Tab order follows document order and all actions work from the keyboard.
+- After Y or Enter, focus moves into the main dashboard and spoken guidance announces its five sections.
+- Control+Tab moves between Overview, Approved queue, Safety and playback, TikFinity bridge, and Accessibility; ordinary Tab navigation follows document order.
+- The approved queue is an arrow-key navigable native list. It contains only moderated speakable text, receive time, and audience role. Unmoderated usernames are not displayed or announced.
 - Controls have visible labels and UI Automation names or help text where extra context is needed.
-- Connection, armed state, automatic playback, queue state, and English-only mode are available as text, not colour alone.
+- Full bridge lifecycle, privacy-safe event counters, connection attempts, armed state, automatic playback, queue state, active policy, and English-only mode are available as text, not colour alone.
+- Fast reconnect transitions remain visible in the Bridge section but are not repeatedly spoken. A connection loss is announced once only after eight seconds, and recovery is announced once.
 - Action and moderation summaries use an Automation live region. Rejected message content is never placed in that announcement.
 - The emergency action has an explicit text label in both the app and Stream Deck.
 

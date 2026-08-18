@@ -23,4 +23,25 @@ public sealed class TtsQueueTests
         Assert.True(queue.TryDequeue(out TtsQueueItem? dequeued));
         Assert.Equal(item, dequeued);
     }
+
+    [Fact]
+    public void SnapshotPreservesQueueOrderWithoutRemovingItems()
+    {
+        var queue = new TtsQueue(capacity: 3);
+        var first = new TtsQueueItem(
+            new ChatMessage("1", "first", "First", "hello", AudienceRole.Guest, DateTimeOffset.UtcNow),
+            "hello");
+        var second = new TtsQueueItem(
+            new ChatMessage("2", "second", "Second", "welcome", AudienceRole.Follower, DateTimeOffset.UtcNow),
+            "welcome");
+
+        Assert.True(queue.TryEnqueue(first));
+        Assert.True(queue.TryEnqueue(second));
+
+        IReadOnlyList<TtsQueueItem> snapshot = queue.Snapshot();
+
+        Assert.Equal(3, queue.Capacity);
+        Assert.Equal([first, second], snapshot);
+        Assert.Equal(2, queue.Count);
+    }
 }

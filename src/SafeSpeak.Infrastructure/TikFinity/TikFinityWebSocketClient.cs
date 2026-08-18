@@ -9,14 +9,34 @@ public sealed class TikFinityWebSocketClient(
 {
     private readonly Uri _endpoint = endpoint ?? new("ws://localhost:21213/");
     private readonly CancellationTokenSource _disposeCancellation = new();
+    private readonly Lock _statusLock = new();
     private ClientWebSocket? _socket;
     private ConnectionState _state = ConnectionState.Disconnected;
+    private long _connectionAttempts;
+    private long _textEventsReceived;
+    private long _chatMessagesAccepted;
+    private long _eventsIgnored;
+    private DateTimeOffset? _lastChatMessageAt;
+    private string? _lastError;
 
     public event EventHandler<ChatMessage>? MessageReceived;
 
     public event EventHandler<ConnectionState>? ConnectionStateChanged;
 
+    public event EventHandler<TikFinityBridgeStatus>? StatusChanged;
+
     public ConnectionState State => _state;
+
+    public TikFinityBridgeStatus Status
+    {
+        get
+        {
+            lock (_statusLock)
+            {
+                return CreateStatus();
+            }
+        }
+    }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -32,6 +52,13 @@ public sealed class TikFinityWebSocketClient(
             SetState(firstAttempt ? ConnectionState.Connecting : ConnectionState.Reconnecting);
             firstAttempt = false;
 
+            lock (_statusLock)
+            {
+                _connectionAttempts++;
+            }
+
+            PublishStatus();
+
             try
             {
                 _socket?.Dispose();
@@ -41,6 +68,10 @@ public sealed class TikFinityWebSocketClient(
                 SetState(ConnectionState.Connected);
                 delay = TimeSpan.FromSeconds(1);
                 await ReceiveLoopAsync(_socket, linkedCancellation.Token);
+                if (!linkedCancellation.IsCancellationRequested)
+                {
+                    SetState(ConnectionState.Reconnecting);
+                }
             }
             catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
             {
@@ -48,7 +79,7 @@ public sealed class TikFinityWebSocketClient(
             }
             catch (Exception exception) when (exception is WebSocketException or IOException or InvalidOperationException)
             {
-                SetState(ConnectionState.Faulted);
+                SetState(ConnectionState.Faulted, exception.GetType().Name);
             }
 
             if (!linkedCancellation.IsCancellationRequested)
@@ -102,6 +133,14 @@ public sealed class TikFinityWebSocketClient(
             ValueWebSocketReceiveResult result = await socket.ReceiveAsync(receiveBuffer.AsMemory(), cancellationToken);
             if (result.MessageType == WebSocketMessageType.Close)
             {
+                if (socket.State == WebSocketState.CloseReceived)
+                {
+                    await socket.CloseOutputAsync(
+                        socket.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
+                        "SafeSpeak acknowledged TikFinity close",
+                        cancellationToken);
+                }
+
                 return;
             }
 
@@ -128,25 +167,81 @@ public sealed class TikFinityWebSocketClient(
                 continue;
             }
 
-            if (TikFinityEventParser.TryParseChatMessage(
+            bool accepted = TikFinityEventParser.TryParseChatMessage(
                     messageBuffer.GetBuffer().AsMemory(0, checked((int)messageBuffer.Length)),
-                    out ChatMessage? message) && message is not null)
+                    out ChatMessage? message) && message is not null;
+            RecordTextEvent(accepted);
+            if (accepted)
             {
-                MessageReceived?.Invoke(this, message);
+                MessageReceived?.Invoke(this, message!);
             }
 
             messageBuffer.SetLength(0);
         }
     }
 
-    private void SetState(ConnectionState state)
+    private void RecordTextEvent(bool accepted)
     {
-        if (_state == state)
+        lock (_statusLock)
         {
-            return;
+            _textEventsReceived++;
+            if (accepted)
+            {
+                _chatMessagesAccepted++;
+                _lastChatMessageAt = DateTimeOffset.Now;
+            }
+            else
+            {
+                _eventsIgnored++;
+            }
         }
 
-        _state = state;
-        ConnectionStateChanged?.Invoke(this, state);
+        PublishStatus();
+    }
+
+    private void SetState(ConnectionState state, string? error = null)
+    {
+        bool stateChanged;
+        lock (_statusLock)
+        {
+            stateChanged = _state != state;
+            _state = state;
+            if (state == ConnectionState.Connected)
+            {
+                _lastError = null;
+            }
+            else if (error is not null)
+            {
+                _lastError = error;
+            }
+        }
+
+        if (stateChanged)
+        {
+            ConnectionStateChanged?.Invoke(this, state);
+        }
+
+        PublishStatus();
+    }
+
+    private TikFinityBridgeStatus CreateStatus() => new(
+        _state,
+        _endpoint,
+        _connectionAttempts,
+        _textEventsReceived,
+        _chatMessagesAccepted,
+        _eventsIgnored,
+        _lastChatMessageAt,
+        _lastError);
+
+    private void PublishStatus()
+    {
+        TikFinityBridgeStatus status;
+        lock (_statusLock)
+        {
+            status = CreateStatus();
+        }
+
+        StatusChanged?.Invoke(this, status);
     }
 }

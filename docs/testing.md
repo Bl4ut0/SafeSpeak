@@ -28,7 +28,7 @@ dotnet run --project tools/SafeSpeak.TikFinitySimulator
 dotnet run --project src/SafeSpeak.App
 ```
 
-The simulator listens only on `127.0.0.1:21213` and sends benign fixtures for normal chat, spaced block-term text, an invisible character, mixed Cyrillic/Latin text, a non-Latin message, a gift event, and malformed chat data. Arm TTS in the app to let approved chat enter the queue. This build deliberately does not produce audio.
+The simulator listens only on `127.0.0.1:21213`, waits one second after connection so TTS can be armed, and sends benign fixtures for normal chat, spaced block-term text, an invisible character, mixed Cyrillic/Latin text, a non-Latin message, a gift event, and malformed chat data. Arm TTS in the app to let approved chat enter the queue. Confirm the Approved queue section lists only normalized, approved text and the TikFinity bridge section reaches seven text events, five valid chat messages, and two ignored events. This build deliberately does not produce audio.
 
 To replay the spoken first-run question without changing the saved accessibility preference, run:
 

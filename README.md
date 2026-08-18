@@ -9,7 +9,10 @@ SafeSpeak is a Windows-first, accessibility-focused TTS safety application for l
 
 - C# and .NET 10 WPF Windows application.
 - An automatically spoken first-run question with one-key choices for fully blind, partially sighted, or standard operation.
-- Native keyboard and screen-reader controls with live status announcements.
+- A keyboard and screen-reader-accessible dashboard with Overview, Approved queue, Safety and playback, TikFinity bridge, and Accessibility sections.
+- A navigable approved-message queue that exposes only moderated speakable text and intentionally hides unmoderated usernames.
+- Live TikFinity bridge state, reconnect attempts, safe event counters, and last-event/error-category telemetry without persisting chat.
+- Native controls with live status announcements and spoken dashboard navigation guidance.
 - Defensive TikFinity WebSocket client for `ws://localhost:21213/` with reconnection and payload limits.
 - Offline TikFinity event simulator.
 - Unicode NFKC normalization, invisible-character removal, spacing and repetition controls, common confusable handling, script detection, URL rejection, audience checks, cooldowns, and a bounded approved-message queue.

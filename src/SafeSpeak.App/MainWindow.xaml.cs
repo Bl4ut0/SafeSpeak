@@ -1,47 +1,82 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using SafeSpeak.App.Accessibility;
+using SafeSpeak.Core.Chat;
 using SafeSpeak.Core.Control;
+using SafeSpeak.Core.Queueing;
 using SafeSpeak.Infrastructure.Settings;
+using SafeSpeak.Infrastructure.TikFinity;
 
 namespace SafeSpeak.App;
 
 public partial class MainWindow : Window
 {
     private readonly SafeSpeakRuntime _runtime;
+    private readonly TikFinityWebSocketClient _tikFinity;
     private readonly AppSettingsStore _settingsStore;
     private readonly ISpokenGuidanceService _spokenGuidance;
+    private readonly DispatcherTimer _connectionLossTimer;
     private AppSettings _settings;
-    private SafeSpeakControlState? _lastState;
+    private TikFinityBridgeStatus? _lastBridgeStatus;
+    private bool _isLoaded;
+    private bool _hasConnected;
+    private bool _connectionLossAnnounced;
 
     public MainWindow(
         SafeSpeakRuntime runtime,
+        TikFinityWebSocketClient tikFinity,
         AppSettings settings,
         AppSettingsStore settingsStore,
         ISpokenGuidanceService spokenGuidance)
     {
         _runtime = runtime;
+        _tikFinity = tikFinity;
         _settings = settings;
         _settingsStore = settingsStore;
         _spokenGuidance = spokenGuidance;
         InitializeComponent();
+
+        _connectionLossTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(8),
+        };
+        _connectionLossTimer.Tick += ConnectionLossTimer_Tick;
+
         _runtime.StateChanged += Runtime_StateChanged;
         _runtime.ActivityChanged += Runtime_ActivityChanged;
-        Closed += (_, _) =>
-        {
-            _runtime.StateChanged -= Runtime_StateChanged;
-            _runtime.ActivityChanged -= Runtime_ActivityChanged;
-        };
+        _tikFinity.StatusChanged += TikFinity_StatusChanged;
+        Loaded += MainWindow_Loaded;
+        Closed += MainWindow_Closed;
 
-        string modeDescription = settings.AccessibilityMode switch
-        {
-            AccessibilityMode.FullyBlind => "Fully blind spoken-guidance mode",
-            AccessibilityMode.PartiallySighted => "Partially sighted mode",
-            _ => "Standard accessibility mode",
-        };
-        LiveStatus.Text = $"{modeDescription} active. Waiting for TikFinity on this computer.";
+        UpdateAccessibilitySummary();
         UpdateState(_runtime.State);
-        Loaded += (_, _) => Announce(LiveStatus.Text);
+        UpdateBridgeStatus(_tikFinity.Status);
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        _isLoaded = true;
+        OverviewTab.Focus();
+        string startupStatus =
+            $"SafeSpeak dashboard opened. TikFinity bridge {_runtime.ConnectionState.ToString().ToLowerInvariant()}. " +
+            "TTS is disarmed. The approved queue is empty. " +
+            "Use Control plus Tab to move through Overview, Approved queue, Safety and playback, TikFinity bridge, and Accessibility.";
+        LiveStatus.Text = startupStatus;
+        Announce(startupStatus);
+        if (_runtime.ConnectionState != ConnectionState.Connected)
+        {
+            _connectionLossTimer.Start();
+        }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _runtime.StateChanged -= Runtime_StateChanged;
+        _runtime.ActivityChanged -= Runtime_ActivityChanged;
+        _tikFinity.StatusChanged -= TikFinity_StatusChanged;
+        _connectionLossTimer.Stop();
+        _connectionLossTimer.Tick -= ConnectionLossTimer_Tick;
     }
 
     private async void AccessibilitySettingsButton_Click(object sender, RoutedEventArgs e)
@@ -65,6 +100,7 @@ public partial class MainWindow : Window
             SpokenGuidanceEnabled = setupWindow.SpokenGuidanceEnabled,
         };
         await _settingsStore.SaveAsync(_settings);
+        UpdateAccessibilitySummary();
         string message = _settings.SpokenGuidanceEnabled
             ? "Spoken guidance enabled. Accessibility preference saved."
             : "Spoken guidance disabled. Accessibility preference saved.";
@@ -108,22 +144,110 @@ public partial class MainWindow : Window
         SetStatus(message);
     }
 
-    private void UpdateState(SafeSpeakControlState state)
+    private void TikFinity_StatusChanged(object? sender, TikFinityBridgeStatus status)
     {
-        if (_lastState is not null && _lastState.Connected != state.Connected)
+        if (!Dispatcher.CheckAccess())
         {
-            SetStatus(state.Connected
-                ? "TikFinity connected. SafeSpeak remains disarmed until you arm it."
-                : "TikFinity disconnected. TTS and automatic playback were disabled.");
+            Dispatcher.Invoke(() => UpdateBridgeStatus(status));
+            return;
         }
 
-        ConnectionValue.Text = state.Connected ? "Connected" : "Disconnected";
+        UpdateBridgeStatus(status);
+    }
+
+    private void UpdateState(SafeSpeakControlState state)
+    {
         ArmedValue.Text = state.Armed ? "Armed" : "Disarmed";
         AutomaticPlaybackValue.Text = state.AutomaticPlayback ? "On" : "Off";
-        QueueValue.Text = $"{state.QueueCount} {(state.QueueCount == 1 ? "message" : "messages")}" +
-            (state.QueuePaused ? ", paused" : string.Empty);
+        QueueValue.Text = $"{state.QueueCount} of {_runtime.QueueCapacity} " +
+            $"{(state.QueueCount == 1 ? "message" : "messages")}" +
+            (state.QueuePaused ? ", paused" : ", running");
         EnglishOnlyValue.Text = state.EnglishOnly ? "On" : "Off";
-        _lastState = state;
+        PolicyLanguageValue.Text = state.EnglishOnly ? "English/Latin only" : "All writing systems; mixed scripts still rejected";
+        UpdateQueue(_runtime.GetQueueSnapshot(), state.QueuePaused);
+    }
+
+    private void UpdateQueue(IReadOnlyList<TtsQueueItem> queue, bool paused)
+    {
+        var displayItems = queue
+            .Select((item, index) => new DashboardQueueItem(
+                index + 1,
+                item.SpeakableText,
+                item.Message.ReceivedAt,
+                item.Message.AudienceRole))
+            .ToArray();
+
+        QueueList.ItemsSource = displayItems;
+        EmptyQueueText.Visibility = displayItems.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        QueueSummaryText.Text = displayItems.Length == 0
+            ? $"The approved queue is empty and {(paused ? "paused" : "running")}."
+            : $"{displayItems.Length} approved {(displayItems.Length == 1 ? "message is" : "messages are")} waiting in playback order. The queue is {(paused ? "paused" : "running")}.";
+    }
+
+    private void UpdateBridgeStatus(TikFinityBridgeStatus status)
+    {
+        if (_isLoaded && status.State == ConnectionState.Connected)
+        {
+            _connectionLossTimer.Stop();
+            if (!_hasConnected || _connectionLossAnnounced)
+            {
+                SetStatus(_hasConnected
+                    ? "TikFinity connection restored. SafeSpeak remains disarmed until you arm it."
+                    : "TikFinity connected. SafeSpeak remains disarmed until you arm it.");
+            }
+
+            _hasConnected = true;
+            _connectionLossAnnounced = false;
+        }
+        else if (_isLoaded &&
+                 _lastBridgeStatus?.State == ConnectionState.Connected &&
+                 status.State != ConnectionState.Connected)
+        {
+            _connectionLossTimer.Stop();
+            _connectionLossTimer.Start();
+        }
+
+        string stateText = status.State.ToString();
+        ConnectionValue.Text = stateText;
+        BridgeEndpointValue.Text = status.Endpoint.AbsoluteUri;
+        BridgeStateValue.Text = stateText;
+        BridgeAttemptsValue.Text = status.ConnectionAttempts.ToString();
+        BridgeEventsValue.Text = status.TextEventsReceived.ToString();
+        BridgeAcceptedValue.Text = status.ChatMessagesAccepted.ToString();
+        BridgeIgnoredValue.Text = status.EventsIgnored.ToString();
+        BridgeLastEventValue.Text = status.LastChatMessageAt?.ToLocalTime().ToString("G") ?? "None received";
+        BridgeLastErrorValue.Text = status.LastError ?? "None";
+        _lastBridgeStatus = status;
+    }
+
+    private void ConnectionLossTimer_Tick(object? sender, EventArgs e)
+    {
+        _connectionLossTimer.Stop();
+        if (_lastBridgeStatus?.State == ConnectionState.Connected || _connectionLossAnnounced)
+        {
+            return;
+        }
+
+        _connectionLossAnnounced = true;
+        SetStatus(_hasConnected
+            ? "TikFinity has been unavailable for 8 seconds. TTS is disarmed and SafeSpeak will keep retrying silently."
+            : "TikFinity is not available. TTS is disarmed and SafeSpeak will keep retrying silently.");
+    }
+
+    private void UpdateAccessibilitySummary()
+    {
+        string modeDescription = _settings.AccessibilityMode switch
+        {
+            AccessibilityMode.FullyBlind => "Fully blind",
+            AccessibilityMode.PartiallySighted => "Partially sighted",
+            _ => "Standard",
+        };
+        string guidanceDescription = _settings.SpokenGuidanceEnabled
+            ? "SafeSpeak spoken guidance enabled"
+            : "SafeSpeak spoken guidance disabled";
+        AccessibilityModeValue.Text = $"{modeDescription}; {guidanceDescription}";
+        AccessibilitySummaryText.Text =
+            $"{modeDescription} mode is selected with {guidanceDescription.ToLowerInvariant()}.";
     }
 
     private void SetStatus(string message)

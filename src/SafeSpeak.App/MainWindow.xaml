@@ -1,89 +1,271 @@
 <Window x:Class="SafeSpeak.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SafeSpeak"
-        Height="690"
-        Width="760"
-        MinHeight="620"
-        MinWidth="620"
+        Title="SafeSpeak dashboard"
+        Height="760"
+        Width="920"
+        MinHeight="640"
+        MinWidth="720"
         WindowStartupLocation="CenterScreen"
         AutomationProperties.Name="SafeSpeak control centre">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="24">
-            <TextBlock FontSize="30" FontWeight="Bold" Text="SafeSpeak" />
-            <TextBlock Margin="0,4,0,18"
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock FontSize="30" FontWeight="Bold" Text="SafeSpeak dashboard" />
+            <TextBlock Margin="0,4,0,14"
                        TextWrapping="Wrap"
-                       Text="TTS safety and accessible stream controls" />
+                       Text="TTS safety, approved-message queue, TikFinity bridge, and accessible stream controls" />
+        </StackPanel>
 
-            <Border Padding="12" BorderBrush="DarkOrange" BorderThickness="2" CornerRadius="4">
-                <TextBlock FontWeight="SemiBold"
-                           TextWrapping="Wrap"
-                           Text="Development build: live moderation and spoken audio are not active yet. Do not rely on this build to protect a live stream." />
-            </Border>
+        <Border Grid.Row="1" Padding="12" BorderBrush="DarkOrange" BorderThickness="2" CornerRadius="4">
+            <TextBlock FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       Text="Development build: the connector and queue are active, but actual TTS message audio and the local toxicity model are not implemented. Do not rely on this build to protect a live stream." />
+        </Border>
 
-            <GroupBox Margin="0,18,0,0"
-                      Header="Current status"
-                      AutomationProperties.Name="Current SafeSpeak status">
-                <Grid Margin="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+        <TabControl x:Name="DashboardTabs"
+                    Grid.Row="2"
+                    Margin="0,16,0,0"
+                    AutomationProperties.Name="SafeSpeak dashboard sections"
+                    AutomationProperties.HelpText="Use Control plus Tab to move between dashboard sections.">
+            <TabItem x:Name="OverviewTab" Header="_Overview">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="14">
+                        <GroupBox Header="Current status" AutomationProperties.Name="Current SafeSpeak status">
+                            <Grid Margin="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="TikFinity bridge:" />
+                                <TextBlock x:Name="ConnectionValue" Grid.Row="0" Grid.Column="1" Margin="12,0,0,0" Text="Disconnected" />
+                                <TextBlock Grid.Row="1" FontWeight="SemiBold" Text="TTS:" />
+                                <TextBlock x:Name="ArmedValue" Grid.Row="1" Grid.Column="1" Margin="12,0,0,0" Text="Disarmed" />
+                                <TextBlock Grid.Row="2" FontWeight="SemiBold" Text="Automatic playback:" />
+                                <TextBlock x:Name="AutomaticPlaybackValue" Grid.Row="2" Grid.Column="1" Margin="12,0,0,0" Text="Off" />
+                                <TextBlock Grid.Row="3" FontWeight="SemiBold" Text="Approved queue:" />
+                                <TextBlock x:Name="QueueValue" Grid.Row="3" Grid.Column="1" Margin="12,0,0,0" Text="0 of 50 messages" />
+                                <TextBlock Grid.Row="4" FontWeight="SemiBold" Text="English-only mode:" />
+                                <TextBlock x:Name="EnglishOnlyValue" Grid.Row="4" Grid.Column="1" Margin="12,0,0,0" Text="On" />
+                                <TextBlock Grid.Row="5" FontWeight="SemiBold" Text="Accessibility mode:" />
+                                <TextBlock x:Name="AccessibilityModeValue" Grid.Row="5" Grid.Column="1" Margin="12,0,0,0" Text="Fully blind with spoken guidance" />
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Margin="0,14,0,0" Header="Quick safety controls">
+                            <WrapPanel Margin="8">
+                                <Button Margin="4" Padding="14,9" Content="_Report status" Tag="status.announce" Click="ControlButton_Click" />
+                                <Button Margin="4" Padding="14,9" Content="_Arm or disarm TTS" Tag="tts.toggleArmed" Click="ControlButton_Click" />
+                                <Button Margin="4" Padding="14,9" FontWeight="Bold" Content="_Emergency stop and clear" Tag="tts.emergencyStop" Click="ControlButton_Click" />
+                            </WrapPanel>
+                        </GroupBox>
+
+                        <TextBlock Margin="0,18,0,4" FontWeight="SemiBold" Text="Latest safe action" />
+                        <TextBlock x:Name="LiveStatus"
+                                   MinHeight="58"
+                                   Padding="10"
+                                   Background="#FFF1F1F1"
+                                   Text="SafeSpeak is starting."
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   AutomationProperties.Name="Latest SafeSpeak action" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Approved _queue">
+                <Grid Margin="14">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="TikFinity:" />
-                    <TextBlock x:Name="ConnectionValue" Grid.Row="0" Grid.Column="1" Margin="12,0,0,0" Text="Disconnected" />
-                    <TextBlock Grid.Row="1" FontWeight="SemiBold" Text="TTS:" />
-                    <TextBlock x:Name="ArmedValue" Grid.Row="1" Grid.Column="1" Margin="12,0,0,0" Text="Disarmed" />
-                    <TextBlock Grid.Row="2" FontWeight="SemiBold" Text="Automatic playback:" />
-                    <TextBlock x:Name="AutomaticPlaybackValue" Grid.Row="2" Grid.Column="1" Margin="12,0,0,0" Text="Off" />
-                    <TextBlock Grid.Row="3" FontWeight="SemiBold" Text="Approved queue:" />
-                    <TextBlock x:Name="QueueValue" Grid.Row="3" Grid.Column="1" Margin="12,0,0,0" Text="0 messages" />
-                    <TextBlock Grid.Row="4" FontWeight="SemiBold" Text="English-only mode:" />
-                    <TextBlock x:Name="EnglishOnlyValue" Grid.Row="4" Grid.Column="1" Margin="12,0,0,0" Text="On" />
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock FontSize="20" FontWeight="SemiBold" Text="Approved TTS queue" />
+                        <TextBlock x:Name="QueueSummaryText"
+                                   Margin="0,4,0,10"
+                                   Text="The queue is empty."
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock Margin="0,0,0,10"
+                                   Text="Only moderated, normalized speakable text appears here. TikFinity usernames are intentionally hidden because username moderation is not implemented yet."
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <ListBox x:Name="QueueList"
+                                 AutomationProperties.Name="Approved TTS message queue"
+                                 AutomationProperties.HelpText="Use the arrow keys to review approved messages in playback order."
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="2" Padding="10" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="3">
+                                        <StackPanel>
+                                            <TextBlock FontWeight="SemiBold" Text="{Binding PositionLabel}" />
+                                            <TextBlock Margin="0,3" Text="{Binding SpeakableText}" TextWrapping="Wrap" />
+                                            <TextBlock FontSize="12" Text="{Binding Metadata}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock x:Name="EmptyQueueText"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="18"
+                                   Text="No approved messages are waiting."
+                                   IsHitTestVisible="False" />
+                    </Grid>
+
+                    <WrapPanel Grid.Row="2" Margin="0,12,0,0">
+                        <Button Margin="4" Padding="14,9" Content="_Play next approved message" Tag="queue.playNext" Click="ControlButton_Click" />
+                        <Button Margin="4" Padding="14,9" Content="_Pause or resume queue" Tag="queue.togglePause" Click="ControlButton_Click" />
+                        <Button Margin="4" Padding="14,9" Content="_Clear queue" Tag="queue.clear" Click="ControlButton_Click" />
+                    </WrapPanel>
                 </Grid>
-            </GroupBox>
+            </TabItem>
 
-            <GroupBox Margin="0,18,0,0" Header="TTS controls" AutomationProperties.Name="TTS controls">
-                <WrapPanel Margin="8">
-                    <Button Margin="4" Padding="14,9" Content="Arm or disarm TTS" Tag="tts.toggleArmed" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" Content="Toggle automatic playback" Tag="tts.toggleAutomaticPlayback" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" Content="Play next approved message" Tag="queue.playNext" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" Content="Skip current message" Tag="queue.skipCurrent" Click="ControlButton_Click" />
-                </WrapPanel>
-            </GroupBox>
+            <TabItem Header="Safety and _playback">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="14">
+                        <GroupBox Header="Active moderation policy">
+                            <Grid Margin="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Language/script filter:" />
+                                <TextBlock x:Name="PolicyLanguageValue" Grid.Row="0" Grid.Column="1" Margin="12,0,0,0" Text="English/Latin only" />
+                                <TextBlock Grid.Row="1" FontWeight="SemiBold" Text="Mixed scripts:" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="12,0,0,0" Text="Rejected" />
+                                <TextBlock Grid.Row="2" FontWeight="SemiBold" Text="URLs:" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="12,0,0,0" Text="Rejected" />
+                                <TextBlock Grid.Row="3" FontWeight="SemiBold" Text="Maximum message length:" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Margin="12,0,0,0" Text="200 characters" />
+                                <TextBlock Grid.Row="4" FontWeight="SemiBold" Text="Per-user cooldown:" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" Margin="12,0,0,0" Text="3 messages per 15 seconds" />
+                                <TextBlock Grid.Row="5" FontWeight="SemiBold" Text="Local toxicity classifier:" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Margin="12,0,0,0" Text="Not installed; deterministic rules only" />
+                            </Grid>
+                        </GroupBox>
 
-            <GroupBox Margin="0,12,0,0" Header="Queue and safety controls" AutomationProperties.Name="Queue and safety controls">
-                <WrapPanel Margin="8">
-                    <Button Margin="4" Padding="14,9" Content="Pause or resume queue" Tag="queue.togglePause" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" Content="Clear queue" Tag="queue.clear" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" FontWeight="Bold" Content="Emergency stop and clear" Tag="tts.emergencyStop" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" Content="Report status" Tag="status.announce" Click="ControlButton_Click" />
-                    <Button Margin="4" Padding="14,9" Content="Toggle English-only mode" Tag="moderation.toggleEnglishOnly" Click="ControlButton_Click" />
-                </WrapPanel>
-            </GroupBox>
+                        <GroupBox Margin="0,14,0,0" Header="Playback and moderation controls">
+                            <WrapPanel Margin="8">
+                                <Button Margin="4" Padding="14,9" Content="_Arm or disarm TTS" Tag="tts.toggleArmed" Click="ControlButton_Click" />
+                                <Button Margin="4" Padding="14,9" Content="Toggle automatic playback" Tag="tts.toggleAutomaticPlayback" Click="ControlButton_Click" />
+                                <Button Margin="4" Padding="14,9" Content="Skip current message" Tag="queue.skipCurrent" Click="ControlButton_Click" />
+                                <Button Margin="4" Padding="14,9" Content="Toggle English-only mode" Tag="moderation.toggleEnglishOnly" Click="ControlButton_Click" />
+                            </WrapPanel>
+                        </GroupBox>
 
-            <Button Margin="0,18,0,0"
-                    Padding="14,9"
-                    HorizontalAlignment="Left"
-                    Content="Accessibility settings"
-                    AutomationProperties.HelpText="Change the screen-reader guidance preference selected during first launch."
-                    Click="AccessibilitySettingsButton_Click" />
+                        <Border Margin="0,14,0,0" Padding="12" BorderBrush="#FF9A6700" BorderThickness="1" CornerRadius="3">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Unavailable controls remain visible and report why they cannot run. Automatic playback, skip, audience selection, strictness selection, and message TTS will be enabled in later milestones." />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-            <TextBlock Margin="0,18,0,4" FontWeight="SemiBold" Text="Latest action" />
-            <TextBlock x:Name="LiveStatus"
-                       MinHeight="48"
-                       Padding="10"
-                       Background="#FFF1F1F1"
-                       Text="SafeSpeak is starting."
-                       TextWrapping="Wrap"
-                       AutomationProperties.LiveSetting="Polite"
-                       AutomationProperties.Name="Latest SafeSpeak action" />
-        </StackPanel>
-    </ScrollViewer>
+            <TabItem Header="TikFinity _bridge">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="14">
+                        <TextBlock FontSize="20" FontWeight="SemiBold" Text="TikFinity local bridge details" />
+                        <TextBlock Margin="0,4,0,12"
+                                   TextWrapping="Wrap"
+                                   Text="SafeSpeak connects only to TikFinity on this computer. It reconnects automatically with a delay capped at 30 seconds." />
+                        <GroupBox Header="Bridge telemetry">
+                            <Grid Margin="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Endpoint:" />
+                                <TextBlock x:Name="BridgeEndpointValue" Grid.Row="0" Grid.Column="1" Margin="12,0,0,0" Text="ws://localhost:21213/" />
+                                <TextBlock Grid.Row="1" FontWeight="SemiBold" Text="Connection state:" />
+                                <TextBlock x:Name="BridgeStateValue" Grid.Row="1" Grid.Column="1" Margin="12,0,0,0" Text="Disconnected" />
+                                <TextBlock Grid.Row="2" FontWeight="SemiBold" Text="Connection attempts:" />
+                                <TextBlock x:Name="BridgeAttemptsValue" Grid.Row="2" Grid.Column="1" Margin="12,0,0,0" Text="0" />
+                                <TextBlock Grid.Row="3" FontWeight="SemiBold" Text="Text events received:" />
+                                <TextBlock x:Name="BridgeEventsValue" Grid.Row="3" Grid.Column="1" Margin="12,0,0,0" Text="0" />
+                                <TextBlock Grid.Row="4" FontWeight="SemiBold" Text="Valid chat messages:" />
+                                <TextBlock x:Name="BridgeAcceptedValue" Grid.Row="4" Grid.Column="1" Margin="12,0,0,0" Text="0" />
+                                <TextBlock Grid.Row="5" FontWeight="SemiBold" Text="Ignored or malformed events:" />
+                                <TextBlock x:Name="BridgeIgnoredValue" Grid.Row="5" Grid.Column="1" Margin="12,0,0,0" Text="0" />
+                                <TextBlock Grid.Row="6" FontWeight="SemiBold" Text="Last valid chat event:" />
+                                <TextBlock x:Name="BridgeLastEventValue" Grid.Row="6" Grid.Column="1" Margin="12,0,0,0" Text="None received" />
+                                <TextBlock Grid.Row="7" FontWeight="SemiBold" Text="Last connection error category:" />
+                                <TextBlock x:Name="BridgeLastErrorValue" Grid.Row="7" Grid.Column="1" Margin="12,0,0,0" Text="None" />
+                            </Grid>
+                        </GroupBox>
+                        <TextBlock Margin="0,12,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="Counters contain no chat text or usernames. Unknown TikFinity event shapes are counted as ignored and are never queued." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="_Accessibility">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="14">
+                        <TextBlock FontSize="20" FontWeight="SemiBold" Text="Accessibility and navigation" />
+                        <TextBlock x:Name="AccessibilitySummaryText"
+                                   Margin="0,6,0,12"
+                                   TextWrapping="Wrap"
+                                   Text="Fully blind mode with SafeSpeak spoken guidance is enabled." />
+                        <Button Padding="14,9"
+                                HorizontalAlignment="Left"
+                                Content="Change _accessibility settings"
+                                AutomationProperties.HelpText="Change the spoken guidance preference selected during first launch."
+                                Click="AccessibilitySettingsButton_Click" />
+                        <GroupBox Margin="0,16,0,0" Header="Keyboard navigation">
+                            <TextBlock Margin="12"
+                                       TextWrapping="Wrap"
+                                       Text="Press Control plus Tab to move through dashboard sections. Press Tab and Shift plus Tab to move through controls. Use arrow keys to review the approved queue. Button labels provide Alt-key shortcuts where available. The Report status button speaks the current safe state when spoken guidance is enabled." />
+                        </GroupBox>
+                        <TextBlock Margin="0,14,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="SafeSpeak spoken guidance complements NVDA, JAWS, and Narrator. All controls remain native and available to screen readers whether spoken guidance is enabled or disabled." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
 </Window>

@@ -24,6 +24,7 @@ app.Map("/", async context =>
     }
 
     using WebSocket socket = await context.WebSockets.AcceptWebSocketAsync();
+    await Task.Delay(TimeSpan.FromSeconds(1), context.RequestAborted);
     foreach (object demoEvent in DemoEvents.All)
     {
         byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(demoEvent));
@@ -31,7 +32,14 @@ app.Map("/", async context =>
         await Task.Delay(TimeSpan.FromMilliseconds(650), context.RequestAborted);
     }
 
-    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Demo complete", context.RequestAborted);
+    try
+    {
+        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Demo complete", context.RequestAborted);
+    }
+    catch (WebSocketException)
+    {
+        // A client may stop between the final fixture and the close handshake.
+    }
 });
 
 await app.RunAsync();

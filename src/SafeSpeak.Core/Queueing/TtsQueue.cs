@@ -11,6 +11,8 @@ public sealed class TtsQueue(int capacity = 50)
 
     public bool IsPaused { get; private set; }
 
+    public int Capacity => capacity;
+
     public int Count
     {
         get
@@ -48,6 +50,14 @@ public sealed class TtsQueue(int capacity = 50)
 
             item = _items.Dequeue();
             return true;
+        }
+    }
+
+    public IReadOnlyList<TtsQueueItem> Snapshot()
+    {
+        lock (_lock)
+        {
+            return _items.ToArray();
         }
     }
 

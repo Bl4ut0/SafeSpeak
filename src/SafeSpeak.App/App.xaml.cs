@@ -54,16 +54,16 @@ public partial class App : Application
             _commandServer = new StreamDeckCommandServer(runtime);
 
             _tikFinity.ConnectionStateChanged += (_, state) =>
-                runtime.SetConnected(state == ConnectionState.Connected);
+                runtime.SetConnectionState(state);
             _tikFinity.MessageReceived += (_, message) =>
                 _ = runtime.ProcessChatMessageAsync(message, _shutdown.Token).AsTask();
 
-            var mainWindow = new MainWindow(runtime, settings, settingsStore, _spokenGuidance);
+            var mainWindow = new MainWindow(runtime, _tikFinity, settings, settingsStore, _spokenGuidance);
             MainWindow = mainWindow;
-            mainWindow.Show();
 
             _ = _tikFinity.RunAsync(_shutdown.Token);
             _ = _commandServer.RunAsync(_shutdown.Token);
+            mainWindow.Show();
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
         {
