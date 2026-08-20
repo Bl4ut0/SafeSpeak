@@ -10,7 +10,11 @@ SafeSpeak should feel calm, legible, and operational under pressure. The visual 
 - Large controls and typography, clear section headings, reduced decorative noise, and readable text status.
 - Persistent arm, emergency stop, skip, and private-status controls.
 - Explicit tab order, access keys, visible three-pixel keyboard focus, Automation names/help, and live regions.
-- Dynamic Windows system brushes for High Contrast compatibility.
+- A calmer light visual system with card surfaces, stronger hierarchy, large controls, written status, and a saved black/white/yellow extra-high-contrast palette.
+- Automatic Windows High Contrast palette support and a thick three-pixel keyboard-focus indicator.
+- Tab-group UI Automation names and help explicitly announce that Left/Right Arrow changes sections and Tab enters the selected section.
+- Independent, labeled broadcast/private audio controls and keyboard-accessible live-event toggles.
+- A single honest Kokoro install action with progress and a 27-voice selector; unavailable neural voices are never presented as working voices.
 - Spoken and visible two-answer reader confirmation with Y/N shortcuts and mismatch restart.
 - Safe feed properties that hide rejected text, unsafe names, and exact hostile rule matches from Narrator.
 
@@ -26,7 +30,7 @@ SafeSpeak should feel calm, legible, and operational under pressure. The visual 
 
 ### P1 — visual quality and confidence
 
-1. Add polished empty, loading, connected, reconnecting, offline, queue-full, and download states.
+1. Add richer illustrated-but-text-equivalent empty, loading, connected, reconnecting, offline, queue-full, and route-failure states.
 2. Add an audio route test, endpoint diagnostics, and a meter with an equivalent written value.
 3. Add consistent icon assets with adjacent text labels; never use icons or colour as the only meaning.
 4. Introduce compact/comfortable density options while preserving minimum target sizes.

@@ -28,6 +28,7 @@ public interface ITikFinityConnector : IAsyncDisposable
     ConnectionState State { get; }
     string EndpointUrl { get; }
     event EventHandler<ChatMessage>? MessageReceived;
+    event EventHandler<LivestreamEvent>? EventReceived;
     event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 
     Task ConnectAsync(CancellationToken cancellationToken = default);

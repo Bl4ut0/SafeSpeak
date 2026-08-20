@@ -6,14 +6,15 @@ Ship one accessible Windows desktop application that runs alongside TikFinity, p
 
 ## Implemented foundation
 
-- TikFinity localhost chat connection and offline emulator.
+- TikFinity localhost connection for chat, gift, follow, share, subscription, join, and like events, plus an offline emulator.
 - Deterministic anti-evasion moderation plus optional local contextual heuristics.
 - Safe author substitution and rejected-content redaction for both speech and UI Automation.
 - Bounded queue, manual/automatic playback, safety arming, skip, pause, clear, and emergency stop.
-- Windows speech, optional offline voice packages, and selectable broadcast endpoint.
+- Windows speech and 27 optional Kokoro offline neural English voices with real ONNX synthesis.
+- Independent broadcast/private endpoints, approved-message mirroring, and redacted private moderation notices.
 - Persisted audio, voice, speech, blocked-term, and moderation preferences.
-- Two-matching-answer integrated-reader setup, settings override, keyboard navigation, UI Automation, and High Contrast-compatible UI.
-- Separate Stream Deck plug-in with 13 controls and no profile mutation.
+- Two-matching-answer integrated-reader setup, settings override, keyboard navigation, descriptive arrow-key tab-group guidance, UI Automation, Windows High Contrast support, and a saved extra-high-contrast theme.
+- Separate Stream Deck plug-in with 24 controls and no profile mutation.
 - Reproducible self-contained ZIP/MSIX builds, CI verification, release hashes, and WinGet manifest generation.
 
 ## Safety defaults
@@ -30,11 +31,11 @@ Ship one accessible Windows desktop application that runs alongside TikFinity, p
 ## Next functional milestones
 
 1. Add probabilistic language identification with understandable confidence controls and regression data for misspellings and code-switching.
-2. Restore TikFinity gift, follow, share, subscription, join, and like event parsing with independent application and Stream Deck toggles.
-3. Implement truly independent broadcast and private-monitor endpoints, mirroring, route tests, missing-device fail-closed behavior, and TikTok LIVE Studio guidance.
-4. Replace or formally constrain the legacy loopback Stream Deck transport with a per-user authenticated channel and expand back to the planned control inventory.
-5. Add privacy-safe diagnostics export, connector/audio self-test, and redacted support bundles.
-6. Add signed model manifests/checksums and clear license/source metadata for every downloadable voice or classifier asset.
+2. Validate supported TikFinity event shapes against release versions and add captured, privacy-safe compatibility fixtures.
+3. Add route test tones, written meters, missing-device fail-closed behavior, and TikTok LIVE Studio setup guidance.
+4. Replace or formally constrain the loopback Stream Deck transport with a per-user authenticated channel.
+5. Add privacy-safe diagnostics export, connector/audio/voice self-tests, and redacted support bundles.
+6. Enforce signed model manifests/checksums in addition to the documented source and license metadata.
 
 ## Accessibility and UI release gates
 

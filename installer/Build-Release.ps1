@@ -150,6 +150,20 @@ if (-not (Test-Path -LiteralPath $executablePath)) {
     throw "Publish completed without the expected desktop executable: $executablePath"
 }
 
+$publishedVoiceDirectory = Join-Path $publishDirectory 'voices'
+$publishedEnglishVoices = @(
+    Get-ChildItem -LiteralPath $publishedVoiceDirectory -Filter '*.npy' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.BaseName -match '^(af|am|bf|bm)_' }
+)
+if ($publishedEnglishVoices.Count -lt 27) {
+    throw "Publish is incomplete: expected at least 27 Kokoro English voice embeddings, found $($publishedEnglishVoices.Count)."
+}
+foreach ($requiredRuntimeFile in @('KokoroSharp.dll', 'Microsoft.ML.OnnxRuntime.dll', 'onnxruntime.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory $requiredRuntimeFile))) {
+        throw "Publish is incomplete: required neural voice runtime is missing: $requiredRuntimeFile"
+    }
+}
+
 # Import libraries and symbols are build-time diagnostics, not desktop runtime payloads.
 Get-ChildItem -LiteralPath $publishDirectory -File -Recurse |
     Where-Object { $_.Extension -in @('.lib', '.pdb') } |
@@ -196,6 +210,10 @@ if ($Format -in @('Msix', 'Both')) {
     )
     if (-not (Test-Path -LiteralPath (Join-Path $verificationDirectory 'SafeSpeak.App.exe'))) {
         throw 'MSIX verification failed: the application executable is missing from the package.'
+    }
+    $verifiedVoiceCount = @(Get-ChildItem -LiteralPath (Join-Path $verificationDirectory 'voices') -Filter '*.npy' -File -ErrorAction SilentlyContinue).Count
+    if ($verifiedVoiceCount -lt 27) {
+        throw "MSIX verification failed: expected at least 27 Kokoro voice embeddings, found $verifiedVoiceCount."
     }
 
     if ($CertificateThumbprint) {

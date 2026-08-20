@@ -231,6 +231,94 @@
       "SupportedInMultiActions": true,
       "Tooltip": "Purge pending TTS queue",
       "UUID": "com.safespeak.streamdeck.clear"
+    },
+    {
+      "Icon": "assets/actions/status", "Name": "TikFinity Connection",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Offline", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Connected", "TitleAlignment": "middle", "TitleColor": "#00FF66" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Connect or disconnect the TikFinity bridge", "UUID": "com.safespeak.streamdeck.connection"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Chat Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Chat Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Chat On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle chat message TTS", "UUID": "com.safespeak.streamdeck.chat"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Gift Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Gifts Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Gifts On", "TitleAlignment": "middle", "TitleColor": "#FFD43B" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle gift announcements", "UUID": "com.safespeak.streamdeck.gifts"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Follow Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Follows Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Follows On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle follow announcements", "UUID": "com.safespeak.streamdeck.follows"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Share Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Shares Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Shares On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle share announcements", "UUID": "com.safespeak.streamdeck.shares"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Subscription Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Subs Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Subs On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle subscription announcements", "UUID": "com.safespeak.streamdeck.subscriptions"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Join Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Joins Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Joins On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle viewer join announcements", "UUID": "com.safespeak.streamdeck.joins"
+    },
+    {
+      "Icon": "assets/actions/context", "Name": "Like Announcements",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Likes Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Likes On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle like announcements", "UUID": "com.safespeak.streamdeck.likes"
+    },
+    {
+      "Icon": "assets/actions/autoplay", "Name": "Broadcast Output",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Broadcast Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Broadcast On", "TitleAlignment": "middle", "TitleColor": "#00FF66" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle the stream broadcast output", "UUID": "com.safespeak.streamdeck.broadcast"
+    },
+    {
+      "Icon": "assets/actions/status", "Name": "Private Monitor",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Monitor Off", "TitleAlignment": "middle", "TitleColor": "#AAAAAA" },
+        { "Image": "assets/states/context_on", "Title": "Monitor On", "TitleAlignment": "middle", "TitleColor": "#00E7F9" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle the private monitoring output", "UUID": "com.safespeak.streamdeck.private"
+    },
+    {
+      "Icon": "assets/actions/status", "Name": "High Contrast Theme",
+      "States": [
+        { "Image": "assets/states/context_off", "Title": "Standard", "TitleAlignment": "middle", "TitleColor": "#FFFFFF" },
+        { "Image": "assets/states/context_on", "Title": "High Contrast", "TitleAlignment": "middle", "TitleColor": "#FFFF00" }
+      ],
+      "SupportedInMultiActions": true, "Tooltip": "Toggle SafeSpeak extra high contrast colors", "UUID": "com.safespeak.streamdeck.highcontrast"
     }
   ],
   "Author": "SafeSpeak",

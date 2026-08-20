@@ -21,8 +21,8 @@
 
         <Border Grid.Row="0"
                 Padding="28,24"
-                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                 BorderThickness="0,0,0,1">
             <StackPanel>
                 <TextBlock Text="SafeSpeak integrated reader" Style="{StaticResource PageTitle}" />
@@ -82,8 +82,8 @@
 
         <Border Grid.Row="2"
                 Padding="28,12"
-                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                 BorderThickness="0,1,0,0">
             <TextBlock Text="Keyboard: press Y for Yes, N for No, or use Tab and Shift + Tab to move between buttons."
                        Style="{StaticResource SecondaryText}"

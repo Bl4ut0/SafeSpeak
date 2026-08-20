@@ -17,6 +17,17 @@ This separately installed Windows plug-in exposes SafeSpeak controls in Elgato's
 11. Play Next
 12. Hear Status
 13. Clear Queue
+14. TikFinity Connect or Disconnect
+15. Chat Announcements
+16. Gift Announcements
+17. Follow Announcements
+18. Share Announcements
+19. Subscription Announcements
+20. Viewer Join Announcements
+21. Like Announcements
+22. Broadcast Output
+23. Private Monitor
+24. High Contrast Theme
 
 The plug-in uses Elgato's local WebSocket host and SafeSpeak's loopback service at `127.0.0.1:21214`. Control requests use POST with a plug-in marker; SafeSpeak rejects ordinary GET controls and non-local web-page origins. This reduces browser-based localhost attacks, but a future per-user authenticated named-pipe transport remains the preferred security design.
 

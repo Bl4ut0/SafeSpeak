@@ -4,16 +4,6 @@ using System.Windows.Data;
 
 namespace SafeSpeak.App.Converters;
 
-public sealed class ArmedToBrushConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        return value is true ? SystemColors.HighlightBrush : SystemColors.ControlBrush;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
-}
-
 public sealed class ArmedToTextConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -29,16 +19,6 @@ public sealed class SpeakingToTextConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         return value is true ? "Speaking" : "Idle";
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
-}
-
-public sealed class ModelStatusToTextConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        return value is true ? "Optional local model installed" : "Built-in safety rules active";
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();

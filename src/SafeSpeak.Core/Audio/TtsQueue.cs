@@ -19,6 +19,7 @@ public sealed class TtsQueue : IAsyncDisposable
 {
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
+    private readonly IAudioRouter? _privateAudioRouter;
     private readonly ConcurrentQueue<ModerationDecision> _queue = new();
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _signal = new(0);
@@ -47,12 +48,16 @@ public sealed class TtsQueue : IAsyncDisposable
     public string? SelectedVoice { get; set; }
     public int SpeechRate { get; set; } = 0;
     public int SpeechVolume { get; set; } = 100;
+    public bool BroadcastOutputEnabled { get; set; } = true;
+    public bool PrivateMonitorEnabled { get; set; }
+    public bool MirrorToPrivateMonitor { get; set; } = true;
 
-    public TtsQueue(ITtsEngine ttsEngine, IAudioRouter audioRouter, int capacity = 50)
+    public TtsQueue(ITtsEngine ttsEngine, IAudioRouter audioRouter, int capacity = 50, IAudioRouter? privateAudioRouter = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
         _ttsEngine = ttsEngine;
         _audioRouter = audioRouter;
+        _privateAudioRouter = privateAudioRouter;
         _capacity = capacity;
         _playbackLoopTask = Task.Run(ProcessQueueLoopAsync);
     }
@@ -116,6 +121,7 @@ public sealed class TtsQueue : IAsyncDisposable
             _activePlaybackCts?.Cancel();
             _ttsEngine.Stop();
             _audioRouter.Stop();
+            _privateAudioRouter?.Stop();
         }
     }
 
@@ -137,6 +143,7 @@ public sealed class TtsQueue : IAsyncDisposable
             _activePlaybackCts?.Cancel();
             _ttsEngine.Stop();
             _audioRouter.Stop();
+            _privateAudioRouter?.Stop();
         }
 
         Clear();
@@ -209,11 +216,20 @@ public sealed class TtsQueue : IAsyncDisposable
                 playbackCts.Token
             );
 
-            await _audioRouter.PlayWaveStreamAsync(
-                waveStream,
-                volume: SpeechVolume / 100.0f,
-                playbackCts.Token
-            );
+            byte[] waveBytes = waveStream.ToArray();
+            var playbackTasks = new List<Task>(2);
+            if (BroadcastOutputEnabled)
+            {
+                playbackTasks.Add(_audioRouter.PlayWaveStreamAsync(
+                    new MemoryStream(waveBytes, writable: false), SpeechVolume / 100.0f, playbackCts.Token));
+            }
+            if (PrivateMonitorEnabled && MirrorToPrivateMonitor && _privateAudioRouter is not null &&
+                (!BroadcastOutputEnabled || _privateAudioRouter.SelectedEndpointId != _audioRouter.SelectedEndpointId))
+            {
+                playbackTasks.Add(_privateAudioRouter.PlayWaveStreamAsync(
+                    new MemoryStream(waveBytes, writable: false), SpeechVolume / 100.0f, playbackCts.Token));
+            }
+            if (playbackTasks.Count > 0) await Task.WhenAll(playbackTasks);
         }
         catch (OperationCanceledException)
         {
@@ -278,6 +294,7 @@ public sealed class TtsQueue : IAsyncDisposable
         _activePlaybackCts?.Cancel();
         _ttsEngine.Stop();
         _audioRouter.Stop();
+        _privateAudioRouter?.Stop();
 
         if (_playbackLoopTask != null)
         {

@@ -30,7 +30,7 @@ After building, `Launch-SafeSpeak.bat` starts the newest verified x64 applicatio
 
 Use `-Format Zip` on a computer without the Windows SDK. Use `-SkipTests` only after tests have already passed in the same clean source revision. `-KeepStaging` preserves the generated MSIX layout for diagnosis.
 
-The publish profiles deliberately produce a multi-file, self-contained application. WPF, ONNX Runtime, NAudio, and other native/runtime files are therefore included explicitly. Trimming and single-file bundling are disabled because both can hide missing native assets until runtime.
+The publish profiles deliberately produce a multi-file, self-contained application. WPF, KokoroSharp, ONNX Runtime, NAudio, voice embeddings, and other native/runtime files are therefore included explicitly. Trimming and single-file bundling are disabled because both can hide missing native assets until runtime. The roughly 326 MB Kokoro model itself is installed only after an explicit in-app request and is not embedded in the base ZIP/MSIX.
 
 ## Signed test package
 

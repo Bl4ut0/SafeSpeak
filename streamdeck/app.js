@@ -94,6 +94,17 @@ function updateButtonState(context, action, state) {
         case "com.safespeak.streamdeck.strictness":
             setTitle(context, state.Strictness || "High");
             return;
+        case "com.safespeak.streamdeck.connection": targetState = state.IsConnected ? 1 : 0; break;
+        case "com.safespeak.streamdeck.chat": targetState = state.AnnounceChatMessages ? 1 : 0; break;
+        case "com.safespeak.streamdeck.gifts": targetState = state.AnnounceGifts ? 1 : 0; break;
+        case "com.safespeak.streamdeck.follows": targetState = state.AnnounceFollows ? 1 : 0; break;
+        case "com.safespeak.streamdeck.shares": targetState = state.AnnounceShares ? 1 : 0; break;
+        case "com.safespeak.streamdeck.subscriptions": targetState = state.AnnounceSubscriptions ? 1 : 0; break;
+        case "com.safespeak.streamdeck.joins": targetState = state.AnnounceJoins ? 1 : 0; break;
+        case "com.safespeak.streamdeck.likes": targetState = state.AnnounceLikes ? 1 : 0; break;
+        case "com.safespeak.streamdeck.broadcast": targetState = state.BroadcastOutputEnabled ? 1 : 0; break;
+        case "com.safespeak.streamdeck.private": targetState = state.PrivateMonitorEnabled ? 1 : 0; break;
+        case "com.safespeak.streamdeck.highcontrast": targetState = state.UseHighContrastTheme ? 1 : 0; break;
     }
 
     websocket.send(JSON.stringify({
@@ -113,6 +124,25 @@ function setTitle(context, title) {
 }
 
 async function handleKeyDown(action, context) {
+    const extraToggleCommands = {
+        "com.safespeak.streamdeck.connection": "toggle_connection",
+        "com.safespeak.streamdeck.chat": "toggle_chat",
+        "com.safespeak.streamdeck.gifts": "toggle_gifts",
+        "com.safespeak.streamdeck.follows": "toggle_follows",
+        "com.safespeak.streamdeck.shares": "toggle_shares",
+        "com.safespeak.streamdeck.subscriptions": "toggle_subscriptions",
+        "com.safespeak.streamdeck.joins": "toggle_joins",
+        "com.safespeak.streamdeck.likes": "toggle_likes",
+        "com.safespeak.streamdeck.broadcast": "toggle_broadcast_output",
+        "com.safespeak.streamdeck.private": "toggle_private_monitor",
+        "com.safespeak.streamdeck.highcontrast": "toggle_high_contrast"
+    };
+    if (extraToggleCommands[action]) {
+        await sendSafeSpeakCommand(extraToggleCommands[action]);
+        await pollSafeSpeakState(context, action);
+        return;
+    }
+
     switch (action) {
         case "com.safespeak.streamdeck.arm": {
             const res = await sendSafeSpeakCommand("toggle_arm");

@@ -9,16 +9,17 @@ SafeSpeak is a Windows-first, accessibility-focused TTS safety application for l
 
 - WPF desktop application targeting .NET 8 on Windows 10 build 19041 or later.
 - A visible and spoken first-run reader question that requires two matching Yes or No answers before saving. A mismatch restarts confirmation without changing settings.
-- Full Tab/Shift+Tab navigation, access keys, large controls, visible keyboard focus, UI Automation names/live regions, and Windows High Contrast system colours.
+- Full Tab/Shift+Tab navigation, access keys, large controls, visible keyboard focus, UI Automation names/live regions, Windows High Contrast support, and a saved in-app extra-high-contrast theme.
 - Four-section dashboard: Live feed, Moderation, Audio, and Accessibility.
-- TikFinity localhost WebSocket connection, reconnection, defensive chat parsing, and an offline emulator.
+- TikFinity localhost WebSocket connection, reconnection, defensive parsing for chat, gifts, follows, shares, subscriptions, joins, and likes, plus an offline emulator.
 - Local Unicode normalization, invisible-character and homoglyph handling, mixed-script rules, built-in/custom terms, audience rules, cooldown, URL removal, and optional contextual heuristic classification.
 - Safe display-name moderation and Narrator-safe redaction of rejected feed content.
 - A bounded 50-message queue that starts disarmed with automatic playback disabled, plus manual play, skip, pause, clear, and emergency cancellation.
-- Installed Windows voices, selectable WASAPI broadcast endpoint, and optional explicitly downloaded offline voice packages.
+- Installed Windows voices plus an optional, explicitly downloaded Kokoro model with 27 genuine local neural English voices.
+- Independently selectable WASAPI broadcast and private-monitor endpoints, optional approved-message mirroring, and safe private blocked-message notices that never speak rejected text.
 - Audio device, voice, rate, volume, blocked-term, and moderation preferences are applied at runtime and saved locally for the next launch.
 - A loopback-only Stream Deck control service hardened against web-page origins and GET-based control requests.
-- A separate 13-action Stream Deck plug-in that never creates or changes a user's profile.
+- A separate 24-action Stream Deck plug-in covering safety, playback, connection, every live-event category, audio outputs, and high contrast. It never creates or changes a user's profile.
 - Repeatable self-contained ZIP and structurally verified MSIX builds for x64 and arm64, plus schema-validated Stream Deck packaging, with pinned .NET SDK and Windows CI.
 
 ## Build and test
@@ -39,7 +40,7 @@ The MSIX path requires Windows SDK packaging tools. Store submissions also requi
 ## Repository layout
 
 - `src/SafeSpeak.App` — accessible WPF desktop application
-- `src/SafeSpeak.Core` — moderation, queue, speech, connector, accessibility, and local-control services
+- `src/SafeSpeak.Core` — moderation, queue, Windows/Kokoro speech, connector, accessibility, audio routing, and local-control services
 - `tests/SafeSpeak.Core.Tests` — deterministic safety, packaging-adjacent, and regression tests
 - `streamdeck` — separately installed Elgato plug-in
 - `installer` — self-contained ZIP/MSIX scripts, manifests, assets, and WinGet generation
@@ -50,12 +51,14 @@ The MSIX path requires Windows SDK packaging tools. Store submissions also requi
 
 - The current English-only option enforces writing-system rules; a full language-identification model is not yet integrated.
 - The current contextual classifier is a local heuristic layer, not a general-purpose language model.
-- TikFinity gifts and other social-event announcements are not yet implemented in this code line.
-- Broadcast audio has a selectable endpoint, but independently configurable broadcast/private output buses still need implementation and acceptance testing.
+- TikFinity payloads can change between releases; the supported event parser must be regression-tested against the installed TikFinity version.
+- Kokoro requires an explicit roughly 326 MB model download. It is not bundled into the base installer, and Windows voices remain available without it.
 - Stream Deck physical-button and full Narrator/NVDA/JAWS acceptance testing remain release gates.
 - Store identity, listing, production artwork, certification answers, signing, and Partner Center submission remain external release steps.
 
 See the [product plan](docs/product-plan.md) and [UI/accessibility roadmap](docs/ui-accessibility-roadmap.md).
+
+Voice source, privacy, and installation details are in [voice engines](docs/voice-engines.md).
 
 ## License
 

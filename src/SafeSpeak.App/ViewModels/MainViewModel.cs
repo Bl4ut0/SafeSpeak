@@ -1,11 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Audio;
-using SafeSpeak.Core.Audio.VoiceFramework;
 using SafeSpeak.Core.Connectors;
 using SafeSpeak.Core.Ipc;
 using SafeSpeak.Core.Models;
@@ -20,10 +20,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly OfflineEventSimulator _simulator;
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
+    private readonly IAudioRouter _privateAudioRouter;
     private readonly TtsQueue _ttsQueue;
     private readonly ScreenReaderAnnouncer _announcer;
     private readonly StreamDeckIpcServer _ipcServer;
     private readonly AppSettings _settings;
+    private readonly SemaphoreSlim _privateAnnouncementLock = new(1, 1);
+    private bool _isInitializing = true;
 
     [ObservableProperty]
     private bool _isArmed;
@@ -50,6 +53,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string _selectedAudioEndpoint = "";
 
     [ObservableProperty]
+    private string _selectedPrivateAudioEndpoint = "";
+
+    [ObservableProperty]
     private string _selectedVoice = "";
 
     [ObservableProperty]
@@ -73,10 +79,49 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private double _voiceDownloadProgress = 0;
 
+    [ObservableProperty]
+    private bool _broadcastOutputEnabled = true;
+
+    [ObservableProperty]
+    private bool _privateMonitorEnabled;
+
+    [ObservableProperty]
+    private bool _mirrorApprovedMessagesToPrivateMonitor = true;
+
+    [ObservableProperty]
+    private bool _privateModerationNoticesEnabled = true;
+
+    [ObservableProperty]
+    private bool _announceChatMessages = true;
+
+    [ObservableProperty]
+    private bool _announceGifts = true;
+
+    [ObservableProperty]
+    private bool _announceFollows = true;
+
+    [ObservableProperty]
+    private bool _announceShares = true;
+
+    [ObservableProperty]
+    private bool _announceSubscriptions = true;
+
+    [ObservableProperty]
+    private bool _announceJoins;
+
+    [ObservableProperty]
+    private bool _announceLikes;
+
+    [ObservableProperty]
+    private bool _useHighContrastTheme;
+
     public ObservableCollection<ModerationDecision> LiveFeed { get; } = new();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
-    public IReadOnlyList<NeuralVoiceCatalogItem> DownloadableVoices => LocalNeuralVoiceManager.AvailableCatalog;
+    public bool IsKokoroInstalled => _kokoroManager.IsInstalled;
+    public string KokoroInstallationStatus => IsKokoroInstalled
+        ? $"Installed. {KokoroModelManager.EnglishVoices.Count} offline neural voices are available."
+        : "Optional. Installs one local model with 27 English voices; speech stays on this computer.";
 
     public ModerationConfig Config => _pipeline.Config;
     public ScreenReaderAnnouncer Announcer => _announcer;
@@ -84,8 +129,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         ? "SafeSpeak spoken guidance is enabled"
         : "SafeSpeak spoken guidance is disabled; Windows Narrator and other UI Automation readers remain supported";
 
-    private readonly LocalNeuralVoiceManager _neuralVoiceManager;
-    private readonly VoicePackageManager _packageManager;
+    private readonly KokoroModelManager _kokoroManager;
 
     public MainViewModel()
     {
@@ -93,15 +137,28 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _pipeline = new ModerationPipeline(_settings.CreateModerationConfig());
         _tikFinityConnector = new TikFinityWebSocketClient();
         _simulator = new OfflineEventSimulator();
-        _neuralVoiceManager = new LocalNeuralVoiceManager();
-        _packageManager = new VoicePackageManager();
-        _ttsEngine = new ModularTtsEngine(_neuralVoiceManager, _packageManager);
+        _kokoroManager = new KokoroModelManager();
+        _ttsEngine = new ModularTtsEngine(_kokoroManager);
         _audioRouter = new WasapiAudioRouter();
-        _ttsQueue = new TtsQueue(_ttsEngine, _audioRouter);
-        SelectedAudioEndpoint = _settings.SelectedAudioEndpointId ?? string.Empty;
+        _privateAudioRouter = new WasapiAudioRouter();
+        _ttsQueue = new TtsQueue(_ttsEngine, _audioRouter, privateAudioRouter: _privateAudioRouter);
+        SelectedAudioEndpoint = _settings.SelectedBroadcastEndpointId ?? _settings.SelectedAudioEndpointId ?? string.Empty;
+        SelectedPrivateAudioEndpoint = _settings.SelectedPrivateEndpointId ?? string.Empty;
         SelectedVoice = _settings.SelectedVoiceName ?? string.Empty;
         SpeechRate = Math.Clamp(_settings.SpeechRate, -5, 5);
         SpeechVolume = Math.Clamp(_settings.SpeechVolume, 0, 100);
+        BroadcastOutputEnabled = _settings.BroadcastOutputEnabled;
+        PrivateMonitorEnabled = _settings.PrivateMonitorEnabled;
+        MirrorApprovedMessagesToPrivateMonitor = _settings.MirrorApprovedMessagesToPrivateMonitor;
+        PrivateModerationNoticesEnabled = _settings.PrivateModerationNoticesEnabled;
+        AnnounceChatMessages = _settings.AnnounceChatMessages;
+        AnnounceGifts = _settings.AnnounceGifts;
+        AnnounceFollows = _settings.AnnounceFollows;
+        AnnounceShares = _settings.AnnounceShares;
+        AnnounceSubscriptions = _settings.AnnounceSubscriptions;
+        AnnounceJoins = _settings.AnnounceJoins;
+        AnnounceLikes = _settings.AnnounceLikes;
+        UseHighContrastTheme = _settings.UseHighContrastTheme;
         _announcer = new ScreenReaderAnnouncer();
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsIntegratedReaderEnabled;
 
@@ -114,12 +171,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         LoadSystemAudioAndVoices();
 
         _ipcServer.Start();
+        _isInitializing = false;
 
     }
 
     private void WireEvents()
     {
-        _tikFinityConnector.MessageReceived += async (_, msg) => await HandleIncomingMessageAsync(msg);
+        _tikFinityConnector.EventReceived += async (_, evt) => await HandleIncomingEventAsync(evt);
         _tikFinityConnector.StateChanged += (_, e) =>
         {
             Application.Current?.Dispatcher.Invoke(() =>
@@ -185,6 +243,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 ?? string.Empty;
         }
         _audioRouter.SelectEndpoint(string.IsNullOrEmpty(SelectedAudioEndpoint) ? null : SelectedAudioEndpoint);
+        if (string.IsNullOrEmpty(SelectedPrivateAudioEndpoint) || !AudioEndpoints.Any(e => e.Id == SelectedPrivateAudioEndpoint))
+        {
+            SelectedPrivateAudioEndpoint = AudioEndpoints.FirstOrDefault(e => e.IsDefault)?.Id
+                ?? AudioEndpoints.FirstOrDefault()?.Id
+                ?? string.Empty;
+        }
+        _privateAudioRouter.SelectEndpoint(string.IsNullOrEmpty(SelectedPrivateAudioEndpoint) ? null : SelectedPrivateAudioEndpoint);
 
         Voices.Clear();
         foreach (var voice in _ttsEngine.GetAvailableVoices())
@@ -204,12 +269,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ttsQueue.SelectedVoice = string.IsNullOrEmpty(SelectedVoice) ? null : SelectedVoice;
         _ttsQueue.SpeechRate = SpeechRate;
         _ttsQueue.SpeechVolume = SpeechVolume;
+        _ttsQueue.BroadcastOutputEnabled = BroadcastOutputEnabled;
+        _ttsQueue.PrivateMonitorEnabled = PrivateMonitorEnabled;
+        _ttsQueue.MirrorToPrivateMonitor = MirrorApprovedMessagesToPrivateMonitor;
     }
 
     partial void OnSelectedAudioEndpointChanged(string value)
     {
         _audioRouter?.SelectEndpoint(string.IsNullOrEmpty(value) ? null : value);
+        if (_isInitializing) return;
         _settings.SelectedAudioEndpointId = string.IsNullOrEmpty(value) ? null : value;
+        _settings.SelectedBroadcastEndpointId = string.IsNullOrEmpty(value) ? null : value;
+        _settings.Save();
+    }
+
+    partial void OnSelectedPrivateAudioEndpointChanged(string value)
+    {
+        _privateAudioRouter?.SelectEndpoint(string.IsNullOrEmpty(value) ? null : value);
+        if (_isInitializing) return;
+        _settings.SelectedPrivateEndpointId = string.IsNullOrEmpty(value) ? null : value;
         _settings.Save();
     }
 
@@ -219,6 +297,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             _ttsQueue.SelectedVoice = string.IsNullOrEmpty(value) ? null : value;
         }
+        if (_isInitializing) return;
         _settings.SelectedVoiceName = string.IsNullOrEmpty(value) ? null : value;
         _settings.Save();
     }
@@ -226,6 +305,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnSpeechRateChanged(int value)
     {
         if (_ttsQueue is not null) _ttsQueue.SpeechRate = Math.Clamp(value, -5, 5);
+        if (_isInitializing) return;
         _settings.SpeechRate = Math.Clamp(value, -5, 5);
         _settings.Save();
     }
@@ -233,8 +313,97 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnSpeechVolumeChanged(int value)
     {
         if (_ttsQueue is not null) _ttsQueue.SpeechVolume = Math.Clamp(value, 0, 100);
+        if (_isInitializing) return;
         _settings.SpeechVolume = Math.Clamp(value, 0, 100);
         _settings.Save();
+    }
+
+    partial void OnBroadcastOutputEnabledChanged(bool value) => SaveOutputSettings();
+    partial void OnPrivateMonitorEnabledChanged(bool value) => SaveOutputSettings();
+    partial void OnMirrorApprovedMessagesToPrivateMonitorChanged(bool value) => SaveOutputSettings();
+    partial void OnPrivateModerationNoticesEnabledChanged(bool value) => SaveOutputSettings();
+    partial void OnAnnounceChatMessagesChanged(bool value) => SaveEventSettings();
+    partial void OnAnnounceGiftsChanged(bool value) => SaveEventSettings();
+    partial void OnAnnounceFollowsChanged(bool value) => SaveEventSettings();
+    partial void OnAnnounceSharesChanged(bool value) => SaveEventSettings();
+    partial void OnAnnounceSubscriptionsChanged(bool value) => SaveEventSettings();
+    partial void OnAnnounceJoinsChanged(bool value) => SaveEventSettings();
+    partial void OnAnnounceLikesChanged(bool value) => SaveEventSettings();
+    partial void OnUseHighContrastThemeChanged(bool value)
+    {
+        ThemeManager.Apply(value);
+        if (_isInitializing) return;
+        _settings.UseHighContrastTheme = value;
+        _settings.Save();
+    }
+
+    private void SaveOutputSettings()
+    {
+        if (_ttsQueue is null) return;
+        _ttsQueue.BroadcastOutputEnabled = BroadcastOutputEnabled;
+        _ttsQueue.PrivateMonitorEnabled = PrivateMonitorEnabled;
+        _ttsQueue.MirrorToPrivateMonitor = MirrorApprovedMessagesToPrivateMonitor;
+        if (_isInitializing) return;
+        _settings.BroadcastOutputEnabled = BroadcastOutputEnabled;
+        _settings.PrivateMonitorEnabled = PrivateMonitorEnabled;
+        _settings.MirrorApprovedMessagesToPrivateMonitor = MirrorApprovedMessagesToPrivateMonitor;
+        _settings.PrivateModerationNoticesEnabled = PrivateModerationNoticesEnabled;
+        _settings.Save();
+    }
+
+    private void SaveEventSettings()
+    {
+        if (_isInitializing) return;
+        _settings.AnnounceChatMessages = AnnounceChatMessages;
+        _settings.AnnounceGifts = AnnounceGifts;
+        _settings.AnnounceFollows = AnnounceFollows;
+        _settings.AnnounceShares = AnnounceShares;
+        _settings.AnnounceSubscriptions = AnnounceSubscriptions;
+        _settings.AnnounceJoins = AnnounceJoins;
+        _settings.AnnounceLikes = AnnounceLikes;
+        _settings.Save();
+    }
+
+    private async Task HandleIncomingEventAsync(LivestreamEvent liveEvent)
+    {
+        if (liveEvent.Type == LivestreamEventType.Chat)
+        {
+            if (AnnounceChatMessages) await HandleIncomingMessageAsync(liveEvent.ToChatMessage());
+            return;
+        }
+
+        bool enabled = liveEvent.Type switch
+        {
+            LivestreamEventType.Gift => AnnounceGifts,
+            LivestreamEventType.Follow => AnnounceFollows,
+            LivestreamEventType.Share => AnnounceShares,
+            LivestreamEventType.Subscribe => AnnounceSubscriptions,
+            LivestreamEventType.Join => AnnounceJoins,
+            LivestreamEventType.Like => AnnounceLikes,
+            _ => false
+        };
+        if (!enabled) return;
+
+        string name = string.IsNullOrWhiteSpace(liveEvent.AuthorDisplayName) ? "A viewer" : liveEvent.AuthorDisplayName;
+        string spoken = liveEvent.Type switch
+        {
+            LivestreamEventType.Gift => $"{name} sent {liveEvent.GiftCount} {liveEvent.GiftName} gift{(liveEvent.GiftCount == 1 ? "" : "s")}",
+            LivestreamEventType.Follow => $"{name} followed the stream",
+            LivestreamEventType.Share => $"{name} shared the stream",
+            LivestreamEventType.Subscribe => $"{name} subscribed",
+            LivestreamEventType.Join => $"{name} joined",
+            LivestreamEventType.Like => $"{name} liked the stream",
+            _ => string.Empty
+        };
+        await HandleIncomingMessageAsync(new ChatMessage
+        {
+            Author = liveEvent.Author,
+            AuthorDisplayName = string.Empty,
+            RawText = spoken,
+            AuthorTier = liveEvent.AuthorTier,
+            IsSubscriber = liveEvent.IsSubscriber,
+            IsModerator = liveEvent.IsModerator
+        });
     }
 
     private async Task HandleIncomingMessageAsync(ChatMessage message)
@@ -251,7 +420,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
             if (decision.Passed)
             {
-                _announcer.PlayCue(SoundCueType.MessageApproved);
                 if (!_ttsQueue.Enqueue(decision))
                 {
                     AnnounceState("The approved message queue is full. A new message was not added.");
@@ -262,6 +430,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 _announcer.PlayCue(SoundCueType.MessageBlocked);
             }
         });
+
+        if (!decision.Passed && PrivateMonitorEnabled && PrivateModerationNoticesEnabled)
+        {
+            await SpeakPrivateNoticeAsync($"Message from {decision.SafeAuthorDisplayName} blocked. {decision.SafeReasonDescription}");
+        }
+    }
+
+    private async Task SpeakPrivateNoticeAsync(string text)
+    {
+        await _privateAnnouncementLock.WaitAsync();
+        try
+        {
+            using var wave = new MemoryStream();
+            await _ttsEngine.SynthesizeToWaveStreamAsync(text, wave, SelectedVoice, SpeechRate, SpeechVolume);
+            await _privateAudioRouter.PlayWaveStreamAsync(wave, SpeechVolume / 100f);
+        }
+        catch { }
+        finally { _privateAnnouncementLock.Release(); }
     }
 
     [RelayCommand]
@@ -410,88 +596,30 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    public async Task DownloadVoicePackage(NeuralVoiceCatalogItem item)
+    public async Task InstallKokoro()
     {
         if (IsDownloadingVoice) return;
-
         IsDownloadingVoice = true;
         VoiceDownloadProgress = 0;
-        AnnounceState($"Downloading natural neural voice: {item.DisplayName}...");
-
-        var progress = new Progress<double>(p => VoiceDownloadProgress = p);
-        bool success = await _neuralVoiceManager.DownloadVoicePackageAsync(item, progress);
-
-        IsDownloadingVoice = false;
-
-        if (success)
-        {
-            LoadSystemAudioAndVoices();
-            SelectedVoice = item.Id;
-            AnnounceState($"Voice {item.DisplayName} installed and activated!");
-        }
-        else
-        {
-            AnnounceState($"Failed to download voice package {item.DisplayName}. Check internet connection.");
-        }
-    }
-
-    [RelayCommand]
-    public async Task ImportVoicePackage()
-    {
+        AnnounceState(IsKokoroInstalled ? "Kokoro is already installed." : "Installing Kokoro offline voices. This download is about 330 megabytes.");
         try
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Select SafeSpeak Voice Package Archive",
-                Filter = "SafeSpeak Voice Packages (*.safespeak-voice;*.zip)|*.safespeak-voice;*.zip|All Files (*.*)|*.*",
-                Multiselect = false
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                AnnounceState("Importing voice package...");
-                var packageInfo = await _packageManager.ImportPackageFromZipAsync(dialog.FileName);
-
-                LoadSystemAudioAndVoices();
-                SelectedVoice = packageInfo.Manifest.Id;
-
-                AnnounceState($"Successfully imported voice: {packageInfo.Manifest.DisplayName} by {packageInfo.Manifest.Author}!");
-            }
+            var progress = new Progress<double>(value => VoiceDownloadProgress = value);
+            await _kokoroManager.InstallAsync(progress);
+            LoadSystemAudioAndVoices();
+            SelectedVoice = KokoroModelManager.VoicePrefix + "af_heart";
+            OnPropertyChanged(nameof(IsKokoroInstalled));
+            OnPropertyChanged(nameof(KokoroInstallationStatus));
+            AnnounceState("Kokoro installed. Twenty seven offline neural voices are now available.");
         }
         catch (Exception ex)
         {
-            AnnounceState($"Failed to import voice pack: {ex.Message}");
+            AnnounceState($"Kokoro installation failed: {ex.Message}");
         }
-    }
-
-    [RelayCommand]
-    public void OpenCustomPacksFolder()
-    {
-        try
+        finally
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = _packageManager.VoicePacksRoot,
-                UseShellExecute = true
-            });
-            AnnounceState("Opening SafeSpeak custom voice packs directory");
+            IsDownloadingVoice = false;
         }
-        catch { }
-    }
-
-    [RelayCommand]
-    public void OpenVoicesFolder()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = _neuralVoiceManager.VoicesDirectory,
-                UseShellExecute = true
-            });
-            AnnounceState("Opening SafeSpeak neural voices folder");
-        }
-        catch { }
     }
 
     public void AnnounceState(string text, bool interrupt = false)
@@ -515,7 +643,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             EnglishOnly = Config.EnglishOnly,
             RejectMixedScripts = Config.RejectMixedScripts,
             SpeakUsernames = Config.SpeakUsernames,
-            AiClassificationEnabled = Config.AiClassificationEnabled
+            AiClassificationEnabled = Config.AiClassificationEnabled,
+            IsConnected = IsConnected,
+            AnnounceChatMessages = AnnounceChatMessages,
+            AnnounceGifts = AnnounceGifts,
+            AnnounceFollows = AnnounceFollows,
+            AnnounceShares = AnnounceShares,
+            AnnounceSubscriptions = AnnounceSubscriptions,
+            AnnounceJoins = AnnounceJoins,
+            AnnounceLikes = AnnounceLikes,
+            BroadcastOutputEnabled = BroadcastOutputEnabled,
+            PrivateMonitorEnabled = PrivateMonitorEnabled,
+            UseHighContrastTheme = UseHighContrastTheme
         };
     }
 
@@ -590,6 +729,21 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     AnnounceState(Config.AiClassificationEnabled ? "AI Intent Classifier enabled" : "AI Intent Classifier disabled");
                     return Config.AiClassificationEnabled ? "AiClassifierEnabled" : "AiClassifierDisabled";
 
+                case "toggle_connection":
+                    if (IsConnected) await DisconnectTikFinity(); else await ConnectTikFinity();
+                    return IsConnected ? "Connected" : "Disconnected";
+
+                case "toggle_chat": AnnounceChatMessages = !AnnounceChatMessages; return ToggleResult("Chat", AnnounceChatMessages);
+                case "toggle_gifts": AnnounceGifts = !AnnounceGifts; return ToggleResult("Gifts", AnnounceGifts);
+                case "toggle_follows": AnnounceFollows = !AnnounceFollows; return ToggleResult("Follows", AnnounceFollows);
+                case "toggle_shares": AnnounceShares = !AnnounceShares; return ToggleResult("Shares", AnnounceShares);
+                case "toggle_subscriptions": AnnounceSubscriptions = !AnnounceSubscriptions; return ToggleResult("Subscriptions", AnnounceSubscriptions);
+                case "toggle_joins": AnnounceJoins = !AnnounceJoins; return ToggleResult("Joins", AnnounceJoins);
+                case "toggle_likes": AnnounceLikes = !AnnounceLikes; return ToggleResult("Likes", AnnounceLikes);
+                case "toggle_broadcast_output": BroadcastOutputEnabled = !BroadcastOutputEnabled; return ToggleResult("BroadcastOutput", BroadcastOutputEnabled);
+                case "toggle_private_monitor": PrivateMonitorEnabled = !PrivateMonitorEnabled; return ToggleResult("PrivateMonitor", PrivateMonitorEnabled);
+                case "toggle_high_contrast": UseHighContrastTheme = !UseHighContrastTheme; return ToggleResult("HighContrast", UseHighContrastTheme);
+
                 case "cycle_audience":
                     Config.AudienceMode = Config.AudienceMode switch
                     {
@@ -641,6 +795,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         });
     }
 
+    private string ToggleResult(string setting, bool enabled)
+    {
+        AnnounceState($"{setting} {(enabled ? "enabled" : "disabled")}");
+        return setting + (enabled ? "Enabled" : "Disabled");
+    }
+
     public async ValueTask DisposeAsync()
     {
         SaveSettings();
@@ -650,13 +810,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         await _ttsQueue.DisposeAsync();
         _ttsEngine.Dispose();
         _audioRouter.Dispose();
+        _privateAudioRouter.Dispose();
         _announcer.Dispose();
+        _privateAnnouncementLock.Dispose();
     }
 
     private void SaveSettings()
     {
         _settings.CaptureModerationConfig(Config);
         _settings.SelectedAudioEndpointId = string.IsNullOrEmpty(SelectedAudioEndpoint) ? null : SelectedAudioEndpoint;
+        _settings.SelectedBroadcastEndpointId = string.IsNullOrEmpty(SelectedAudioEndpoint) ? null : SelectedAudioEndpoint;
+        _settings.SelectedPrivateEndpointId = string.IsNullOrEmpty(SelectedPrivateAudioEndpoint) ? null : SelectedPrivateAudioEndpoint;
         _settings.SelectedVoiceName = string.IsNullOrEmpty(SelectedVoice) ? null : SelectedVoice;
         _settings.SpeechRate = Math.Clamp(SpeechRate, -5, 5);
         _settings.SpeechVolume = Math.Clamp(SpeechVolume, 0, 100);

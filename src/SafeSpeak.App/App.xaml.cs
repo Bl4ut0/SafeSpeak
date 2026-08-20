@@ -33,6 +33,12 @@ public partial class App : Application
         try
         {
             var settings = AppSettings.Load();
+            ThemeManager.Apply(settings.UseHighContrastTheme);
+            SystemParameters.StaticPropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(SystemParameters.HighContrast))
+                    ThemeManager.Apply(AppSettings.Load().UseHighContrastTheme);
+            };
 
             if (!settings.HasConfirmedReaderPreference)
             {

@@ -43,8 +43,8 @@
         <!-- Always-visible operating controls. State is written in text, never color alone. -->
         <Border Grid.Row="0"
                 Padding="20,14"
-                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                 BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.RowDefinitions>
@@ -115,11 +115,12 @@
                     Margin="16,12,16,10"
                     TabIndex="10"
                     KeyboardNavigation.TabNavigation="Continue"
-                    AutomationProperties.Name="SafeSpeak sections">
+                    AutomationProperties.Name="SafeSpeak sections, tab group. Use Left and Right Arrow keys to move between tabs."
+                    AutomationProperties.HelpText="This is a navigable tab group. Press Left or Right Arrow to choose Live feed, Moderation, Audio, or Accessibility. Press Tab to enter the selected section.">
 
             <TabItem Header="_Live feed"
-                     AutomationProperties.Name="Live feed tab"
-                     AutomationProperties.HelpText="Review moderated messages and control TikFinity and queue playback.">
+                     AutomationProperties.Name="Live feed tab, one of four"
+                     AutomationProperties.HelpText="Review moderated messages and control TikFinity and queue playback. Use Left and Right Arrow keys to change tabs.">
                 <Grid Margin="10,14,10,8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -228,8 +229,8 @@
             </TabItem>
 
             <TabItem Header="_Moderation"
-                     AutomationProperties.Name="Moderation tab"
-                     AutomationProperties.HelpText="Configure language, script, username, and local contextual safety rules.">
+                     AutomationProperties.Name="Moderation tab, two of four"
+                     AutomationProperties.HelpText="Configure language, script, username, and local contextual safety rules. Use Left and Right Arrow keys to change tabs.">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="10,14,10,8" MaxWidth="900" HorizontalAlignment="Stretch">
                         <TextBlock Text="Moderation controls" Style="{StaticResource PageTitle}" Margin="0,0,0,4" />
@@ -271,17 +272,33 @@
                             </StackPanel>
                         </GroupBox>
 
+                        <GroupBox Header="Live event announcements" AutomationProperties.Name="Live event announcement settings">
+                            <StackPanel>
+                                <TextBlock Text="Choose exactly which TikTok LIVE events enter the speech queue. Every option is also available as a Stream Deck action."
+                                           Style="{StaticResource SecondaryText}" Margin="0,0,0,8" />
+                                <WrapPanel>
+                                    <CheckBox TabIndex="27" Width="210" IsChecked="{Binding AnnounceChatMessages}" Content="_Chat messages" />
+                                    <CheckBox TabIndex="28" Width="210" IsChecked="{Binding AnnounceGifts}" Content="_Gifts" />
+                                    <CheckBox TabIndex="29" Width="210" IsChecked="{Binding AnnounceFollows}" Content="_Follows" />
+                                    <CheckBox TabIndex="30" Width="210" IsChecked="{Binding AnnounceShares}" Content="_Shares" />
+                                    <CheckBox TabIndex="31" Width="210" IsChecked="{Binding AnnounceSubscriptions}" Content="S_ubscriptions" />
+                                    <CheckBox TabIndex="32" Width="210" IsChecked="{Binding AnnounceJoins}" Content="_Viewer joins" />
+                                    <CheckBox TabIndex="33" Width="210" IsChecked="{Binding AnnounceLikes}" Content="_Likes" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </GroupBox>
+
                         <GroupBox Header="Additional blocked terms" AutomationProperties.Name="Additional blocked terms">
                             <StackPanel>
                                 <TextBlock Text="Add one term or phrase. Built-in severe-abuse rules remain active."
                                            Style="{StaticResource SecondaryText}" Margin="0,0,0,8" />
                                 <DockPanel LastChildFill="True">
-                                    <Button DockPanel.Dock="Right" TabIndex="28"
+                                    <Button DockPanel.Dock="Right" TabIndex="35"
                                             Margin="10,0,0,0"
                                             Command="{Binding AddCustomBlockedTermCommand}"
                                             Content="_Add term"
                                             AutomationProperties.Name="Add blocked term" />
-                                    <TextBox TabIndex="27"
+                                    <TextBox TabIndex="34"
                                              Text="{Binding CustomBlockedInput, UpdateSourceTrigger=PropertyChanged}"
                                              AutomationProperties.Name="New blocked term"
                                              AutomationProperties.HelpText="Type a word or phrase, then choose Add term." />
@@ -293,24 +310,45 @@
             </TabItem>
 
             <TabItem Header="_Audio"
-                     AutomationProperties.Name="Audio tab"
-                     AutomationProperties.HelpText="Choose the broadcast output, voice, speed, volume, and offline voice packages.">
+                     AutomationProperties.Name="Audio tab, three of four"
+                     AutomationProperties.HelpText="Choose broadcast and private outputs, voice, speed, volume, and offline voices. Use Left and Right Arrow keys to change tabs.">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="10,14,10,8" MaxWidth="900" HorizontalAlignment="Stretch">
                         <TextBlock Text="Audio and voices" Style="{StaticResource PageTitle}" Margin="0,0,0,4" />
                         <TextBlock Text="Route approved speech to your broadcast device and choose how messages sound."
                                    Style="{StaticResource SecondaryText}" Margin="0,0,0,18" />
 
-                        <GroupBox Header="Broadcast output" AutomationProperties.Name="Broadcast audio output">
+                        <GroupBox Header="Broadcast and private outputs" AutomationProperties.Name="Broadcast and private audio outputs">
                             <StackPanel>
-                                <Label Target="{Binding ElementName=OutputDeviceCombo}" Content="_Output device" Margin="-5,0,0,2" />
+                                <CheckBox TabIndex="41" IsChecked="{Binding BroadcastOutputEnabled}"
+                                          Content="Enable _broadcast output"
+                                          AutomationProperties.HelpText="Sends approved speech to the broadcast output device." />
+                                <Label Target="{Binding ElementName=OutputDeviceCombo}" Content="Broadcast _output device" Margin="-5,4,0,2" />
                                 <ComboBox x:Name="OutputDeviceCombo" TabIndex="31"
                                           ItemsSource="{Binding AudioEndpoints}"
                                           SelectedValuePath="Id"
                                           SelectedValue="{Binding SelectedAudioEndpoint}"
                                           DisplayMemberPath="Name"
                                           AutomationProperties.Name="Broadcast output device" />
-                                <Button TabIndex="32" Margin="0,12,0,0" HorizontalAlignment="Left"
+
+                                <CheckBox TabIndex="43" Margin="0,12,0,0" IsChecked="{Binding PrivateMonitorEnabled}"
+                                          Content="Enable _private monitor"
+                                          AutomationProperties.HelpText="Plays a private copy on a second output for the streamer." />
+                                <Label Target="{Binding ElementName=PrivateOutputDeviceCombo}" Content="_Private monitor device" Margin="-5,4,0,2" />
+                                <ComboBox x:Name="PrivateOutputDeviceCombo" TabIndex="44"
+                                          ItemsSource="{Binding AudioEndpoints}"
+                                          SelectedValuePath="Id"
+                                          SelectedValue="{Binding SelectedPrivateAudioEndpoint}"
+                                          DisplayMemberPath="Name"
+                                          AutomationProperties.Name="Private monitor output device" />
+                                <CheckBox TabIndex="45" IsChecked="{Binding MirrorApprovedMessagesToPrivateMonitor}"
+                                          Content="Mirror approved messages to the private monitor" />
+                                <CheckBox TabIndex="46" IsChecked="{Binding PrivateModerationNoticesEnabled}"
+                                          Content="Speak safe _blocked-message notices on the private monitor"
+                                          AutomationProperties.HelpText="Announces the safe author name and rejection category privately, but never reads the blocked message." />
+                                <TextBlock Text="For isolated stream audio, choose a virtual cable as broadcast and headphones as private. Single-output mode works without extra software."
+                                           Style="{StaticResource SecondaryText}" Margin="0,8,0,0" />
+                                <Button TabIndex="47" Margin="0,12,0,0" HorizontalAlignment="Left"
                                         Command="{Binding OpenVirtualCableGuideCommand}"
                                         Content="Open _virtual audio cable guide"
                                         AutomationProperties.HelpText="Opens instructions for routing SafeSpeak separately from other computer audio." />
@@ -320,7 +358,7 @@
                         <GroupBox Header="Voice and delivery" AutomationProperties.Name="Voice and delivery settings">
                             <StackPanel>
                                 <Label Target="{Binding ElementName=VoiceCombo}" Content="Active _voice" Margin="-5,0,0,2" />
-                                <ComboBox x:Name="VoiceCombo" TabIndex="33"
+                                <ComboBox x:Name="VoiceCombo" TabIndex="47"
                                           ItemsSource="{Binding Voices}"
                                           SelectedValuePath="Id"
                                           SelectedValue="{Binding SelectedVoice}"
@@ -328,14 +366,14 @@
                                           AutomationProperties.Name="Active text to speech voice" />
 
                                 <Label Target="{Binding ElementName=RateSlider}" Content="Speech _rate" Margin="-5,10,0,0" />
-                                <Slider x:Name="RateSlider" TabIndex="34"
+                                <Slider x:Name="RateSlider" TabIndex="48"
                                         Minimum="-5" Maximum="5" Value="{Binding SpeechRate}"
                                         TickFrequency="1" IsSnapToTickEnabled="True"
                                         AutomationProperties.Name="Speech rate" />
                                 <TextBlock Text="{Binding SpeechRate, StringFormat=Current rate: {0}}" Style="{StaticResource SecondaryText}" />
 
                                 <Label Target="{Binding ElementName=VolumeSlider}" Content="Speech _volume" Margin="-5,10,0,0" />
-                                <Slider x:Name="VolumeSlider" TabIndex="35"
+                                <Slider x:Name="VolumeSlider" TabIndex="49"
                                         Minimum="0" Maximum="100" Value="{Binding SpeechVolume}"
                                         TickFrequency="5" IsSnapToTickEnabled="True"
                                         AutomationProperties.Name="Speech volume" />
@@ -343,46 +381,21 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Offline natural voice packages" AutomationProperties.Name="Offline natural voice packages">
+                        <GroupBox Header="Kokoro offline natural voices" AutomationProperties.Name="Kokoro offline natural voices">
                             <StackPanel>
-                                <TextBlock Text="Download a package once, then generate speech locally without sending chat text to a cloud voice service."
-                                           Style="{StaticResource SecondaryText}" Margin="0,0,0,12" />
-                                <ItemsControl ItemsSource="{Binding DownloadableVoices}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource StatusCard}" Margin="0,0,0,10" Padding="14">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="16" TextWrapping="Wrap" />
-                                                        <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" />
-                                                    </StackPanel>
-                                                    <Button Grid.Column="1"
-                                                            Command="{Binding DataContext.DownloadVoicePackageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="_Download and activate"
-                                                            AutomationProperties.Name="{Binding DisplayName, StringFormat=Download and activate {0}}" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <TextBlock Text="{Binding KokoroInstallationStatus}" Style="{StaticResource BodyText}"
+                                           AutomationProperties.LiveSetting="Polite" />
+                                <TextBlock Text="The optional model is downloaded once. All synthesis then runs locally, and the voice dropdown gains American and British voices."
+                                           Style="{StaticResource SecondaryText}" Margin="0,6,0,12" />
+                                <Button TabIndex="50" HorizontalAlignment="Left"
+                                        Command="{Binding InstallKokoroCommand}"
+                                        Content="_Install Kokoro voices"
+                                        AutomationProperties.Name="Install Kokoro offline voices"
+                                        AutomationProperties.HelpText="Downloads approximately 330 megabytes and installs twenty seven local English voices." />
                                 <ProgressBar Value="{Binding VoiceDownloadProgress}"
                                              Height="12" Margin="0,4,0,12"
                                              Visibility="{Binding IsDownloadingVoice, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="Voice package download progress" />
-                                <WrapPanel>
-                                    <Button TabIndex="36" Margin="0,0,8,8"
-                                            Command="{Binding ImportVoicePackageCommand}"
-                                            Content="_Import voice package"
-                                            AutomationProperties.Name="Import a SafeSpeak voice package" />
-                                    <Button TabIndex="37" Margin="0,0,0,8"
-                                            Command="{Binding OpenCustomPacksFolderCommand}"
-                                            Content="Open voice packages _folder" />
-                                </WrapPanel>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
@@ -390,8 +403,8 @@
             </TabItem>
 
             <TabItem Header="_Accessibility"
-                     AutomationProperties.Name="Accessibility tab"
-                     AutomationProperties.HelpText="Change integrated reader behavior and review global keyboard shortcuts.">
+                     AutomationProperties.Name="Accessibility tab, four of four"
+                     AutomationProperties.HelpText="Change integrated reader and visual settings and review keyboard shortcuts. Use Left and Right Arrow keys to change tabs.">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="10,14,10,8" MaxWidth="900" HorizontalAlignment="Stretch">
                         <TextBlock Text="Accessibility" Style="{StaticResource PageTitle}" Margin="0,0,0,4" />
@@ -411,6 +424,16 @@
                                         Content="_Change integrated reader setting"
                                         AutomationProperties.Name="Change SafeSpeak integrated reader setting"
                                         AutomationProperties.HelpText="Opens the accessible setup and requires two matching confirmations before remembering the choice." />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Visual accessibility" AutomationProperties.Name="Visual accessibility settings">
+                            <StackPanel>
+                                <CheckBox TabIndex="52" IsChecked="{Binding UseHighContrastTheme}"
+                                          Content="Use SafeSpeak extra _high contrast theme"
+                                          AutomationProperties.HelpText="Uses black surfaces, white text, and yellow focus and accent colors. Windows High Contrast is also supported automatically." />
+                                <TextBlock Text="This theme can be used independently of Windows High Contrast and is saved for the next launch. Keyboard focus always uses a thick visible outline."
+                                           Style="{StaticResource SecondaryText}" />
                             </StackPanel>
                         </GroupBox>
 
@@ -438,8 +461,8 @@
 
         <Border Grid.Row="2"
                 Padding="16,9"
-                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                 BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>

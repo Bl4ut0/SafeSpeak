@@ -14,6 +14,7 @@ public sealed class OfflineEventSimulator : ITikFinityConnector
     public string EndpointUrl => "simulator://offline";
 
     public event EventHandler<ChatMessage>? MessageReceived;
+    public event EventHandler<LivestreamEvent>? EventReceived;
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 
     public Task ConnectAsync(CancellationToken cancellationToken = default)
@@ -46,6 +47,15 @@ public sealed class OfflineEventSimulator : ITikFinityConnector
         };
 
         MessageReceived?.Invoke(this, msg);
+        EventReceived?.Invoke(this, new LivestreamEvent
+        {
+            Type = LivestreamEventType.Chat,
+            Author = msg.Author,
+            AuthorDisplayName = msg.AuthorDisplayName,
+            Text = msg.RawText,
+            AuthorTier = msg.AuthorTier,
+            TimestampUtc = msg.TimestampUtc
+        });
     }
 
     /// <summary>

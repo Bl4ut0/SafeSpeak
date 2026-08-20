@@ -40,6 +40,7 @@ public class MockAudioRouter : IAudioRouter
 {
     public string? SelectedEndpointId { get; private set; }
     public bool WasStopped { get; private set; }
+    public int PlaybackCount { get; private set; }
 
     public IReadOnlyList<AudioEndpointInfo> GetOutputEndpoints() => new List<AudioEndpointInfo>
     {
@@ -53,6 +54,7 @@ public class MockAudioRouter : IAudioRouter
 
     public Task PlayWaveStreamAsync(Stream waveStream, float volume = 1, CancellationToken cancellationToken = default)
     {
+        PlaybackCount++;
         return Task.CompletedTask;
     }
 
@@ -153,6 +155,28 @@ public class TtsQueueTests
 
         await WaitUntilAsync(() => mockTts.SpeakCount == 2);
         Assert.Equal(0, queue.Count);
+    }
+
+    [Fact]
+    public async Task PrivateMonitor_MirrorsApprovedSpeechToSecondEndpoint()
+    {
+        var mockTts = new MockTtsEngine();
+        var broadcast = new MockAudioRouter();
+        var privateMonitor = new MockAudioRouter();
+        broadcast.SelectEndpoint("broadcast");
+        privateMonitor.SelectEndpoint("headphones");
+        await using var queue = new TtsQueue(mockTts, broadcast, privateAudioRouter: privateMonitor)
+        {
+            BroadcastOutputEnabled = true,
+            PrivateMonitorEnabled = true,
+            MirrorToPrivateMonitor = true
+        };
+
+        queue.Enqueue(Approved("Hello"));
+        await queue.PlayNextManualAsync();
+
+        Assert.Equal(1, broadcast.PlaybackCount);
+        Assert.Equal(1, privateMonitor.PlaybackCount);
     }
 
     private static ModerationDecision Approved(string text) => new()

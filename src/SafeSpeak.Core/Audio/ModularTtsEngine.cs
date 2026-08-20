@@ -1,30 +1,21 @@
 using System.Speech.Synthesis;
-using SafeSpeak.Core.Audio.VoiceFramework;
 
 namespace SafeSpeak.Core.Audio;
 
 /// <summary>
-/// Unified modular TTS engine aggregating Windows Natural Voices (OneCore),
-/// Local Neural ONNX voice packs, and SAPI5 voices.
+/// Unified TTS engine routing each advertised voice to its real Windows or Kokoro provider.
 /// </summary>
 public sealed class ModularTtsEngine : ITtsEngine
 {
     private SpeechSynthesizer? _synthesizer;
-    private readonly LocalNeuralVoiceManager _neuralVoiceManager;
+    private readonly KokoroModelManager _kokoroManager;
     private readonly object _lock = new();
 
-    private readonly VoicePackageManager _packageManager;
+    public KokoroModelManager KokoroManager => _kokoroManager;
 
-    public LocalNeuralVoiceManager NeuralVoiceManager => _neuralVoiceManager;
-    public VoicePackageManager PackageManager => _packageManager;
-
-    public ModularTtsEngine(LocalNeuralVoiceManager? neuralVoiceManager = null, VoicePackageManager? packageManager = null)
+    public ModularTtsEngine(KokoroModelManager? kokoroManager = null)
     {
-        _neuralVoiceManager = neuralVoiceManager ?? new LocalNeuralVoiceManager();
-        _packageManager = packageManager ?? new VoicePackageManager();
-
-        // Unlock modern Windows 10/11 OneCore natural voices
-        OneCoreVoiceBridge.UnlockOneCoreVoices();
+        _kokoroManager = kokoroManager ?? new KokoroModelManager();
 
         InitializeSynthesizer();
     }
@@ -44,38 +35,12 @@ public sealed class ModularTtsEngine : ITtsEngine
         {
             var list = new List<VoiceInfo>();
 
-            // 1. Scan Custom Imported User Voice Packs (.safespeak-voice)
-            foreach (var pack in _packageManager.GetInstalledPackages())
+            if (_kokoroManager.IsInstalled)
             {
-                list.Add(new VoiceInfo(
-                    pack.Manifest.Id,
-                    $"👑 [Custom] {pack.Manifest.DisplayName} (by {pack.Manifest.Author})",
-                    "Custom Voice Pack",
-                    pack.Manifest.Culture,
-                    pack.Manifest.Gender,
-                    pack.Manifest.Description,
-                    true
-                ));
+                list.AddRange(KokoroModelManager.EnglishVoices);
             }
 
-            // 2. Scan Local Neural ONNX voices in %LocalAppData%\SafeSpeak\Voices
-            foreach (var catalogItem in LocalNeuralVoiceManager.AvailableCatalog)
-            {
-                if (_neuralVoiceManager.IsVoiceInstalled(catalogItem.Id))
-                {
-                    list.Add(new VoiceInfo(
-                        catalogItem.Id,
-                        $"🌟 [Local Neural] {catalogItem.DisplayName}",
-                        "Piper Neural ONNX",
-                        catalogItem.Culture,
-                        catalogItem.Gender,
-                        catalogItem.Description,
-                        true
-                    ));
-                }
-            }
-
-            // 2. Scan Windows SAPI & OneCore Natural Voices
+            // Windows SAPI voices are always available without a separate model download.
             if (_synthesizer != null)
             {
                 try
@@ -87,12 +52,12 @@ public sealed class ModularTtsEngine : ITtsEngine
                                          info.Description.Contains("OneCore", StringComparison.OrdinalIgnoreCase) ||
                                          info.Name.Contains("Natural", StringComparison.OrdinalIgnoreCase);
 
-                        string prefix = isOneCore ? "✨ [Natural]" : "🖥️ [System]";
+                        string prefix = isOneCore ? "Natural" : "System";
                         string provider = isOneCore ? "Windows OneCore Natural" : "Windows Desktop SAPI";
 
                         list.Add(new VoiceInfo(
                             info.Name,
-                            $"{prefix} {info.Name}",
+                            $"{prefix} — {info.Name}",
                             provider,
                             info.Culture.Name,
                             info.Gender.ToString(),
@@ -116,7 +81,7 @@ public sealed class ModularTtsEngine : ITtsEngine
         }
     }
 
-    public Task SynthesizeToWaveStreamAsync(
+    public async Task SynthesizeToWaveStreamAsync(
         string text,
         Stream outputStream,
         string? voiceId = null,
@@ -124,7 +89,13 @@ public sealed class ModularTtsEngine : ITtsEngine
         int volume = 100,
         CancellationToken cancellationToken = default)
     {
-        return Task.Run(() =>
+        if (!string.IsNullOrWhiteSpace(voiceId) && voiceId.StartsWith(KokoroModelManager.VoicePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            await _kokoroManager.SynthesizeAsync(text, outputStream, voiceId, rate, cancellationToken);
+            return;
+        }
+
+        await Task.Run(() =>
         {
             lock (_lock)
             {
@@ -202,6 +173,7 @@ public sealed class ModularTtsEngine : ITtsEngine
         {
             _synthesizer?.Dispose();
             _synthesizer = null;
+            _kokoroManager.Dispose();
         }
     }
 }

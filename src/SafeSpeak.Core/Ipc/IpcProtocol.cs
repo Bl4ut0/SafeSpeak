@@ -20,4 +20,15 @@ public sealed record IpcStateBroadcast
     public bool RejectMixedScripts { get; init; } = true;
     public bool SpeakUsernames { get; init; } = false;
     public bool AiClassificationEnabled { get; init; } = false;
+    public bool IsConnected { get; init; }
+    public bool AnnounceChatMessages { get; init; }
+    public bool AnnounceGifts { get; init; }
+    public bool AnnounceFollows { get; init; }
+    public bool AnnounceShares { get; init; }
+    public bool AnnounceSubscriptions { get; init; }
+    public bool AnnounceJoins { get; init; }
+    public bool AnnounceLikes { get; init; }
+    public bool BroadcastOutputEnabled { get; init; }
+    public bool PrivateMonitorEnabled { get; init; }
+    public bool UseHighContrastTheme { get; init; }
 }

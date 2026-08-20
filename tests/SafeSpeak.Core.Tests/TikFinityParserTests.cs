@@ -50,6 +50,35 @@ public class TikFinityParserTests
     }
 
     [Fact]
+    public void ParseLivestreamEvent_ParsesGiftDetails()
+    {
+        const string json = """
+        { "event": "gift", "data": { "nickname": "Ada", "uniqueId": "ada_1", "giftName": "Rose", "giftCount": 3, "diamondCount": 3 } }
+        """;
+
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent(json);
+
+        Assert.NotNull(liveEvent);
+        Assert.Equal(LivestreamEventType.Gift, liveEvent.Type);
+        Assert.Equal("Ada", liveEvent.AuthorDisplayName);
+        Assert.Equal("Rose", liveEvent.GiftName);
+        Assert.Equal(3, liveEvent.GiftCount);
+    }
+
+    [Theory]
+    [InlineData("follow", LivestreamEventType.Follow)]
+    [InlineData("share", LivestreamEventType.Share)]
+    [InlineData("subscribe", LivestreamEventType.Subscribe)]
+    [InlineData("join", LivestreamEventType.Join)]
+    [InlineData("like", LivestreamEventType.Like)]
+    public void ParseLivestreamEvent_RecognizesSupportedEvents(string eventName, LivestreamEventType expected)
+    {
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent($$"""{ "event": "{{eventName}}", "data": { "nickname": "Viewer" } }""");
+        Assert.NotNull(liveEvent);
+        Assert.Equal(expected, liveEvent.Type);
+    }
+
+    [Fact]
     public void ParseTikFinityEvent_HandlesMalformedJsonGracefullyWithoutThrowing()
     {
         string invalidJson = "{ invalid json content ...";

@@ -6,6 +6,17 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="KokoroSharp" Version="0.8.4" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <!-- KokoroSharp's upstream target copies voice embeddings after Build but not after Publish.
+       Declare the English embeddings explicitly so portable and MSIX releases are complete. -->
+  <ItemGroup>
+    <Content Include="$(PkgKokoroSharp)\content\voices\af_*.npy;$(PkgKokoroSharp)\content\voices\am_*.npy;$(PkgKokoroSharp)\content\voices\bf_*.npy;$(PkgKokoroSharp)\content\voices\bm_*.npy">
+      <Link>voices\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <PropertyGroup>
