@@ -1,0 +1,255 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Actions": [
+    {
+      "Icon": "assets/actions/arm",
+      "Name": "Arm / Disarm",
+      "States": [
+        {
+          "Image": "assets/states/disarmed",
+          "Title": "Disarmed",
+          "TitleAlignment": "middle",
+          "TitleColor": "#888888"
+        },
+        {
+          "Image": "assets/states/armed",
+          "Title": "Armed",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00FF66"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Toggle SafeSpeak TTS Armed state",
+      "UUID": "com.safespeak.streamdeck.arm"
+    },
+    {
+      "Icon": "assets/actions/autoplay",
+      "Name": "Auto-Play Toggle",
+      "States": [
+        {
+          "Image": "assets/states/manual",
+          "Title": "Manual",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FFAA00"
+        },
+        {
+          "Image": "assets/states/auto",
+          "Title": "AutoPlay",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00E7F9"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Toggle between automatic speech and manual queue review",
+      "UUID": "com.safespeak.streamdeck.autoplay"
+    },
+    {
+      "Icon": "assets/actions/pause",
+      "Name": "Pause / Resume",
+      "States": [
+        {
+          "Image": "assets/states/play",
+          "Title": "Playing",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00FF66"
+        },
+        {
+          "Image": "assets/states/pause",
+          "Title": "Paused",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FFAA00"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Pause or resume the TTS playback queue",
+      "UUID": "com.safespeak.streamdeck.pause"
+    },
+    {
+      "Icon": "assets/actions/english",
+      "Name": "English-Only Toggle",
+      "States": [
+        {
+          "Image": "assets/states/multilingual",
+          "Title": "Multi-Lang",
+          "TitleAlignment": "middle",
+          "TitleColor": "#888888"
+        },
+        {
+          "Image": "assets/states/english",
+          "Title": "English Only",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00E7F9"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Toggle strict English/Latin script enforcement",
+      "UUID": "com.safespeak.streamdeck.english"
+    },
+    {
+      "Icon": "assets/actions/usernames",
+      "Name": "Speak Usernames Toggle",
+      "States": [
+        {
+          "Image": "assets/states/usernames_off",
+          "Title": "No Names",
+          "TitleAlignment": "middle",
+          "TitleColor": "#888888"
+        },
+        {
+          "Image": "assets/states/usernames_on",
+          "Title": "Names On",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00E7F9"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Toggle speaking author usernames before comments",
+      "UUID": "com.safespeak.streamdeck.usernames"
+    },
+    {
+      "Icon": "assets/actions/context",
+      "Name": "AI Classifier Toggle",
+      "States": [
+        {
+          "Image": "assets/states/context_off",
+          "Title": "AI Off",
+          "TitleAlignment": "middle",
+          "TitleColor": "#888888"
+        },
+        {
+          "Image": "assets/states/context_on",
+          "Title": "AI Active",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00E7F9"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Toggle local contextual and heuristic safety checks",
+      "UUID": "com.safespeak.streamdeck.aiclassifier"
+    },
+    {
+      "Icon": "assets/actions/audience",
+      "Name": "Cycle Audience Tier",
+      "States": [
+        {
+          "Image": "assets/states/audience",
+          "Title": "Audience",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FFFFFF"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Cycle audience restriction: All -> Followers -> Subs -> Mods",
+      "UUID": "com.safespeak.streamdeck.audience"
+    },
+    {
+      "Icon": "assets/actions/strictness",
+      "Name": "Cycle Strictness",
+      "States": [
+        {
+          "Image": "assets/states/strictness",
+          "Title": "Strictness",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FFFFFF"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Cycle moderation sensitivity: Standard -> High -> Maximum",
+      "UUID": "com.safespeak.streamdeck.strictness"
+    },
+    {
+      "Icon": "assets/actions/panic",
+      "Name": "Emergency Panic",
+      "States": [
+        {
+          "Image": "assets/states/panic",
+          "Title": "PANIC",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FF3333"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Instantly kills audio, disarms system, and purges queue",
+      "UUID": "com.safespeak.streamdeck.panic"
+    },
+    {
+      "Icon": "assets/actions/skip",
+      "Name": "Skip Message",
+      "States": [
+        {
+          "Image": "assets/states/skip",
+          "Title": "Skip",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FFFFFF"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Skip currently playing message",
+      "UUID": "com.safespeak.streamdeck.skip"
+    },
+    {
+      "Icon": "assets/actions/next",
+      "Name": "Play Next",
+      "States": [
+        {
+          "Image": "assets/states/next",
+          "Title": "Play Next",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00FF66"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Play the next message in the manual queue",
+      "UUID": "com.safespeak.streamdeck.next"
+    },
+    {
+      "Icon": "assets/actions/status",
+      "Name": "Announce Status",
+      "States": [
+        {
+          "Image": "assets/states/status",
+          "Title": "Status",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00E7F9"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Privately speak system status into streamer headphones",
+      "UUID": "com.safespeak.streamdeck.status"
+    },
+    {
+      "Icon": "assets/actions/clear",
+      "Name": "Clear Queue",
+      "States": [
+        {
+          "Image": "assets/states/clear",
+          "Title": "Clear",
+          "TitleAlignment": "middle",
+          "TitleColor": "#FFAA00"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Purge pending TTS queue",
+      "UUID": "com.safespeak.streamdeck.clear"
+    }
+  ],
+  "Author": "SafeSpeak",
+  "Category": "SafeSpeak",
+  "CategoryIcon": "assets/category",
+  "CodePath": "app.html",
+  "Description": "SafeSpeak live moderation & TTS controls for livestreamers.",
+  "Icon": "assets/plugin",
+  "Name": "SafeSpeak",
+  "UUID": "com.safespeak.streamdeck",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.6"
+  },
+  "Version": "1.0.0.0",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ]
+}

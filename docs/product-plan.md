@@ -1,132 +1,64 @@
-# SafeSpeak product plan
+# SafeSpeak product and release plan
 
-## Objective
+## Goal
 
-Deliver a single accessible Windows application that runs alongside TikFinity, receives TikTok LIVE chat from TikFinity's local WebSocket, blocks abusive or evasive messages, and exposes approved TTS as a named Windows audio session. A bundled Stream Deck plug-in provides physical controls without changing the user's existing profiles.
+Ship one accessible Windows desktop application that runs alongside TikFinity, prevents unapproved chat from reaching TTS, gives blind and sighted streamers direct playback control, and supports Microsoft Store distribution without requiring a cloud subscription.
 
-## Deployment model
+## Implemented foundation
 
-- One Windows installer.
-- One SafeSpeak application launched alongside TikFinity.
-- One Elgato plug-in installed during setup and hosted automatically by Stream Deck.
-- Local moderation model and rule data included with the installer.
-- No required cloud service or recurring usage cost.
-
-The plug-in only adds SafeSpeak actions to Elgato's action list. It must not install, replace, select, or edit a Stream Deck profile. A sighted helper can place desired actions into the user's established layout.
-
-## Core components
-
-### TikFinity connector
-
-- Connect to `ws://localhost:21213/`.
-- Parse chat events defensively and ignore unknown fields.
-- Reconnect with bounded backoff.
-- Reject malformed and oversized payloads.
-- Report connection health without retaining message content.
-- Include an offline event simulator for development and support.
-
-### Moderation pipeline
-
-1. Validate message length and event structure.
-2. Apply audience eligibility and user cooldown rules.
-3. Normalize Unicode, invisible characters, spacing, repetition, and common substitutions.
-4. Detect mixed or disallowed writing systems.
-5. Apply configurable literal and normalized block rules.
-6. Run a local toxicity classifier when enabled.
-7. Approve, hold for manual playback, or reject.
-8. Queue only approved text for speech.
-
-Usernames are not spoken by default and must pass the same checks when enabled.
-
-### TTS and audio
-
-- Use an offline Windows voice for the first release.
-- Create one named broadcast audio session: `SafeSpeak TTS`.
-- Select a Windows output endpoint or follow the default endpoint.
-- Provide a routing test and immediate emergency cancellation.
-- Keep private accessibility feedback out of the broadcast audio session.
-
-### Stream Deck plug-in
-
-- Communicate with SafeSpeak through a local authenticated channel.
-- Expose independent actions in Elgato's normal action list.
-- Synchronize toggle state from SafeSpeak instead of assuming a press succeeded.
-- Never alter existing profiles or layouts.
-- Show a disconnected state when SafeSpeak is not running.
-
-Initial actions:
-
-- Arm or disarm TTS.
-- Enable or disable automatic playback.
-- Play next approved message.
-- Skip the current message.
-- Pause or resume the queue.
-- Clear the queue.
-- Emergency stop and clear.
-- Announce status privately.
-- Cycle audience mode.
-- Cycle moderation strictness.
-- Toggle English-only TTS.
-- Play configurable preset messages.
-
-### Accessibility
-
-SafeSpeak is accessible in every mode. On first launch it asks whether the user is fully blind and wants screen-reader-optimized operation. That preference enables additional private announcements and guidance but does not gate basic accessibility.
-
-Requirements:
-
-- Native controls with useful accessible names and descriptions.
-- Complete keyboard operation with logical focus order.
-- Screen-reader announcements for state changes and errors.
-- No information conveyed only by colour, position, or animation.
-- No rejected message spoken as part of a warning.
-- A status command that reports connection, armed state, queue state, and output route.
-
-### Diagnostics and privacy
-
-- Built-in TikFinity and Stream Deck simulators.
-- One-command self-test for connector, moderation, TTS, audio, and controls.
-- Exportable support package containing versions, settings, event shapes, and error codes.
-- Chat text and usernames excluded from support packages by default.
-- Rejected content not persisted unless the user explicitly enables a bounded diagnostic session.
+- TikFinity localhost chat connection and offline emulator.
+- Deterministic anti-evasion moderation plus optional local contextual heuristics.
+- Safe author substitution and rejected-content redaction for both speech and UI Automation.
+- Bounded queue, manual/automatic playback, safety arming, skip, pause, clear, and emergency stop.
+- Windows speech, optional offline voice packages, and selectable broadcast endpoint.
+- Persisted audio, voice, speech, blocked-term, and moderation preferences.
+- Two-matching-answer integrated-reader setup, settings override, keyboard navigation, UI Automation, and High Contrast-compatible UI.
+- Separate Stream Deck plug-in with 13 controls and no profile mutation.
+- Reproducible self-contained ZIP/MSIX builds, CI verification, release hashes, and WinGet manifest generation.
 
 ## Safety defaults
 
-- Start disarmed after installation or an unexpected restart.
-- English-only TTS enabled.
-- Unicode normalization and invisible-character removal enabled.
-- Mixed writing systems rejected.
-- Usernames and URLs not spoken.
-- Conservative message length, cooldown, and queue limits.
-- Classifier, connector, or output-device failure pauses automatic speech.
+- Start disarmed.
+- Start with automatic playback disabled.
+- English writing-system and mixed-script checks enabled.
+- Severe built-in terms cannot be overridden by user allow-list entries.
+- Usernames are not spoken unless enabled and always pass a separate safety check.
+- Queue capacity is 50; overflow does not evict previously reviewed items.
+- Rejected message text, unsafe names, and exact matched hostile terms are not exposed to Narrator.
+- Models and voices are downloaded only after explicit user action.
 
-## Testing strategy
+## Next functional milestones
 
-- Unit tests for deterministic moderation transforms and policies.
-- Regression corpus for Unicode confusables, zero-width characters, spacing, repetition, mixed scripts, and known TTS evasions.
-- Fuzz tests for malformed TikFinity payloads.
-- Simulated floods, duplicates, disconnects, and reconnects.
-- Queue cancellation and fail-closed tests.
-- Screen-reader inspection and keyboard-only walkthroughs.
-- Stream Deck protocol tests with a mock host.
-- Installer, upgrade, uninstall, and settings-migration tests.
-- A guided acceptance test on the streamer's real TikFinity, audio, screen-reader, and Stream Deck setup.
+1. Add probabilistic language identification with understandable confidence controls and regression data for misspellings and code-switching.
+2. Restore TikFinity gift, follow, share, subscription, join, and like event parsing with independent application and Stream Deck toggles.
+3. Implement truly independent broadcast and private-monitor endpoints, mirroring, route tests, missing-device fail-closed behavior, and TikTok LIVE Studio guidance.
+4. Replace or formally constrain the legacy loopback Stream Deck transport with a per-user authenticated channel and expand back to the planned control inventory.
+5. Add privacy-safe diagnostics export, connector/audio self-test, and redacted support bundles.
+6. Add signed model manifests/checksums and clear license/source metadata for every downloadable voice or classifier asset.
 
-## Milestones
+## Accessibility and UI release gates
 
-1. Connector contracts, simulator, and moderation core.
-2. Accessible Windows shell and first-run setup.
-3. TTS queue and named Windows audio session.
-4. Stream Deck plug-in and state synchronization.
-5. Local model integration and attack regression suite.
-6. Self-diagnostics and privacy-safe support export.
-7. Installer and real-machine acceptance test.
+- Complete blind-user task testing with Narrator, NVDA, and JAWS.
+- Verify every task at 100%, 200%, and 400% scaling and under Windows High Contrast themes.
+- Automate focus-order, accessible-name, and live-region regression checks where practical.
+- Add designed empty, loading, reconnecting, offline, download, and route-failure states.
+- Verify that rejected content never reaches integrated speech or external screen readers.
+- Let a sighted helper place selected actions in the streamer's existing Stream Deck profile; never automate profile changes.
+
+## Store and deployment gates
+
+- Reserve SafeSpeak in Partner Center and use the assigned package Identity Name and Publisher.
+- Replace generated development assets with final production artwork and Store screenshots.
+- Provide privacy policy, support URL, age rating, accessibility evidence, and `runFullTrust` justification.
+- Test clean install, upgrade, repair, uninstall, app-data preservation, and rollback.
+- Run Windows App Certification Kit and clean-machine x64/arm64 smoke tests.
+- Produce a Store candidate with a zero revision component and upload through Partner Center.
+- Publish WinGet metadata only after the exact signed public artifact and hashes exist.
 
 ## Out of scope for the first release
 
-- Direct connection to TikTok without TikFinity.
-- Automatic modification of Stream Deck profiles.
+- Direct TikTok authentication without TikFinity.
+- Deleting chat messages, banning users, or moderating TikTok accounts.
+- Automatic Stream Deck profile creation or editing.
 - Cloud-required moderation.
-- Moderating or deleting TikTok chat messages on the platform.
-- Guaranteeing detection of every possible abusive utterance.
-
+- A guarantee that every abusive or evasive utterance will be detected.

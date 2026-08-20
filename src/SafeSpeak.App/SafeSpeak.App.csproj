@@ -4,12 +4,31 @@
     <ProjectReference Include="..\SafeSpeak.Core\SafeSpeak.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>SafeSpeak.App</AssemblyName>
+    <RootNamespace>SafeSpeak.App</RootNamespace>
+    <AssemblyTitle>SafeSpeak</AssemblyTitle>
+    <Product>SafeSpeak</Product>
+    <Description>Accessible TTS moderation and playback for livestreamers.</Description>
+    <Company>SafeSpeak</Company>
+    <Authors>SafeSpeak contributors</Authors>
+    <Copyright>Copyright (c) SafeSpeak contributors</Copyright>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <RepositoryUrl>https://github.com/Bl4ut0/SafeSpeak</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
 </Project>

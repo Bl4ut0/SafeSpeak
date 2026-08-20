@@ -1,8 +1,36 @@
 # SafeSpeak Stream Deck plug-in
 
-This directory will contain the Elgato Stream Deck plug-in.
+This separately installed Windows plug-in exposes SafeSpeak controls in Elgato's action list. It never creates, imports, selects, replaces, or edits a Stream Deck profile. A sighted helper can add only the desired buttons to the streamer's existing layout.
 
-The plug-in exposes SafeSpeak actions in Elgato's standard action list. It never creates, replaces, selects, or edits a user's Stream Deck profile. A sighted helper can add and position actions in the user's existing layout.
+## Current actions
 
-At runtime the plug-in is hosted by Stream Deck and communicates locally with the SafeSpeak Windows application.
+1. Arm or Disarm
+2. Automatic Playback
+3. Pause or Resume
+4. English-only Mode
+5. Speak Usernames
+6. Local Contextual Classifier
+7. Cycle Audience
+8. Cycle Strictness
+9. Emergency Stop
+10. Skip Message
+11. Play Next
+12. Hear Status
+13. Clear Queue
 
+The plug-in uses Elgato's local WebSocket host and SafeSpeak's loopback service at `127.0.0.1:21214`. Control requests use POST with a plug-in marker; SafeSpeak rejects ordinary GET controls and non-local web-page origins. This reduces browser-based localhost attacks, but a future per-user authenticated named-pipe transport remains the preferred security design.
+
+## Build and installation
+
+The MSIX intentionally does not modify Stream Deck. SafeSpeak keeps the plug-in separate so it cannot replace or alter an existing profile.
+
+Install Elgato's current Stream Deck CLI once on the development machine, then validate and package the installer:
+
+```powershell
+npm install -g @elgato/cli@latest
+./streamdeck/Build-Plugin.ps1
+```
+
+The build script regenerates correctly sized assets, validates the manifest against Elgato's current schema, stages a `com.safespeak.streamdeck.sdPlugin` directory, and creates a `.streamDeckPlugin` installer in `artifacts`. Open that installer through Stream Deck, then let the streamer or a sighted helper place only the desired actions manually.
+
+Before release, verify every action on physical Stream Deck hardware, state refresh after reconnect, the app-closed alert path, and that no user profile changes occur automatically.

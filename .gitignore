@@ -15,4 +15,5 @@ coverage/
 secrets.json
 *.pfx
 *.snk
-
+installer/winget/*.yaml
+installer/winget/*.yml

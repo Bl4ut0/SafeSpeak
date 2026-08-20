@@ -1,0 +1,93 @@
+<Window x:Class="SafeSpeak.App.Views.AccessibilitySetupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SafeSpeak — Integrated reader setup"
+        Height="560" Width="780"
+        MinHeight="500" MinWidth="640"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        KeyboardNavigation.TabNavigation="Cycle"
+        FocusManager.FocusedElement="{Binding ElementName=YesButton}"
+        AutomationProperties.Name="SafeSpeak integrated reader setup"
+        AutomationProperties.HelpText="Answer the same yes or no question twice. Press Y for yes or N for no at any time.">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Padding="28,24"
+                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBlock Text="SafeSpeak integrated reader" Style="{StaticResource PageTitle}" />
+                <TextBlock Text="A short, spoken setup with two matching confirmations"
+                           Style="{StaticResource SecondaryText}" Margin="0,5,0,0" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="28,24" MaxWidth="720">
+                <TextBlock Text="{Binding AnswerProgress}"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Margin="0,0,0,12"
+                           AutomationProperties.Name="{Binding AnswerProgress}"
+                           AutomationProperties.LiveSetting="Assertive" />
+
+                <Border Style="{StaticResource StatusCard}" Padding="22">
+                    <StackPanel>
+                        <TextBlock Text="{Binding PromptText}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   LineHeight="29"
+                                   AutomationProperties.Name="{Binding PromptText}"
+                                   AutomationProperties.LiveSetting="Assertive" />
+                        <TextBlock Text="{Binding StatusText}"
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,14,0,0"
+                                   AutomationProperties.Name="{Binding StatusText}"
+                                   AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </Border>
+
+                <UniformGrid Columns="2" Margin="0,22,0,0">
+                    <Button x:Name="YesButton"
+                            TabIndex="1"
+                            Margin="0,0,8,0"
+                            MinHeight="66"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding AnswerYesCommand}"
+                            Content="_Yes — enable reader"
+                            AutomationProperties.Name="Yes, enable the SafeSpeak integrated reader"
+                            AutomationProperties.HelpText="Choose Yes. Keyboard shortcut Y." />
+                    <Button TabIndex="2"
+                            Margin="8,0,0,0"
+                            MinHeight="66"
+                            Command="{Binding AnswerNoCommand}"
+                            Content="_No — use external reader"
+                            AutomationProperties.Name="No, do not enable the SafeSpeak integrated reader"
+                            AutomationProperties.HelpText="Choose No. Windows Narrator and other screen readers can still read every control. Keyboard shortcut N." />
+                </UniformGrid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2"
+                Padding="28,12"
+                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                BorderThickness="0,1,0,0">
+            <TextBlock Text="Keyboard: press Y for Yes, N for No, or use Tab and Shift + Tab to move between buttons."
+                       Style="{StaticResource SecondaryText}"
+                       AutomationProperties.Name="Keyboard help. Press Y for Yes or N for No." />
+        </Border>
+    </Grid>
+</Window>

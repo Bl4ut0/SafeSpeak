@@ -1,0 +1,47 @@
+name: Desktop build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      packageVersion:
+        description: Four-part MSIX version
+        required: true
+        default: 0.1.0.0
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build, test, and package desktop application
+        shell: pwsh
+        run: |
+          $version = '${{ inputs.packageVersion }}'
+          if ([string]::IsNullOrWhiteSpace($version)) { $version = '0.1.0.0' }
+          ./installer/Build-Release.ps1 -Architecture x64 -PackageVersion $version -Format Both
+
+      - name: Upload verified desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SafeSpeak-windows-x64
+          path: |
+            artifacts/*.zip
+            artifacts/*.msix
+            artifacts/*.release.json
+          if-no-files-found: error
+          retention-days: 14
