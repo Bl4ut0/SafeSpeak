@@ -19,7 +19,7 @@ SafeSpeak is a Windows-first, accessibility-focused TTS safety application for l
 - Audio device, voice, rate, volume, blocked-term, and moderation preferences are applied at runtime and saved locally for the next launch.
 - A loopback-only Stream Deck control service hardened against web-page origins and GET-based control requests.
 - A separate 13-action Stream Deck plug-in that never creates or changes a user's profile.
-- Repeatable self-contained ZIP and structurally verified MSIX builds for x64 and arm64, with pinned .NET SDK and Windows CI.
+- Repeatable self-contained ZIP and structurally verified MSIX builds for x64 and arm64, plus schema-validated Stream Deck packaging, with pinned .NET SDK and Windows CI.
 
 ## Build and test
 

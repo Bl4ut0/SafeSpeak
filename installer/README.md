@@ -78,7 +78,7 @@ The `runFullTrust` capability is required because SafeSpeak is a desktop WPF app
 
 ## Continuous packaging verification
 
-`.github/workflows/desktop-build.yml` runs the same release script on pull requests, pushes to `main`, and manual dispatches. GitHub Actions uploads the ZIP, unsigned MSIX, and release report for inspection. The workflow intentionally does not publish or sign a public release because those actions require protected project credentials and an explicit release decision.
+`.github/workflows/desktop-build.yml` runs the same release script on pull requests, pushes to `main`, and manual dispatches. GitHub Actions also validates and packages the separate Stream Deck plug-in, then uploads the ZIP, unsigned MSIX, plug-in installer, and release report for inspection. The workflow intentionally does not publish or sign a public release because those actions require protected project credentials and an explicit release decision.
 
 ## WinGet publication
 
