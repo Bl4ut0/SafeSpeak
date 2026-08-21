@@ -38,12 +38,12 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 
         if (!IsEnhancedAccessibilityEnabled) return;
 
-        Task.Run(() =>
+        lock (_lock)
         {
-            lock (_lock)
-            {
-                if (_privateSynth == null) return;
+            if (_privateSynth == null) return;
 
+            try
+            {
                 if (interrupt)
                 {
                     _privateSynth.SpeakAsyncCancelAll();
@@ -51,7 +51,15 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 
                 _privateSynth.SpeakAsync(text);
             }
-        });
+            catch (ObjectDisposedException)
+            {
+                // The application is closing; no announcement is required.
+            }
+            catch (InvalidOperationException)
+            {
+                // The Windows speech service is temporarily unavailable.
+            }
+        }
     }
 
     public void PlayCue(SoundCueType cueType)

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Interop;
+using SafeSpeak.App.Accessibility;
 using SafeSpeak.App.ViewModels;
 using SafeSpeak.Core.Accessibility;
 
@@ -12,10 +13,15 @@ public partial class MainWindow : Window
 {
     private readonly GlobalHotkeyService _hotkeyService = new();
     private HwndSource? _hwndSource;
+    private IntegratedFocusNarrator? _focusNarrator;
 
     public MainWindow()
     {
         InitializeComponent();
+        if (DataContext is MainViewModel vm)
+        {
+            _focusNarrator = new IntegratedFocusNarrator(this, vm.Announcer);
+        }
         Closing += MainWindow_Closing;
     }
 
@@ -72,6 +78,7 @@ public partial class MainWindow : Window
     {
         _hotkeyService.UnregisterHotkeys();
         _hwndSource?.RemoveHook(HwndHook);
+        _focusNarrator?.Dispose();
 
         if (DataContext is MainViewModel vm)
         {

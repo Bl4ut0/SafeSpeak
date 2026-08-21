@@ -16,6 +16,8 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private readonly Action _onCompleted;
     private readonly ReaderSetupConfirmation _confirmation = new();
     private readonly bool _previousAnnouncerState;
+
+    public ScreenReaderAnnouncer Announcer => _announcer;
     private bool _completed;
 
     [ObservableProperty]

@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using SafeSpeak.App.Accessibility;
 using SafeSpeak.App.ViewModels;
 
 namespace SafeSpeak.App.Views;
@@ -11,12 +12,14 @@ namespace SafeSpeak.App.Views;
 public partial class AccessibilitySetupDialog : Window
 {
     private readonly AccessibilitySetupViewModel _viewModel;
+    private readonly IntegratedFocusNarrator _focusNarrator;
 
     public AccessibilitySetupDialog(AccessibilitySetupViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = _viewModel;
+        _focusNarrator = new IntegratedFocusNarrator(this, _viewModel.Announcer);
         _viewModel.FocusRequested += ViewModel_FocusRequested;
         Closed += AccessibilitySetupDialog_Closed;
         Loaded += (_, _) => FocusYesButton();
@@ -55,6 +58,7 @@ public partial class AccessibilitySetupDialog : Window
     private void AccessibilitySetupDialog_Closed(object? sender, EventArgs e)
     {
         _viewModel.FocusRequested -= ViewModel_FocusRequested;
+        _focusNarrator.Dispose();
         _viewModel.Dispose();
     }
 }
