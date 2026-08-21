@@ -53,6 +53,7 @@ public sealed class AppSettings
     public string? SelectedVoiceName { get; set; }
     public int SpeechRate { get; set; } = 0;
     public int SpeechVolume { get; set; } = 100;
+    public int ReaderSpeechRate { get; set; } = 3;
 
     public List<string> CustomBlockedTerms { get; set; } = new();
 

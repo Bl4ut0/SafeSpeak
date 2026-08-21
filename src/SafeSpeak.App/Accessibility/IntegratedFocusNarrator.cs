@@ -140,7 +140,9 @@ public sealed class IntegratedFocusNarrator : IDisposable
 
         _lastAnnouncement = announcement;
         _lastAnnouncementAt = now;
-        _announcer.Announce(announcement, interrupt: true);
+        bool persistCache = element is Button or CheckBox or RadioButton or TabItem or
+            Slider or ListView or ListBox;
+        _announcer.AnnounceFocus(announcement, persistCache);
     }
 
     private static string GetControlText(DependencyObject element)

@@ -7,5 +7,7 @@ namespace SafeSpeak.Core.Accessibility;
 public interface IReaderSpeechOutput
 {
     void Speak(string text, bool interrupt = false);
+    bool TrySpeakCached(string text, bool interrupt = false);
+    void WarmCache(string text, bool interrupt = false, bool persist = false);
     void Stop();
 }

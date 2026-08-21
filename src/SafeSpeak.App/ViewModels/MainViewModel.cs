@@ -67,6 +67,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _speechVolume = 100;
 
     [ObservableProperty]
+    private int _readerSpeechRate = 3;
+
+    [ObservableProperty]
     private string _customBlockedInput = "";
 
     [ObservableProperty]
@@ -151,6 +154,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SelectedVoice = _settings.SelectedVoiceName ?? string.Empty;
         SpeechRate = Math.Clamp(_settings.SpeechRate, -5, 5);
         SpeechVolume = Math.Clamp(_settings.SpeechVolume, 0, 100);
+        ReaderSpeechRate = Math.Clamp(_settings.ReaderSpeechRate, -5, 5);
         BroadcastOutputEnabled = _settings.BroadcastOutputEnabled;
         PrivateMonitorEnabled = _settings.PrivateMonitorEnabled;
         MirrorApprovedMessagesToPrivateMonitor = _settings.MirrorApprovedMessagesToPrivateMonitor;
@@ -329,6 +333,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.Save();
     }
 
+    partial void OnReaderSpeechRateChanged(int value)
+    {
+        UpdateReaderSpeechSettings();
+        if (_isInitializing) return;
+        _settings.ReaderSpeechRate = Math.Clamp(value, -5, 5);
+        _settings.Save();
+    }
+
     partial void OnBroadcastOutputEnabledChanged(bool value) => SaveOutputSettings();
     partial void OnPrivateMonitorEnabledChanged(bool value)
     {
@@ -370,7 +382,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (_readerSpeechOutput is null) return;
         _readerSpeechOutput.VoiceId = string.IsNullOrWhiteSpace(SelectedVoice) ? null : SelectedVoice;
-        _readerSpeechOutput.Rate = Math.Clamp(SpeechRate, -5, 5);
+        _readerSpeechOutput.Rate = Math.Clamp(ReaderSpeechRate, -5, 5);
         _readerSpeechOutput.Volume = Math.Clamp(SpeechVolume, 0, 100);
     }
 
@@ -877,6 +889,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.SelectedVoiceName = string.IsNullOrEmpty(SelectedVoice) ? null : SelectedVoice;
         _settings.SpeechRate = Math.Clamp(SpeechRate, -5, 5);
         _settings.SpeechVolume = Math.Clamp(SpeechVolume, 0, 100);
+        _settings.ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
         _settings.Save();
     }
 

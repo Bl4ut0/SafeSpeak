@@ -52,29 +52,63 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         {
             if (_enhancedSpeechOutput is not null)
             {
+                if (interrupt)
+                {
+                    try { _privateSynth?.SpeakAsyncCancelAll(); } catch { }
+                }
                 _enhancedSpeechOutput.Speak(text, interrupt);
                 return;
             }
 
-            if (_privateSynth == null) return;
+            SpeakWithSystemVoice(text, interrupt);
+        }
+    }
 
-            try
+    /// <summary>
+    /// Announces keyboard focus without waiting for first-use neural synthesis.
+    /// Cached phrases use the selected enhanced voice immediately; cache misses
+    /// use the low-latency Windows voice once while warming the enhanced phrase.
+    /// </summary>
+    public void AnnounceFocus(string text, bool persistCache)
+    {
+        if (!IsEnhancedAccessibilityEnabled || string.IsNullOrWhiteSpace(text)) return;
+
+        lock (_lock)
+        {
+            if (_enhancedSpeechOutput is not null)
             {
-                if (interrupt)
+                if (_enhancedSpeechOutput.TrySpeakCached(text, interrupt: true))
                 {
-                    _privateSynth.SpeakAsyncCancelAll();
+                    try { _privateSynth?.SpeakAsyncCancelAll(); } catch { }
+                    return;
                 }
+                _enhancedSpeechOutput.WarmCache(text, interrupt: true, persist: persistCache);
+            }
 
-                _privateSynth.SpeakAsync(text);
-            }
-            catch (ObjectDisposedException)
+            SpeakWithSystemVoice(text, interrupt: true);
+        }
+    }
+
+    private void SpeakWithSystemVoice(string text, bool interrupt)
+    {
+        if (_privateSynth == null) return;
+
+        try
+        {
+            if (interrupt)
             {
-                // The application is closing; no announcement is required.
+                _privateSynth.SpeakAsyncCancelAll();
             }
-            catch (InvalidOperationException)
-            {
-                // The Windows speech service is temporarily unavailable.
-            }
+
+            _privateSynth.SpeakAsync(text);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The application is closing; no announcement is required.
+        }
+        catch (InvalidOperationException)
+        {
+            // The Windows speech service is temporarily unavailable.
         }
     }
 

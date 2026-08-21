@@ -432,12 +432,22 @@
                                         Content="_Change integrated reader setting"
                                         AutomationProperties.Name="Change SafeSpeak integrated reader setting"
                                         AutomationProperties.HelpText="Opens the accessible setup and requires two matching confirmations before remembering the choice." />
+                                <Label Target="{Binding ElementName=ReaderRateSlider}"
+                                       Content="Integrated reader _speed" Margin="-5,12,0,0" />
+                                <Slider x:Name="ReaderRateSlider" TabIndex="62"
+                                        Minimum="-5" Maximum="5"
+                                        Value="{Binding ReaderSpeechRate}"
+                                        TickFrequency="1" IsSnapToTickEnabled="True"
+                                        AutomationProperties.Name="Integrated reader speech speed"
+                                        AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust the SafeSpeak reader voice speed. This does not change stream message speed." />
+                                <TextBlock Text="{Binding ReaderSpeechRate, StringFormat=Current reader speed: {0}}"
+                                           Style="{StaticResource SecondaryText}" />
                             </StackPanel>
                         </GroupBox>
 
                         <GroupBox Header="Visual accessibility" AutomationProperties.Name="Visual accessibility settings">
                             <StackPanel>
-                                <CheckBox TabIndex="62" IsChecked="{Binding UseHighContrastTheme}"
+                                <CheckBox TabIndex="63" IsChecked="{Binding UseHighContrastTheme}"
                                           Content="Use SafeSpeak extra _high contrast theme"
                                           AutomationProperties.HelpText="Uses black surfaces, white text, and yellow focus and accent colors. Windows High Contrast is also supported automatically." />
                                 <TextBlock Text="This theme can be used independently of Windows High Contrast and is saved for the next launch. Keyboard focus always uses a thick visible outline."
