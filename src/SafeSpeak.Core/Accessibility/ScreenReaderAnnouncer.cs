@@ -9,19 +9,24 @@ namespace SafeSpeak.Core.Accessibility;
 public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 {
     private SpeechSynthesizer? _privateSynth;
-    private IReaderSpeechOutput? _enhancedSpeechOutput;
     private readonly object _lock = new();
 
     public bool IsEnhancedAccessibilityEnabled { get; set; } = true;
 
     public event EventHandler<string>? AnnouncementRequested;
 
-    public void SetEnhancedSpeechOutput(IReaderSpeechOutput? speechOutput)
+    public int SpeechRate
     {
-        lock (_lock)
+        get
         {
-            _enhancedSpeechOutput?.Stop();
-            _enhancedSpeechOutput = speechOutput;
+            lock (_lock) return _privateSynth?.Rate ?? 2;
+        }
+        set
+        {
+            lock (_lock)
+            {
+                if (_privateSynth is not null) _privateSynth.Rate = Math.Clamp(value, -10, 10);
+            }
         }
     }
 
@@ -50,41 +55,21 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 
         lock (_lock)
         {
-            if (_enhancedSpeechOutput is not null)
-            {
-                if (interrupt)
-                {
-                    try { _privateSynth?.SpeakAsyncCancelAll(); } catch { }
-                }
-                _enhancedSpeechOutput.Speak(text, interrupt);
-                return;
-            }
-
             SpeakWithSystemVoice(text, interrupt);
         }
     }
 
     /// <summary>
     /// Announces keyboard focus without waiting for first-use neural synthesis.
-    /// Cached phrases use the selected enhanced voice immediately; cache misses
-    /// use the low-latency Windows voice once while warming the enhanced phrase.
+    /// Focus always uses the low-latency Windows voice. Neural stream voices are
+    /// deliberately kept out of keyboard navigation to avoid delay and overlap.
     /// </summary>
-    public void AnnounceFocus(string text, bool persistCache)
+    public void AnnounceFocus(string text)
     {
         if (!IsEnhancedAccessibilityEnabled || string.IsNullOrWhiteSpace(text)) return;
 
         lock (_lock)
         {
-            if (_enhancedSpeechOutput is not null)
-            {
-                if (_enhancedSpeechOutput.TrySpeakCached(text, interrupt: true))
-                {
-                    try { _privateSynth?.SpeakAsyncCancelAll(); } catch { }
-                    return;
-                }
-                _enhancedSpeechOutput.WarmCache(text, interrupt: true, persist: persistCache);
-            }
-
             SpeakWithSystemVoice(text, interrupt: true);
         }
     }
@@ -124,8 +109,6 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         lock (_lock)
         {
-            _enhancedSpeechOutput?.Stop();
-            _enhancedSpeechOutput = null;
             _privateSynth?.Dispose();
             _privateSynth = null;
         }

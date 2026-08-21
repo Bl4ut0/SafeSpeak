@@ -364,7 +364,7 @@
                                           SelectedValue="{Binding SelectedVoice}"
                                           DisplayMemberPath="DisplayName"
                                           AutomationProperties.Name="Active text to speech voice" />
-                                <TextBlock Text="The active voice is used for approved stream speech and SafeSpeak's integrated reader. Windows Narrator continues to use its own configured voice."
+                                <TextBlock Text="The active voice is used for approved TikTok speech and this page's private voice test. SafeSpeak's integrated reader uses a separate fast Windows voice so keyboard navigation remains immediate."
                                            Style="{StaticResource SecondaryText}" Margin="0,6,0,10" />
                                 <Button TabIndex="49"
                                         HorizontalAlignment="Left"
@@ -425,7 +425,7 @@
                                            FontSize="18" FontWeight="Bold"
                                            AutomationProperties.Name="{Binding IntegratedReaderStatus}"
                                            AutomationProperties.LiveSetting="Polite" />
-                                <TextBlock Text="The integrated reader privately speaks important SafeSpeak state changes. Windows Narrator can read every control whether this reader is enabled or disabled."
+                                <TextBlock Text="The integrated reader uses a fast Windows voice for controls and SafeSpeak state changes. TikTok messages use the selected stream voice separately, preventing two voices from announcing the same control. Windows Narrator can read every control whether this reader is enabled or disabled."
                                            Style="{StaticResource BodyText}" Margin="0,6,0,12" />
                                 <Button TabIndex="61" HorizontalAlignment="Left"
                                         Command="{Binding RerunAccessibilityWizardCommand}"

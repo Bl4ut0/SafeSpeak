@@ -21,8 +21,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
     private readonly IAudioRouter _privateAudioRouter;
-    private readonly IAudioRouter _readerAudioRouter;
-    private readonly EnhancedReaderSpeechOutput _readerSpeechOutput;
+    private readonly IAudioRouter _voicePreviewAudioRouter;
+    private readonly PrivateVoicePreviewOutput _voicePreviewOutput;
     private readonly TtsQueue _ttsQueue;
     private readonly ScreenReaderAnnouncer _announcer;
     private readonly StreamDeckIpcServer _ipcServer;
@@ -146,9 +146,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ttsEngine = new ModularTtsEngine(_kokoroManager);
         _audioRouter = new WasapiAudioRouter();
         _privateAudioRouter = new WasapiAudioRouter();
-        _readerAudioRouter = new WasapiAudioRouter();
+        _voicePreviewAudioRouter = new WasapiAudioRouter();
         _ttsQueue = new TtsQueue(_ttsEngine, _audioRouter, privateAudioRouter: _privateAudioRouter);
-        _readerSpeechOutput = new EnhancedReaderSpeechOutput(_ttsEngine, _readerAudioRouter);
+        _voicePreviewOutput = new PrivateVoicePreviewOutput(_ttsEngine, _voicePreviewAudioRouter);
         SelectedAudioEndpoint = _settings.SelectedBroadcastEndpointId ?? _settings.SelectedAudioEndpointId ?? string.Empty;
         SelectedPrivateAudioEndpoint = _settings.SelectedPrivateEndpointId ?? string.Empty;
         SelectedVoice = _settings.SelectedVoiceName ?? string.Empty;
@@ -169,7 +169,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         UseHighContrastTheme = _settings.UseHighContrastTheme;
         _announcer = new ScreenReaderAnnouncer();
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsIntegratedReaderEnabled;
-        _announcer.SetEnhancedSpeechOutput(_readerSpeechOutput);
+        _announcer.SpeechRate = ReaderSpeechRate;
 
         _ipcServer = new StreamDeckIpcServer(
             stateProvider: GetIpcState,
@@ -281,8 +281,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ttsQueue.BroadcastOutputEnabled = BroadcastOutputEnabled;
         _ttsQueue.PrivateMonitorEnabled = PrivateMonitorEnabled;
         _ttsQueue.MirrorToPrivateMonitor = MirrorApprovedMessagesToPrivateMonitor;
-        UpdateReaderSpeechSettings();
-        UpdateReaderAudioEndpoint();
+        UpdateVoicePreviewSettings();
+        UpdateVoicePreviewAudioEndpoint();
     }
 
     partial void OnSelectedAudioEndpointChanged(string value)
@@ -297,7 +297,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnSelectedPrivateAudioEndpointChanged(string value)
     {
         _privateAudioRouter?.SelectEndpoint(string.IsNullOrEmpty(value) ? null : value);
-        UpdateReaderAudioEndpoint();
+        UpdateVoicePreviewAudioEndpoint();
         if (_isInitializing) return;
         _settings.SelectedPrivateEndpointId = string.IsNullOrEmpty(value) ? null : value;
         _settings.Save();
@@ -309,7 +309,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             _ttsQueue.SelectedVoice = string.IsNullOrEmpty(value) ? null : value;
         }
-        UpdateReaderSpeechSettings();
+        UpdateVoicePreviewSettings();
         if (_isInitializing) return;
         _settings.SelectedVoiceName = string.IsNullOrEmpty(value) ? null : value;
         _settings.Save();
@@ -318,7 +318,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnSpeechRateChanged(int value)
     {
         if (_ttsQueue is not null) _ttsQueue.SpeechRate = Math.Clamp(value, -5, 5);
-        UpdateReaderSpeechSettings();
+        UpdateVoicePreviewSettings();
         if (_isInitializing) return;
         _settings.SpeechRate = Math.Clamp(value, -5, 5);
         _settings.Save();
@@ -327,7 +327,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnSpeechVolumeChanged(int value)
     {
         if (_ttsQueue is not null) _ttsQueue.SpeechVolume = Math.Clamp(value, 0, 100);
-        UpdateReaderSpeechSettings();
+        UpdateVoicePreviewSettings();
         if (_isInitializing) return;
         _settings.SpeechVolume = Math.Clamp(value, 0, 100);
         _settings.Save();
@@ -335,7 +335,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     partial void OnReaderSpeechRateChanged(int value)
     {
-        UpdateReaderSpeechSettings();
+        if (_announcer is not null) _announcer.SpeechRate = Math.Clamp(value, -5, 5);
         if (_isInitializing) return;
         _settings.ReaderSpeechRate = Math.Clamp(value, -5, 5);
         _settings.Save();
@@ -344,7 +344,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnBroadcastOutputEnabledChanged(bool value) => SaveOutputSettings();
     partial void OnPrivateMonitorEnabledChanged(bool value)
     {
-        UpdateReaderAudioEndpoint();
+        UpdateVoicePreviewAudioEndpoint();
         SaveOutputSettings();
     }
     partial void OnMirrorApprovedMessagesToPrivateMonitorChanged(bool value) => SaveOutputSettings();
@@ -378,22 +378,22 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.Save();
     }
 
-    private void UpdateReaderSpeechSettings()
+    private void UpdateVoicePreviewSettings()
     {
-        if (_readerSpeechOutput is null) return;
-        _readerSpeechOutput.VoiceId = string.IsNullOrWhiteSpace(SelectedVoice) ? null : SelectedVoice;
-        _readerSpeechOutput.Rate = Math.Clamp(ReaderSpeechRate, -5, 5);
-        _readerSpeechOutput.Volume = Math.Clamp(SpeechVolume, 0, 100);
+        if (_voicePreviewOutput is null) return;
+        _voicePreviewOutput.VoiceId = string.IsNullOrWhiteSpace(SelectedVoice) ? null : SelectedVoice;
+        _voicePreviewOutput.Rate = Math.Clamp(SpeechRate, -5, 5);
+        _voicePreviewOutput.Volume = Math.Clamp(SpeechVolume, 0, 100);
     }
 
-    private void UpdateReaderAudioEndpoint()
+    private void UpdateVoicePreviewAudioEndpoint()
     {
-        if (_readerAudioRouter is null) return;
+        if (_voicePreviewAudioRouter is null) return;
 
         string? endpointId = PrivateMonitorEnabled
             ? SelectedPrivateAudioEndpoint
             : AudioEndpoints.FirstOrDefault(endpoint => endpoint.IsDefault)?.Id;
-        _readerAudioRouter.SelectEndpoint(string.IsNullOrWhiteSpace(endpointId) ? null : endpointId);
+        _voicePreviewAudioRouter.SelectEndpoint(string.IsNullOrWhiteSpace(endpointId) ? null : endpointId);
     }
 
     private void SaveEventSettings()
@@ -654,7 +654,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string sample = $"This is {voiceName}. SafeSpeak voice testing is working.";
 
         LiveStatusAnnouncement = $"Testing selected voice privately: {voiceName}";
-        _readerSpeechOutput.Speak(sample, interrupt: true);
+        _voicePreviewOutput.Speak(sample, interrupt: true);
     }
 
     [RelayCommand]
@@ -869,13 +869,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ipcServer.Dispose();
         await _tikFinityConnector.DisposeAsync();
         await _simulator.DisposeAsync();
-        _announcer.SetEnhancedSpeechOutput(null);
-        await _readerSpeechOutput.DisposeAsync();
+        await _voicePreviewOutput.DisposeAsync();
         await _ttsQueue.DisposeAsync();
         _ttsEngine.Dispose();
         _audioRouter.Dispose();
         _privateAudioRouter.Dispose();
-        _readerAudioRouter.Dispose();
+        _voicePreviewAudioRouter.Dispose();
         _announcer.Dispose();
         _privateAnnouncementLock.Dispose();
     }
