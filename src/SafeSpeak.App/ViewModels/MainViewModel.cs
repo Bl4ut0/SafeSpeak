@@ -542,9 +542,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string armedStr = IsArmed ? "Armed" : "Disarmed";
         string connStr = IsConnected ? "Connected to TikFinity" : "Disconnected from TikFinity";
         string queueStr = $"{QueueCount} messages in queue";
-        string outputStr = $"Audio route: {_audioRouter.SelectedEndpointId ?? "Default Device"}";
+        string broadcastRoute = BroadcastOutputEnabled
+            ? $"Broadcast output: {AudioEndpointFormatter.GetFriendlyName(AudioEndpoints, SelectedAudioEndpoint)}"
+            : "Broadcast output disabled";
+        string privateRoute = PrivateMonitorEnabled
+            ? $"Private monitor: {AudioEndpointFormatter.GetFriendlyName(AudioEndpoints, SelectedPrivateAudioEndpoint)}"
+            : "Private monitor disabled";
 
-        string announcement = $"SafeSpeak {armedStr}. {connStr}. {queueStr}. {outputStr}.";
+        string announcement = $"SafeSpeak {armedStr}. {connStr}. {queueStr}. {broadcastRoute}. {privateRoute}.";
         AnnounceState(announcement, interrupt: true);
     }
 
