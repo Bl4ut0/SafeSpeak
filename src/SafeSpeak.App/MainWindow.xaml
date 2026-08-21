@@ -324,7 +324,7 @@
                                           Content="Enable _broadcast output"
                                           AutomationProperties.HelpText="Sends approved speech to the broadcast output device." />
                                 <Label Target="{Binding ElementName=OutputDeviceCombo}" Content="Broadcast _output device" Margin="-5,4,0,2" />
-                                <ComboBox x:Name="OutputDeviceCombo" TabIndex="31"
+                                <ComboBox x:Name="OutputDeviceCombo" TabIndex="42"
                                           ItemsSource="{Binding AudioEndpoints}"
                                           SelectedValuePath="Id"
                                           SelectedValue="{Binding SelectedAudioEndpoint}"
@@ -358,22 +358,30 @@
                         <GroupBox Header="Voice and delivery" AutomationProperties.Name="Voice and delivery settings">
                             <StackPanel>
                                 <Label Target="{Binding ElementName=VoiceCombo}" Content="Active _voice" Margin="-5,0,0,2" />
-                                <ComboBox x:Name="VoiceCombo" TabIndex="47"
+                                <ComboBox x:Name="VoiceCombo" TabIndex="48"
                                           ItemsSource="{Binding Voices}"
                                           SelectedValuePath="Id"
                                           SelectedValue="{Binding SelectedVoice}"
                                           DisplayMemberPath="DisplayName"
                                           AutomationProperties.Name="Active text to speech voice" />
+                                <TextBlock Text="The active voice is used for approved stream speech and SafeSpeak's integrated reader. Windows Narrator continues to use its own configured voice."
+                                           Style="{StaticResource SecondaryText}" Margin="0,6,0,10" />
+                                <Button TabIndex="49"
+                                        HorizontalAlignment="Left"
+                                        Command="{Binding TestSelectedVoiceCommand}"
+                                        Content="_Test selected voice"
+                                        AutomationProperties.Name="Test selected text to speech voice"
+                                        AutomationProperties.HelpText="Plays a private sample through the private monitor when enabled, or the Windows default audio device otherwise. The sample is never sent to the broadcast output." />
 
                                 <Label Target="{Binding ElementName=RateSlider}" Content="Speech _rate" Margin="-5,10,0,0" />
-                                <Slider x:Name="RateSlider" TabIndex="48"
+                                <Slider x:Name="RateSlider" TabIndex="50"
                                         Minimum="-5" Maximum="5" Value="{Binding SpeechRate}"
                                         TickFrequency="1" IsSnapToTickEnabled="True"
                                         AutomationProperties.Name="Speech rate" />
                                 <TextBlock Text="{Binding SpeechRate, StringFormat=Current rate: {0}}" Style="{StaticResource SecondaryText}" />
 
                                 <Label Target="{Binding ElementName=VolumeSlider}" Content="Speech _volume" Margin="-5,10,0,0" />
-                                <Slider x:Name="VolumeSlider" TabIndex="49"
+                                <Slider x:Name="VolumeSlider" TabIndex="51"
                                         Minimum="0" Maximum="100" Value="{Binding SpeechVolume}"
                                         TickFrequency="5" IsSnapToTickEnabled="True"
                                         AutomationProperties.Name="Speech volume" />
@@ -387,7 +395,7 @@
                                            AutomationProperties.LiveSetting="Polite" />
                                 <TextBlock Text="The optional model is downloaded once. All synthesis then runs locally, and the voice dropdown gains American and British voices."
                                            Style="{StaticResource SecondaryText}" Margin="0,6,0,12" />
-                                <Button TabIndex="50" HorizontalAlignment="Left"
+                                <Button TabIndex="52" HorizontalAlignment="Left"
                                         Command="{Binding InstallKokoroCommand}"
                                         Content="_Install Kokoro voices"
                                         AutomationProperties.Name="Install Kokoro offline voices"
@@ -419,7 +427,7 @@
                                            AutomationProperties.LiveSetting="Polite" />
                                 <TextBlock Text="The integrated reader privately speaks important SafeSpeak state changes. Windows Narrator can read every control whether this reader is enabled or disabled."
                                            Style="{StaticResource BodyText}" Margin="0,6,0,12" />
-                                <Button TabIndex="51" HorizontalAlignment="Left"
+                                <Button TabIndex="61" HorizontalAlignment="Left"
                                         Command="{Binding RerunAccessibilityWizardCommand}"
                                         Content="_Change integrated reader setting"
                                         AutomationProperties.Name="Change SafeSpeak integrated reader setting"
@@ -429,7 +437,7 @@
 
                         <GroupBox Header="Visual accessibility" AutomationProperties.Name="Visual accessibility settings">
                             <StackPanel>
-                                <CheckBox TabIndex="52" IsChecked="{Binding UseHighContrastTheme}"
+                                <CheckBox TabIndex="62" IsChecked="{Binding UseHighContrastTheme}"
                                           Content="Use SafeSpeak extra _high contrast theme"
                                           AutomationProperties.HelpText="Uses black surfaces, white text, and yellow focus and accent colors. Windows High Contrast is also supported automatically." />
                                 <TextBlock Text="This theme can be used independently of Windows High Contrast and is saved for the next launch. Keyboard focus always uses a thick visible outline."

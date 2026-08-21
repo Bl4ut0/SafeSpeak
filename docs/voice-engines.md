@@ -10,6 +10,8 @@ Windows SAPI desktop voices are available immediately and require no model downl
 
 The Audio tab offers one explicit **Install Kokoro voices** action. It downloads the compatible `kokoro.onnx` model to `%LOCALAPPDATA%\SafeSpeak\Models\Kokoro`. The download is written to a temporary file, checked for an obviously incomplete size, and moved into place atomically. After installation, the voice selector exposes 27 American and British English voices bundled as embeddings with KokoroSharp.CPU.
 
+The active voice, rate, and volume are shared by moderated stream TTS and SafeSpeak's optional integrated reader. **Test selected voice** plays a private sample even when the integrated reader is disabled. Reader guidance and voice tests use the private-monitor device when that route is enabled, or the Windows default output otherwise; they are never sent to the broadcast route. Rapid focus changes use a bounded latest-message queue so keyboard navigation cannot create a long speech backlog. Windows Narrator, NVDA, and JAWS remain independent and use their own configured voices through UI Automation.
+
 - Synthesis engine: [KokoroSharp](https://github.com/Lyrcaxis/KokoroSharp) (MIT)
 - Model source: [KokoroSharpBinaries v2.0.0](https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/tag/v2.0.0)
 - Upstream model: [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0 model card)

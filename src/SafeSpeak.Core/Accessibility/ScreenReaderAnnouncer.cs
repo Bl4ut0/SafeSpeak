@@ -9,11 +9,21 @@ namespace SafeSpeak.Core.Accessibility;
 public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 {
     private SpeechSynthesizer? _privateSynth;
+    private IReaderSpeechOutput? _enhancedSpeechOutput;
     private readonly object _lock = new();
 
     public bool IsEnhancedAccessibilityEnabled { get; set; } = true;
 
     public event EventHandler<string>? AnnouncementRequested;
+
+    public void SetEnhancedSpeechOutput(IReaderSpeechOutput? speechOutput)
+    {
+        lock (_lock)
+        {
+            _enhancedSpeechOutput?.Stop();
+            _enhancedSpeechOutput = speechOutput;
+        }
+    }
 
     public ScreenReaderAnnouncer()
     {
@@ -40,6 +50,12 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 
         lock (_lock)
         {
+            if (_enhancedSpeechOutput is not null)
+            {
+                _enhancedSpeechOutput.Speak(text, interrupt);
+                return;
+            }
+
             if (_privateSynth == null) return;
 
             try
@@ -74,6 +90,8 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         lock (_lock)
         {
+            _enhancedSpeechOutput?.Stop();
+            _enhancedSpeechOutput = null;
             _privateSynth?.Dispose();
             _privateSynth = null;
         }

@@ -16,6 +16,7 @@ SafeSpeak is a Windows-first, accessibility-focused TTS safety application for l
 - Safe display-name moderation and Narrator-safe redaction of rejected feed content.
 - A bounded 50-message queue that starts disarmed with automatic playback disabled, plus manual play, skip, pause, clear, and emergency cancellation.
 - Installed Windows voices plus an optional, explicitly downloaded Kokoro model with 27 genuine local neural English voices.
+- The selected Windows or Kokoro voice also powers SafeSpeak's integrated reader, with an accessible private voice-test button on the Audio tab.
 - Independently selectable WASAPI broadcast and private-monitor endpoints, optional approved-message mirroring, and safe private blocked-message notices that never speak rejected text.
 - Audio device, voice, rate, volume, blocked-term, and moderation preferences are applied at runtime and saved locally for the next launch.
 - A loopback-only Stream Deck control service hardened against web-page origins and GET-based control requests.
