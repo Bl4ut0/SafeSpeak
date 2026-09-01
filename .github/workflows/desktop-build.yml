@@ -5,19 +5,18 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      packageVersion:
-        description: Four-part MSIX version
-        required: true
-        default: 0.1.0.0
 
 permissions:
   contents: read
 
 jobs:
-  windows-x64:
+  windows:
     runs-on: windows-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, arm64]
 
     steps:
       - name: Check out source
@@ -30,12 +29,10 @@ jobs:
 
       - name: Build, test, and package desktop application
         shell: pwsh
-        run: |
-          $version = '${{ inputs.packageVersion }}'
-          if ([string]::IsNullOrWhiteSpace($version)) { $version = '0.1.0.0' }
-          ./installer/Build-Release.ps1 -Architecture x64 -PackageVersion $version -Format Both
+        run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format Both
 
       - name: Validate and package Stream Deck plug-in
+        if: matrix.architecture == 'x64'
         shell: pwsh
         run: |
           npm install -g @elgato/cli@1.9.0
@@ -44,7 +41,7 @@ jobs:
       - name: Upload verified desktop artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: SafeSpeak-windows-x64
+          name: SafeSpeak-windows-${{ matrix.architecture }}
           path: |
             artifacts/*.zip
             artifacts/*.msix

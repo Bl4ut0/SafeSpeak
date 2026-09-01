@@ -17,13 +17,23 @@ public sealed class VoicePackageManager
 {
     private const int MaximumArchiveEntries = 64;
     private const long MaximumExpandedBytes = 512L * 1024 * 1024;
+    private const string ImportDirectoryPrefix = ".import-";
+    private const string RollbackDirectoryPrefix = ".rollback-";
     private static readonly Regex SafeIdPattern = new("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$", RegexOptions.CultureInvariant);
     private readonly string _voicePacksRoot;
+    private readonly SemaphoreSlim _importGate = new(1, 1);
+    private readonly Action? _afterRollbackDirectoryCreated;
 
     public string VoicePacksRoot => _voicePacksRoot;
 
     public VoicePackageManager(string? customRoot = null)
+        : this(customRoot, afterRollbackDirectoryCreated: null)
     {
+    }
+
+    internal VoicePackageManager(string? customRoot, Action? afterRollbackDirectoryCreated)
+    {
+        _afterRollbackDirectoryCreated = afterRollbackDirectoryCreated;
         _voicePacksRoot = customRoot ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SafeSpeak",
@@ -44,6 +54,13 @@ public sealed class VoicePackageManager
 
         foreach (var dir in Directory.GetDirectories(_voicePacksRoot))
         {
+            string directoryName = Path.GetFileName(dir);
+            if (directoryName.StartsWith(ImportDirectoryPrefix, StringComparison.Ordinal) ||
+                directoryName.StartsWith(RollbackDirectoryPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             string manifestPath = Path.Combine(dir, "voice.json");
             if (!File.Exists(manifestPath)) continue;
 
@@ -82,16 +99,19 @@ public sealed class VoicePackageManager
             throw new FileNotFoundException($"Voice pack archive not found: {zipOrVoicePackPath}");
         }
 
-        string tempExtract = Path.Combine(Path.GetTempPath(), "SafeSpeak_VoiceImport_" + Guid.NewGuid().ToString("N"));
+        cancellationToken.ThrowIfCancellationRequested();
+        await _importGate.WaitAsync(cancellationToken);
+
+        string importDirectory = Path.Combine(_voicePacksRoot, ImportDirectoryPrefix + Guid.NewGuid().ToString("N"));
         try
         {
-            ExtractArchiveSafely(zipOrVoicePackPath, tempExtract);
+            await ExtractArchiveSafelyAsync(zipOrVoicePackPath, importDirectory, cancellationToken);
 
-            string manifestPath = Path.Combine(tempExtract, "voice.json");
+            string manifestPath = Path.Combine(importDirectory, "voice.json");
             if (!File.Exists(manifestPath))
             {
                 // Check if enclosed in a subfolder
-                var subDirs = Directory.GetDirectories(tempExtract);
+                var subDirs = Directory.GetDirectories(importDirectory);
                 if (subDirs.Length == 1 && File.Exists(Path.Combine(subDirs[0], "voice.json")))
                 {
                     manifestPath = Path.Combine(subDirs[0], "voice.json");
@@ -121,13 +141,9 @@ public sealed class VoicePackageManager
                 throw new InvalidDataException("The voice package is missing its model or configuration file.");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             string targetDir = Path.Combine(_voicePacksRoot, manifest.Id);
-            if (Directory.Exists(targetDir))
-            {
-                Directory.Delete(targetDir, true);
-            }
-
-            Directory.Move(sourceDir, targetDir);
+            CommitStagedPackage(sourceDir, targetDir, manifest.Id, cancellationToken);
 
             string finalModelPath = Path.Combine(targetDir, manifest.ModelFileName);
             string finalConfigPath = Path.Combine(targetDir, manifest.ConfigFileName);
@@ -144,14 +160,19 @@ public sealed class VoicePackageManager
         }
         finally
         {
-            if (Directory.Exists(tempExtract))
+            if (Directory.Exists(importDirectory))
             {
-                try { Directory.Delete(tempExtract, true); } catch { }
+                TryDeleteDirectory(importDirectory);
             }
+
+            _importGate.Release();
         }
     }
 
-    private static void ExtractArchiveSafely(string archivePath, string destinationDirectory)
+    private static async Task ExtractArchiveSafelyAsync(
+        string archivePath,
+        string destinationDirectory,
+        CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(destinationDirectory);
         string destinationRoot = Path.GetFullPath(destinationDirectory) + Path.DirectorySeparatorChar;
@@ -161,6 +182,7 @@ public sealed class VoicePackageManager
         using ZipArchive archive = ZipFile.OpenRead(archivePath);
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (++entryCount > MaximumArchiveEntries)
             {
                 throw new InvalidDataException($"Voice packages may contain at most {MaximumArchiveEntries} files.");
@@ -185,7 +207,79 @@ public sealed class VoicePackageManager
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-            entry.ExtractToFile(destinationPath, overwrite: true);
+            await using Stream source = entry.Open();
+            await using FileStream destination = new(
+                destinationPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81920,
+                useAsync: true);
+            await source.CopyToAsync(destination, 81920, cancellationToken);
+        }
+    }
+
+    private void CommitStagedPackage(
+        string stagedPackageDirectory,
+        string targetDirectory,
+        string packageId,
+        CancellationToken cancellationToken)
+    {
+        string rollbackDirectory = Path.Combine(
+            _voicePacksRoot,
+            $"{RollbackDirectoryPrefix}{packageId}-{Guid.NewGuid():N}");
+        bool rollbackCreated = false;
+
+        try
+        {
+            if (Directory.Exists(targetDirectory))
+            {
+                Directory.Move(targetDirectory, rollbackDirectory);
+                rollbackCreated = true;
+                _afterRollbackDirectoryCreated?.Invoke();
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.Move(stagedPackageDirectory, targetDirectory);
+        }
+        catch (Exception commitException)
+        {
+            if (rollbackCreated)
+            {
+                try
+                {
+                    if (!Directory.Exists(targetDirectory) && Directory.Exists(rollbackDirectory))
+                    {
+                        Directory.Move(rollbackDirectory, targetDirectory);
+                    }
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new IOException(
+                        "The voice package could not be installed and the previous package could not be restored.",
+                        new AggregateException(commitException, rollbackException));
+                }
+            }
+
+            throw;
+        }
+
+        if (rollbackCreated && Directory.Exists(rollbackDirectory))
+        {
+            TryDeleteDirectory(rollbackDirectory);
+        }
+    }
+
+    private static void TryDeleteDirectory(string directory)
+    {
+        try
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+        catch
+        {
+            // Import failure cleanup must never hide the original validation,
+            // cancellation, or commit result.
         }
     }
 

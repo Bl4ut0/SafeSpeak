@@ -5,15 +5,21 @@ namespace SafeSpeak.Core.Connectors;
 /// <summary>
 /// Event simulator for testing moderation, audio routing, and queue behavior offline without live streams.
 /// </summary>
-public sealed class OfflineEventSimulator : ITikFinityConnector
+public sealed class OfflineEventSimulator : ISourceConnector
 {
     private ConnectionState _state = ConnectionState.Disconnected;
     private CancellationTokenSource? _simulationCts;
 
     public ConnectionState State => _state;
-    public string EndpointUrl => "simulator://offline";
+    public string EndpointDescription => "Offline development simulator";
+    public SourceConnectorDescriptor Descriptor { get; } = new(
+        Id: "offline-simulator",
+        DisplayName: "Offline simulator",
+        ProviderName: "SafeSpeak development tools",
+        ConnectionDescription: "Generated local test events",
+        Capabilities: SourceConnectorCapabilities.Chat,
+        SupportsAutomaticReconnect: false);
 
-    public event EventHandler<ChatMessage>? MessageReceived;
     public event EventHandler<LivestreamEvent>? EventReceived;
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 
@@ -37,24 +43,14 @@ public sealed class OfflineEventSimulator : ITikFinityConnector
     /// </summary>
     public void InjectMessage(string text, string author = "test_user", AuthorTier tier = AuthorTier.Viewer)
     {
-        var msg = new ChatMessage
-        {
-            Author = author,
-            AuthorDisplayName = author,
-            RawText = text,
-            AuthorTier = tier,
-            TimestampUtc = DateTimeOffset.UtcNow
-        };
-
-        MessageReceived?.Invoke(this, msg);
         EventReceived?.Invoke(this, new LivestreamEvent
         {
             Type = LivestreamEventType.Chat,
-            Author = msg.Author,
-            AuthorDisplayName = msg.AuthorDisplayName,
-            Text = msg.RawText,
-            AuthorTier = msg.AuthorTier,
-            TimestampUtc = msg.TimestampUtc
+            Author = author,
+            AuthorDisplayName = author,
+            Text = text,
+            AuthorTier = tier,
+            TimestampUtc = DateTimeOffset.UtcNow
         });
     }
 

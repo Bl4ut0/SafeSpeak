@@ -9,15 +9,34 @@ public sealed class ModularTtsEngine : ITtsEngine
 {
     private SpeechSynthesizer? _synthesizer;
     private readonly KokoroModelManager _kokoroManager;
+    private readonly Func<IWaveSpeechSynthesizer> _waveSynthesizerFactory;
+    private readonly HashSet<WaveSpeechSynthesisOperation> _activeWaveSyntheses = [];
     private readonly object _lock = new();
+    private bool _disposed;
 
     public KokoroModelManager KokoroManager => _kokoroManager;
 
     public ModularTtsEngine(KokoroModelManager? kokoroManager = null)
+        : this(
+            kokoroManager,
+            static () => new SystemSpeechWaveSynthesizer(),
+            initializeDirectSynthesizer: true)
+    {
+    }
+
+    internal ModularTtsEngine(
+        KokoroModelManager? kokoroManager,
+        Func<IWaveSpeechSynthesizer> waveSynthesizerFactory,
+        bool initializeDirectSynthesizer = false)
     {
         _kokoroManager = kokoroManager ?? new KokoroModelManager();
+        _waveSynthesizerFactory = waveSynthesizerFactory ??
+            throw new ArgumentNullException(nameof(waveSynthesizerFactory));
 
-        InitializeSynthesizer();
+        if (initializeDirectSynthesizer)
+        {
+            InitializeSynthesizer();
+        }
     }
 
     private void InitializeSynthesizer()
@@ -97,19 +116,43 @@ public sealed class ModularTtsEngine : ITtsEngine
 
         await Task.Run(() =>
         {
-            lock (_lock)
+            var operation = new WaveSpeechSynthesisOperation(_waveSynthesizerFactory());
+            try
             {
-                using var synth = new SpeechSynthesizer();
-                if (!string.IsNullOrEmpty(voiceId))
+                lock (_lock)
                 {
-                    try { synth.SelectVoice(voiceId); } catch { }
+                    ObjectDisposedException.ThrowIf(_disposed, this);
+                    _activeWaveSyntheses.Add(operation);
+                }
+            }
+            catch
+            {
+                operation.Dispose();
+                throw;
+            }
+
+            using var cancellationRegistration = cancellationToken.Register(
+                static state => ((WaveSpeechSynthesisOperation)state!).Cancel(),
+                operation);
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                operation.Synthesizer.Configure(outputStream, voiceId, rate, volume);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!operation.IsCancellationRequested)
+                {
+                    operation.Synthesizer.Speak(text);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    _activeWaveSyntheses.Remove(operation);
                 }
 
-                synth.Rate = Math.Clamp(rate, -10, 10);
-                synth.Volume = Math.Clamp(volume, 0, 100);
-                synth.SetOutputToWaveStream(outputStream);
-                synth.Speak(text);
-                synth.SetOutputToNull();
+                operation.Dispose();
             }
         }, cancellationToken);
     }
@@ -125,6 +168,7 @@ public sealed class ModularTtsEngine : ITtsEngine
 
         lock (_lock)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_synthesizer == null) InitializeSynthesizer();
 
             if (!string.IsNullOrEmpty(voiceId))
@@ -161,19 +205,48 @@ public sealed class ModularTtsEngine : ITtsEngine
 
     public void Stop()
     {
+        SpeechSynthesizer? directSynthesizer;
+        WaveSpeechSynthesisOperation[] waveSyntheses;
         lock (_lock)
         {
-            _synthesizer?.SpeakAsyncCancelAll();
+            directSynthesizer = _synthesizer;
+            waveSyntheses = [.. _activeWaveSyntheses];
         }
+
+        foreach (WaveSpeechSynthesisOperation operation in waveSyntheses)
+        {
+            operation.Cancel();
+        }
+
+        try { directSynthesizer?.SpeakAsyncCancelAll(); } catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
     }
 
     public void Dispose()
     {
+        SpeechSynthesizer? directSynthesizer;
+        WaveSpeechSynthesisOperation[] waveSyntheses;
         lock (_lock)
         {
-            _synthesizer?.Dispose();
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            directSynthesizer = _synthesizer;
             _synthesizer = null;
-            _kokoroManager.Dispose();
+            waveSyntheses = [.. _activeWaveSyntheses];
+            _activeWaveSyntheses.Clear();
         }
+
+        foreach (WaveSpeechSynthesisOperation operation in waveSyntheses)
+        {
+            operation.Cancel();
+        }
+
+        try { directSynthesizer?.SpeakAsyncCancelAll(); } catch { }
+        directSynthesizer?.Dispose();
+        _kokoroManager.Dispose();
     }
 }

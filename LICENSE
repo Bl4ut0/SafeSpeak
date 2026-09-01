@@ -1,22 +1,121 @@
-MIT License
+SafeSpeak Proprietary Source-Visible License
+Version 1.0 - August 31, 2026
 
-Copyright (c) 2026 SafeSpeak contributors
+Copyright (c) 2026 Alex Mammen. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license governs the original SafeSpeak source code, user interface,
+artwork, documentation, and executable software (the "SafeSpeak Materials").
+It does not govern third-party software, models, data, or other materials that
+are identified as being under separate licenses (the "Third-Party Materials").
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This license applies to SafeSpeak Materials first distributed with this
+license or a later proprietary version. It does not revoke permissions that
+were validly granted for earlier SafeSpeak revisions distributed under the
+previous MIT license.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. Ownership and reservation of rights
 
+The SafeSpeak Materials are proprietary. Title, copyright, and all other
+intellectual-property rights in them remain with Alex Mammen (the "Owner").
+No right is granted by implication, estoppel, public availability, or any
+other means. All rights not expressly granted below are reserved.
+
+2. Free use of official binary releases
+
+You may download, install, and run an unmodified official SafeSpeak binary
+release obtained from the Microsoft Store or another distribution channel
+authorized by the Owner. This permission is royalty-free and may be used for
+lawful personal, accessibility, livestreaming, or business purposes.
+
+You may make only the copies of an official binary release that are
+automatically necessary to download, install, and run it, plus one archival
+backup. This limited permission is non-exclusive, non-transferable, and
+non-sublicensable. It does not permit redistribution of the binary release.
+
+3. Source visibility
+
+When the Owner makes source code publicly visible, you may view it for
+personal evaluation, security review, interoperability study, or education.
+You may also make transient copies created automatically by a web browser for
+that viewing. Source visibility does not grant permission to build, execute,
+copy, retain, modify, publish, or distribute the source code.
+
+4. Restrictions
+
+Except with the Owner's prior written permission or where applicable law
+cannot be excluded, you may not:
+
+a. reproduce, copy, mirror, archive, or retain the SafeSpeak Materials except
+   for the limited copies expressly allowed above;
+b. modify, adapt, translate, merge, or create derivative works from them;
+c. publish, distribute, sublicense, sell, rent, lease, lend, transfer, or make
+   them available to another person;
+d. use them to create, train, improve, or provide a competing or substantially
+   similar product, service, dataset, model, or software project;
+e. use the SafeSpeak Materials as training or evaluation input for an
+   artificial-intelligence or machine-learning system;
+f. remove, hide, or alter copyright, license, attribution, or proprietary
+   notices; or
+g. reverse engineer, decompile, or disassemble official binaries, except to
+   the limited extent that applicable law expressly permits despite this
+   restriction.
+
+5. Public hosting platforms
+
+If the SafeSpeak Materials are hosted in a public GitHub repository, GitHub's
+Terms of Service may grant GitHub and GitHub users limited platform rights,
+including viewing and forking through GitHub's functionality. Those rights
+come from GitHub's Terms of Service, not from this license. A GitHub fork or
+other platform-provided copy does not receive any additional permission from
+the Owner to build, modify, redistribute, or use the SafeSpeak Materials.
+
+6. Third-Party Materials
+
+Third-Party Materials remain governed by their respective licenses and
+notices. Nothing in this license limits rights granted directly by a
+third-party license. See THIRD-PARTY-NOTICES.md and the notices distributed
+with SafeSpeak. The proprietary terms in this license apply only to the
+Owner's original SafeSpeak Materials.
+
+7. Contributions
+
+If you intentionally submit source code, documentation, artwork, or another
+contribution to the SafeSpeak repository, you represent that you have the
+right to do so and grant the Owner a perpetual, irrevocable, worldwide,
+royalty-free, transferable, and sublicensable license to use, reproduce,
+modify, create derivative works from, distribute, publicly display, publicly
+perform, sell, license, and otherwise exploit that contribution as part of or
+in connection with SafeSpeak. This contribution license does not transfer
+your copyright ownership. Do not submit a contribution if you do not agree.
+
+8. Termination
+
+Your permission under this license terminates automatically if you breach any
+term. On termination, you must stop using the SafeSpeak Materials and delete
+all copies in your possession or control, except where retention is required
+by law. Sections concerning ownership, restrictions, contributions,
+disclaimers, and liability survive termination.
+
+9. Disclaimer of warranty
+
+THE SAFESPEAK MATERIALS ARE PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT
+WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+NON-INFRINGEMENT. THE OWNER DOES NOT WARRANT THAT SAFESPEAK WILL BE
+UNINTERRUPTED, ERROR-FREE, OR SUITABLE AS THE SOLE SAFETY OR MODERATION
+MEASURE FOR ANY STREAM, PLATFORM, OR AUDIENCE.
+
+10. Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE OWNER WILL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES,
+OR FOR LOSS OF DATA, REVENUE, PROFITS, GOODWILL, OR BUSINESS INTERRUPTION,
+ARISING FROM OR RELATED TO THE SAFESPEAK MATERIALS, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+11. Additional permissions
+
+Any use not expressly permitted requires prior written permission from the
+Owner. Permission for redistribution, integration, commercial licensing,
+source modification, or another use may be granted under a separate written
+agreement.

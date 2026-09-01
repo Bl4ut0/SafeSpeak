@@ -3,8 +3,17 @@ using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.Core.Audio;
 
+public enum TtsPlaybackMode
+{
+    Disarmed = 0,
+    Automatic = 1,
+    Paused = 2,
+    Manual = 3
+}
+
 public sealed class TtsQueueStateChangedEventArgs : EventArgs
 {
+    public required TtsPlaybackMode Mode { get; init; }
     public bool IsArmed { get; init; }
     public bool IsAutoPlay { get; init; }
     public bool IsPaused { get; init; }
@@ -13,31 +22,54 @@ public sealed class TtsQueueStateChangedEventArgs : EventArgs
 }
 
 /// <summary>
-/// Thread-safe TTS playback queue with arming safety, pause/resume, and instant panic cancellation.
+/// Thread-safe TTS playback queue with one explicit playback mode, bounded
+/// pending work, serialized speech, and immediate cancellation controls.
 /// </summary>
 public sealed class TtsQueue : IAsyncDisposable
 {
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
-    private readonly IAudioRouter? _privateAudioRouter;
     private readonly ConcurrentQueue<ModerationDecision> _queue = new();
+    private readonly ConcurrentQueue<ModerationDecision> _pauseBypassQueue = new();
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _signal = new(0);
+    private readonly SemaphoreSlim _playbackGate = new(1, 1);
     private readonly int _capacity;
-    private int _queuedCount;
-
-    private bool _isArmed = false;
-    private bool _isAutoPlay = false;
-    private bool _isPaused = false;
-    private bool _isSpeaking = false;
-    private CancellationTokenSource? _activePlaybackCts;
     private readonly CancellationTokenSource _queueLoopCts = new();
-    private Task? _playbackLoopTask;
 
-    public bool IsArmed { get { lock (_stateLock) return _isArmed; } }
-    public bool IsAutoPlay { get { lock (_stateLock) return _isAutoPlay; } }
-    public bool IsPaused { get { lock (_stateLock) return _isPaused; } }
-    public bool IsSpeaking { get { lock (_stateLock) return _isSpeaking; } }
+    private int _queuedCount;
+    private TtsPlaybackMode _mode = TtsPlaybackMode.Disarmed;
+    private bool _isSpeaking;
+    private bool _disposed;
+    private CancellationTokenSource? _activePlaybackCts;
+    private readonly Task _playbackLoopTask;
+
+    public TtsPlaybackMode Mode
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _mode;
+            }
+        }
+    }
+
+    public bool IsArmed => Mode != TtsPlaybackMode.Disarmed;
+    public bool IsAutoPlay => Mode == TtsPlaybackMode.Automatic;
+    public bool IsPaused => Mode == TtsPlaybackMode.Paused;
+
+    public bool IsSpeaking
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _isSpeaking;
+            }
+        }
+    }
+
     public int Count => Volatile.Read(ref _queuedCount);
     public int Capacity => _capacity;
 
@@ -46,263 +78,511 @@ public sealed class TtsQueue : IAsyncDisposable
     public event EventHandler<ModerationDecision>? PlaybackFinished;
 
     public string? SelectedVoice { get; set; }
-    public int SpeechRate { get; set; } = 0;
+    public int SpeechRate { get; set; }
     public int SpeechVolume { get; set; } = 100;
     public bool BroadcastOutputEnabled { get; set; } = true;
-    public bool PrivateMonitorEnabled { get; set; }
-    public bool MirrorToPrivateMonitor { get; set; } = true;
 
-    public TtsQueue(ITtsEngine ttsEngine, IAudioRouter audioRouter, int capacity = 50, IAudioRouter? privateAudioRouter = null)
+    public TtsQueue(
+        ITtsEngine ttsEngine,
+        IAudioRouter audioRouter,
+        int capacity = 50)
     {
+        ArgumentNullException.ThrowIfNull(ttsEngine);
+        ArgumentNullException.ThrowIfNull(audioRouter);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
+
         _ttsEngine = ttsEngine;
         _audioRouter = audioRouter;
-        _privateAudioRouter = privateAudioRouter;
         _capacity = capacity;
         _playbackLoopTask = Task.Run(ProcessQueueLoopAsync);
     }
 
-    public bool Enqueue(ModerationDecision decision)
+    /// <summary>
+    /// Adds an approved decision only while SafeSpeak is armed. Content received
+    /// while disarmed is deliberately discarded so it cannot speak after re-arm.
+    /// </summary>
+    public bool Enqueue(ModerationDecision decision, bool bypassPause = false)
     {
-        if (decision == null || !decision.Passed || string.IsNullOrWhiteSpace(decision.SpokenText))
+        if (decision is null || !decision.Passed || string.IsNullOrWhiteSpace(decision.SpokenText))
         {
             return false;
         }
 
         lock (_stateLock)
         {
-            if (_queuedCount >= _capacity)
+            if (_disposed || _mode == TtsPlaybackMode.Disarmed || _queuedCount >= _capacity)
             {
                 return false;
             }
 
-            _queue.Enqueue(decision);
+            if (bypassPause && _mode == TtsPlaybackMode.Paused)
+            {
+                _pauseBypassQueue.Enqueue(decision);
+            }
+            else
+            {
+                _queue.Enqueue(decision);
+            }
             _queuedCount++;
         }
-        _signal.Release();
+
+        ReleaseSignal();
         NotifyStateChanged();
         return true;
     }
 
+    /// <summary>
+    /// Arms SafeSpeak in its normal automatic speaking mode.
+    /// </summary>
+    public void ArmAutomatic()
+    {
+        lock (_stateLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _mode = TtsPlaybackMode.Automatic;
+        }
+
+        WakePlaybackLoopIfReady();
+        NotifyStateChanged();
+    }
+
     public void SetArmed(bool armed)
     {
-        lock (_stateLock)
+        if (armed)
         {
-            _isArmed = armed;
+            ArmAutomatic();
         }
-        WakePlaybackLoopIfReady();
-        NotifyStateChanged();
+        else
+        {
+            Disarm();
+        }
     }
 
-    public void SetAutoPlay(bool autoPlay)
+    /// <summary>
+    /// Disarms SafeSpeak, stops current speech, and discards every pending item.
+    /// </summary>
+    public void Disarm()
     {
         lock (_stateLock)
         {
-            _isAutoPlay = autoPlay;
-        }
-        WakePlaybackLoopIfReady();
-        NotifyStateChanged();
-    }
+            if (_disposed)
+            {
+                return;
+            }
 
-    public void SetPaused(bool paused)
-    {
-        lock (_stateLock)
-        {
-            _isPaused = paused;
-        }
-        WakePlaybackLoopIfReady();
-        NotifyStateChanged();
-    }
-
-    public void SkipCurrent()
-    {
-        lock (_stateLock)
-        {
+            _mode = TtsPlaybackMode.Disarmed;
             _activePlaybackCts?.Cancel();
-            _ttsEngine.Stop();
-            _audioRouter.Stop();
-            _privateAudioRouter?.Stop();
+            ClearQueueLocked();
         }
-    }
 
-    public void Clear()
-    {
-        while (TryDequeue(out _)) { }
+        StopOutputs();
         NotifyStateChanged();
     }
 
     /// <summary>
-    /// Emergency Panic Stop: Instantly stops all current speech and purges the entire queue in &lt; 5ms.
+    /// Compatibility entry point for existing callers. True selects Automatic;
+    /// false selects Manual, but neither value arms a disarmed queue.
     /// </summary>
-    public void EmergencyPanicFlush()
+    public void SetAutoPlay(bool autoPlay)
     {
         lock (_stateLock)
         {
-            _isArmed = false; // Disarm immediately for safety
-            _isAutoPlay = false;
-            _activePlaybackCts?.Cancel();
-            _ttsEngine.Stop();
-            _audioRouter.Stop();
-            _privateAudioRouter?.Stop();
+            if (_disposed || _mode == TtsPlaybackMode.Disarmed)
+            {
+                return;
+            }
+
+            _mode = autoPlay ? TtsPlaybackMode.Automatic : TtsPlaybackMode.Manual;
         }
 
-        Clear();
+        WakePlaybackLoopIfReady();
+        NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Pausing lets the current item finish and prevents automatic advancement.
+    /// Resuming a paused queue returns it to Automatic mode.
+    /// </summary>
+    public void SetPaused(bool paused)
+    {
+        lock (_stateLock)
+        {
+            if (_disposed || _mode == TtsPlaybackMode.Disarmed)
+            {
+                return;
+            }
+
+            if (paused)
+            {
+                _mode = TtsPlaybackMode.Paused;
+            }
+            else if (_mode == TtsPlaybackMode.Paused)
+            {
+                _mode = TtsPlaybackMode.Automatic;
+            }
+        }
+
+        WakePlaybackLoopIfReady();
+        NotifyStateChanged();
+    }
+
+    public void UseManualAdvance()
+    {
+        SetAutoPlay(false);
+    }
+
+    public void ResumeAutomatic()
+    {
+        SetAutoPlay(true);
+    }
+
+    /// <summary>
+    /// Cancels only the item currently being synthesized or played.
+    /// </summary>
+    public void StopCurrentSpeech()
+    {
+        lock (_stateLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _activePlaybackCts?.Cancel();
+        }
+
+        StopOutputs();
+    }
+
+    /// <summary>
+    /// Clears pending messages without interrupting current speech.
+    /// </summary>
+    public void ClearQueue()
+    {
+        lock (_stateLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            ClearQueueLocked();
+        }
+
+        NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Immediately stops speech, clears pending messages, and disarms SafeSpeak.
+    /// Re-arming is required before any new message can enter or play.
+    /// </summary>
+    public void EmergencyStop()
+    {
+        lock (_stateLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _mode = TtsPlaybackMode.Disarmed;
+            _activePlaybackCts?.Cancel();
+            ClearQueueLocked();
+        }
+
+        StopOutputs();
+        NotifyStateChanged();
+    }
+
+    public async Task<bool> PlayNextManualAsync(CancellationToken cancellationToken = default)
+    {
+        return await TryPlayNextAsync(
+            requiredMode: TtsPlaybackMode.Manual,
+            cancellationToken);
     }
 
     private async Task ProcessQueueLoopAsync()
     {
-        var token = _queueLoopCts.Token;
-
-        while (!token.IsCancellationRequested)
-        {
-            try
-            {
-                await _signal.WaitAsync(token);
-
-                if (!IsArmed || !IsAutoPlay || IsPaused)
-                {
-                    // If disarmed, paused, or manual-only, wait until conditions change
-                    continue;
-                }
-
-                if (TryDequeue(out var decision))
-                {
-                    await PlayDecisionAsync(decision, token);
-                    WakePlaybackLoopIfReady();
-                }
-            }
-            catch (OperationCanceledException) when (token.IsCancellationRequested)
-            {
-                break;
-            }
-            catch
-            {
-                // Continue loop on transient error
-            }
-        }
-    }
-
-    public async Task PlayNextManualAsync()
-    {
-        if (TryDequeue(out var decision))
-        {
-            await PlayDecisionAsync(decision, CancellationToken.None);
-        }
-    }
-
-    private async Task PlayDecisionAsync(ModerationDecision decision, CancellationToken cancellationToken)
-    {
-        CancellationTokenSource playbackCts;
-        lock (_stateLock)
-        {
-            _isSpeaking = true;
-            _activePlaybackCts?.Dispose();
-            _activePlaybackCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            playbackCts = _activePlaybackCts;
-        }
-
-        NotifyStateChanged();
-        PlaybackStarted?.Invoke(this, decision);
+        CancellationToken token = _queueLoopCts.Token;
 
         try
         {
-            using var waveStream = new MemoryStream();
-            await _ttsEngine.SynthesizeToWaveStreamAsync(
-                decision.SpokenText,
-                waveStream,
-                SelectedVoice,
-                SpeechRate,
-                SpeechVolume,
-                playbackCts.Token
-            );
+            while (!token.IsCancellationRequested)
+            {
+                await _signal.WaitAsync(token);
 
-            byte[] waveBytes = waveStream.ToArray();
-            var playbackTasks = new List<Task>(2);
-            if (BroadcastOutputEnabled)
-            {
-                playbackTasks.Add(_audioRouter.PlayWaveStreamAsync(
-                    new MemoryStream(waveBytes, writable: false), SpeechVolume / 100.0f, playbackCts.Token));
+                while (await TryPlayNextPauseBypassAsync(token))
+                {
+                    // Priority event announcements may drain without changing
+                    // the user's paused playback mode.
+                }
+
+                while (await TryPlayNextAsync(TtsPlaybackMode.Automatic, token))
+                {
+                    // Drain only while the queue remains in Automatic mode.
+                }
             }
-            if (PrivateMonitorEnabled && MirrorToPrivateMonitor && _privateAudioRouter is not null &&
-                (!BroadcastOutputEnabled || _privateAudioRouter.SelectedEndpointId != _audioRouter.SelectedEndpointId))
-            {
-                playbackTasks.Add(_privateAudioRouter.PlayWaveStreamAsync(
-                    new MemoryStream(waveBytes, writable: false), SpeechVolume / 100.0f, playbackCts.Token));
-            }
-            if (playbackTasks.Count > 0) await Task.WhenAll(playbackTasks);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Normal shutdown.
+        }
+    }
+
+    private async Task<bool> TryPlayNextAsync(
+        TtsPlaybackMode requiredMode,
+        CancellationToken cancellationToken)
+    {
+        return await TryPlayNextAsync(
+            requiredMode,
+            _queue,
+            cancellationToken);
+    }
+
+    private async Task<bool> TryPlayNextPauseBypassAsync(
+        CancellationToken cancellationToken)
+    {
+        return await TryPlayNextAsync(
+            requiredMode: null,
+            _pauseBypassQueue,
+            cancellationToken);
+    }
+
+    private async Task<bool> TryPlayNextAsync(
+        TtsPlaybackMode? requiredMode,
+        ConcurrentQueue<ModerationDecision> sourceQueue,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _playbackGate.WaitAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
-            // Expected on skip/panic
+            return false;
         }
-        catch
-        {
-            // Fail safely without crashing
-        }
-        finally
+
+        ModerationDecision? decision = null;
+        CancellationTokenSource? playbackCts = null;
+
+        try
         {
             lock (_stateLock)
             {
-                _isSpeaking = false;
+                if (_disposed ||
+                    _mode == TtsPlaybackMode.Disarmed ||
+                    (requiredMode.HasValue && _mode != requiredMode.Value) ||
+                    !sourceQueue.TryDequeue(out decision) ||
+                    decision is null)
+                {
+                    return false;
+                }
+
+                _queuedCount--;
+                _isSpeaking = true;
+                _activePlaybackCts?.Dispose();
+                playbackCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    _queueLoopCts.Token);
+                _activePlaybackCts = playbackCts;
             }
+
             NotifyStateChanged();
-            PlaybackFinished?.Invoke(this, decision);
+            RaisePlaybackEvent(PlaybackStarted, decision);
+            await SynthesizeAndPlayAsync(decision, playbackCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return decision is not null;
+        }
+        catch
+        {
+            // A single synthesis or router failure must not terminate the queue.
+            return decision is not null;
+        }
+        finally
+        {
+            if (decision is not null)
+            {
+                lock (_stateLock)
+                {
+                    _isSpeaking = false;
+                    if (ReferenceEquals(_activePlaybackCts, playbackCts))
+                    {
+                        _activePlaybackCts = null;
+                    }
+                }
+
+                playbackCts?.Dispose();
+                NotifyStateChanged();
+                RaisePlaybackEvent(PlaybackFinished, decision);
+            }
+
+            _playbackGate.Release();
+
+            WakePlaybackLoopIfReady();
+        }
+    }
+
+    private async Task SynthesizeAndPlayAsync(
+        ModerationDecision decision,
+        CancellationToken cancellationToken)
+    {
+        using var waveStream = new MemoryStream();
+        await _ttsEngine.SynthesizeToWaveStreamAsync(
+            decision.SpokenText,
+            waveStream,
+            SelectedVoice,
+            SpeechRate,
+            SpeechVolume,
+            cancellationToken);
+
+        if (BroadcastOutputEnabled)
+        {
+            await _audioRouter.PlayWaveStreamAsync(
+                new MemoryStream(waveStream.ToArray(), writable: false),
+                SpeechVolume / 100.0f,
+                cancellationToken);
+        }
+    }
+
+    private void ClearQueueLocked()
+    {
+        while (_queue.TryDequeue(out _))
+        {
+        }
+        while (_pauseBypassQueue.TryDequeue(out _))
+        {
+        }
+
+        _queuedCount = 0;
+    }
+
+    private void WakePlaybackLoopIfReady()
+    {
+        bool ready;
+        lock (_stateLock)
+        {
+            ready = !_disposed &&
+                _mode != TtsPlaybackMode.Disarmed &&
+                ((!_pauseBypassQueue.IsEmpty) ||
+                 (_mode == TtsPlaybackMode.Automatic && !_queue.IsEmpty)) &&
+                !_queueLoopCts.IsCancellationRequested;
+        }
+
+        if (ready)
+        {
+            ReleaseSignal();
+        }
+    }
+
+    private void ReleaseSignal()
+    {
+        try
+        {
+            _signal.Release();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Shutdown won the race.
+        }
+    }
+
+    private void StopOutputs()
+    {
+        TryStop(_ttsEngine.Stop);
+        TryStop(_audioRouter.Stop);
+    }
+
+    private static void TryStop(Action stop)
+    {
+        try
+        {
+            stop();
+        }
+        catch
+        {
+            // Stop paths are best effort and must never block emergency handling.
         }
     }
 
     private void NotifyStateChanged()
     {
-        StateChanged?.Invoke(this, new TtsQueueStateChangedEventArgs
-        {
-            IsArmed = IsArmed,
-            IsAutoPlay = IsAutoPlay,
-            IsPaused = IsPaused,
-            IsSpeaking = IsSpeaking,
-            QueueCount = Count
-        });
-    }
-
-    private bool TryDequeue(out ModerationDecision decision)
-    {
+        TtsQueueStateChangedEventArgs snapshot;
         lock (_stateLock)
         {
-            if (!_queue.TryDequeue(out ModerationDecision? dequeued) || dequeued is null)
+            snapshot = new TtsQueueStateChangedEventArgs
             {
-                decision = null!;
-                return false;
-            }
-
-            decision = dequeued;
-            _queuedCount--;
-            return true;
+                Mode = _mode,
+                IsArmed = _mode != TtsPlaybackMode.Disarmed,
+                IsAutoPlay = _mode == TtsPlaybackMode.Automatic,
+                IsPaused = _mode == TtsPlaybackMode.Paused,
+                IsSpeaking = _isSpeaking,
+                QueueCount = _queuedCount
+            };
         }
+
+        StateChanged?.Invoke(this, snapshot);
     }
 
-    private void WakePlaybackLoopIfReady()
+    private void RaisePlaybackEvent(
+        EventHandler<ModerationDecision>? handler,
+        ModerationDecision decision)
     {
-        if (Count == 0 || !IsArmed || !IsAutoPlay || IsPaused || _queueLoopCts.IsCancellationRequested)
+        try
         {
-            return;
+            handler?.Invoke(this, decision);
         }
-
-        _signal.Release();
+        catch
+        {
+            // UI observers cannot be allowed to stop safety-critical queue work.
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        _queueLoopCts.Cancel();
-        _activePlaybackCts?.Cancel();
-        _ttsEngine.Stop();
-        _audioRouter.Stop();
-        _privateAudioRouter?.Stop();
-
-        if (_playbackLoopTask != null)
+        lock (_stateLock)
         {
-            try { await _playbackLoopTask; } catch { }
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _mode = TtsPlaybackMode.Disarmed;
+            _activePlaybackCts?.Cancel();
+            ClearQueueLocked();
+        }
+
+        _queueLoopCts.Cancel();
+        StopOutputs();
+
+        try
+        {
+            await _playbackLoopTask;
+        }
+        catch
+        {
+            // Shutdown is best effort.
+        }
+
+        await _playbackGate.WaitAsync();
+        _playbackGate.Release();
+
+        lock (_stateLock)
+        {
+            _activePlaybackCts?.Dispose();
+            _activePlaybackCts = null;
+            _isSpeaking = false;
         }
 
         _signal.Dispose();
+        _playbackGate.Dispose();
         _queueLoopCts.Dispose();
-        _activePlaybackCts?.Dispose();
     }
 }

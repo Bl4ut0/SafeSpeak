@@ -44,8 +44,16 @@ public sealed class RuleEngine
     /// <summary>
     /// Checks audience tier eligibility.
     /// </summary>
-    public bool IsAudienceEligible(ChatMessage message, AudienceMode mode)
+    public bool IsAudienceEligible(
+        ChatMessage message,
+        AudienceMode mode,
+        bool allowDonorsToSpeak = true)
     {
+        if (allowDonorsToSpeak && message.IsDonor)
+        {
+            return true;
+        }
+
         return mode switch
         {
             AudienceMode.All => true,

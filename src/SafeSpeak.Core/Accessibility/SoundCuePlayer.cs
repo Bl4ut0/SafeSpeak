@@ -39,7 +39,7 @@ public static class SoundCuePlayer
                         Console.Beep(659, 70);
                         Console.Beep(523, 90);
                         break;
-                    case SoundCueType.EmergencyPanic:
+                    case SoundCueType.EmergencyStop:
                         Console.Beep(1200, 120);
                         Console.Beep(600, 150);
                         break;

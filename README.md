@@ -1,66 +1,80 @@
 # SafeSpeak
 
-SafeSpeak is a Windows-first, accessibility-focused TTS safety application for livestreamers. It connects to TikFinity's local event feed, applies local moderation before speech, queues only approved content, and provides keyboard, integrated-reader, and optional Stream Deck controls.
+SafeSpeak is a Windows-first, accessibility-focused application that turns approved livestream chat into speech. It connects to a local source, filters banned terms and hostile intent before audio, and keeps the everyday experience to four keyboard-friendly areas: Live, Safety, Voice, and Settings.
 
 > [!WARNING]
-> SafeSpeak reduces TTS abuse risk but cannot guarantee detection of every hostile message. Start disarmed with automatic playback off, disable TikFinity's independent TTS, and keep TikTok moderation and trusted moderators active.
+> SafeSpeak reduces TTS abuse risk but cannot guarantee that every hostile message will be detected. It always starts disarmed. Disable any independent source-platform TTS and keep the platform's own moderation and trusted moderators active.
 
-## Current implementation
+## Main release target
 
-- WPF desktop application targeting .NET 8 on Windows 10 build 19041 or later.
-- A visible and spoken first-run reader question that requires two matching Yes or No answers before saving. A mismatch restarts confirmation without changing settings.
-- Full Tab/Shift+Tab navigation, access keys, large controls, visible keyboard focus, UI Automation names/live regions, Windows High Contrast support, and a saved in-app extra-high-contrast theme.
-- Four-section dashboard: Live feed, Moderation, Audio, and Accessibility.
-- TikFinity localhost WebSocket connection, reconnection, defensive parsing for chat, gifts, follows, shares, subscriptions, joins, and likes, plus an offline emulator.
-- Local Unicode normalization, invisible-character and homoglyph handling, mixed-script rules, built-in/custom terms, audience rules, cooldown, URL removal, and optional contextual heuristic classification.
-- Safe display-name moderation and Narrator-safe redaction of rejected feed content.
-- A bounded 50-message queue that starts disarmed with automatic playback disabled, plus manual play, skip, pause, clear, and emergency cancellation.
-- Installed Windows voices plus an optional, explicitly downloaded Kokoro model with 27 genuine local neural English voices.
-- Selected Windows or Kokoro voices power TikTok speech and an accessible private test button; the integrated reader uses a separate low-latency Windows voice for immediate keyboard navigation.
-- Independently selectable WASAPI broadcast and private-monitor endpoints, optional approved-message mirroring, and safe private blocked-message notices that never speak rejected text.
-- Audio device, voice, rate, volume, blocked-term, and moderation preferences are applied at runtime and saved locally for the next launch.
-- A loopback-only Stream Deck control service hardened against web-page origins and GET-based control requests.
-- A separate 24-action Stream Deck plug-in covering safety, playback, connection, every live-event category, audio outputs, and high contrast. It never creates or changes a user's profile.
-- Repeatable self-contained ZIP and structurally verified MSIX builds for x64 and arm64, plus schema-validated Stream Deck packaging, with pinned .NET SDK and Windows CI.
+The redesign below is in progress. Items described as targets are not release claims; the living [implementation and execution plan](docs/implementation-execution-plan.md) records the verified checkpoint and acceptance evidence.
+
+- .NET 8 WPF desktop application for Windows 10 build 19041 or later.
+- First launch asks independently whether to use built-in spoken guidance and which visual theme to use: **Light**, **Dark**, or **High Contrast**. After closing and reopening SafeSpeak, the user confirms those pending choices before continuing through platform and filtering setup. Completed setup can be run again from Settings.
+- Tab/Shift+Tab navigation, arrow-key tabs and sliders, access keys, large targets, visible focus, real UI Automation live-region events, and Windows High Contrast support.
+- Automatic TikFinity connection and reconnection through a platform-neutral source-connector contract. SafeSpeak remains disarmed after connecting.
+- Local MiniLM/ONNX toxicity classification with four understandable strengths: Relaxed, Balanced, Strong, and Maximum. The bundled model and deterministic fallback are the current moderation foundation; onboarding must report the model actually selected instead of claiming that a disconnected download improved filtering. Chat does not leave the computer for the main moderation path.
+- Non-optional severe-abuse and anti-evasion rules plus a keyboard-manageable custom banned-terms list.
+- Every approved chat is attributed as **moderated viewer name says: message**. Names are filtered separately and unsafe names become **A viewer**.
+- Rejected-content redaction for both the visible activity feed and external screen-reader summaries.
+- **Arm SafeSpeak** enables event intake and approved-message playback. The target Live controls are Pause TTS, Manual Mode, Speak Next Approved Message, Stop Current Speech, Clear Queue, and Emergency Stop. Disarming discards new events before moderation, activity, logging, or TTS; Emergency Stop cancels current speech, clears pending speech, disarms, and requires an explicit re-arm.
+- Closing the main window immediately disarms speech, stops accepting source events, and starts cleanup off the interface thread. Connector, speech, audio, and local-model resources get a five-second cleanup window before the app exits; shutdown errors never open a blocking dialog.
+- Installed Windows voices are available now. Kokoro and imported voice packs remain development paths until their assets, real synthesis backends, cancellation, trust, and accessible install flows pass the release gates.
+- A single main output, voice, test action, rate, and volume in the primary interface.
+- Repeatable self-contained ZIP and MSIX builds for x64 and arm64.
+
+The repository retains some advanced audio, event-routing, simulator, and Stream Deck infrastructure for compatibility, but those controls are outside the release-critical interface. See [main and later tracks](docs/release-tracks.md).
 
 ## Build and test
 
 ```powershell
-dotnet build SafeSpeak.sln -c Release
-dotnet test SafeSpeak.sln -c Release --no-build
+dotnet build src/SafeSpeak.App/SafeSpeak.App.csproj -c Release
+dotnet test tests/SafeSpeak.Core.Tests/SafeSpeak.Core.Tests.csproj -c Release
 ```
 
 Build a self-contained ZIP and MSIX candidate:
 
 ```powershell
-./installer/Build-Release.ps1 -Architecture x64 -PackageVersion 0.1.0.0 -Format Both
+./installer/Build-Release.ps1 -Architecture x64 -Format Both
 ```
 
-The MSIX path requires Windows SDK packaging tools. Store submissions also require the exact identity values assigned in Partner Center. See the [packaging and Microsoft Store guide](installer/README.md).
+The current four-part desktop version comes from `Directory.Build.props`. To test, build the self-contained x64 executable, and launch that exact verified build in one command, run `./installer/Build-And-Run.ps1`. The launcher validates the app host, managed code, runtime manifests, and pinned moderation assets before starting. This workflow does not start or stop the TikFinity emulator. The MSIX path requires Windows SDK packaging tools. Store submissions also require the identity assigned by Partner Center. See the [packaging guide](installer/README.md).
 
 ## Repository layout
 
-- `src/SafeSpeak.App` — accessible WPF desktop application
-- `src/SafeSpeak.Core` — moderation, queue, Windows/Kokoro speech, connector, accessibility, audio routing, and local-control services
-- `tests/SafeSpeak.Core.Tests` — deterministic safety, packaging-adjacent, and regression tests
-- `streamdeck` — separately installed Elgato plug-in
-- `installer` — self-contained ZIP/MSIX scripts, manifests, assets, and WinGet generation
-- `docs` — implementation scope and UI/accessibility roadmap
+- `src/SafeSpeak.App` — keyboard-first WPF interface
+- `src/SafeSpeak.Core` — moderation, speech, normalized events, connectors, accessibility, and audio
+- `tests/SafeSpeak.Core.Tests` — deterministic safety and regression tests
+- `docs` — product tracks, accessibility gates, connector rules, and voice details
+- `streamdeck` — optional secondary Stream Deck plug-in
+- `installer` — ZIP/MSIX and WinGet build tooling
 - `tools` — TikFinity emulator and development utilities
 
 ## Important limitations
 
-- The current English-only option enforces writing-system rules; a full language-identification model is not yet integrated.
-- The current contextual classifier is a local heuristic layer, not a general-purpose language model.
-- TikFinity payloads can change between releases; the supported event parser must be regression-tested against the installed TikFinity version.
-- Kokoro requires an explicit roughly 326 MB model download. It is not bundled into the base installer, and Windows voices remain available without it.
-- Stream Deck physical-button and full Narrator/NVDA/JAWS acceptance testing remain release gates.
-- Store identity, listing, production artwork, certification answers, signing, and Partner Center submission remain external release steps.
+- The bundled 23M-parameter MiniLM classifier is a specialized local text model, not a generative chatbot or a guarantee. Deterministic rules and a heuristic fallback remain active around it. The separate enhanced-filter onboarding/download flow is not complete and must not report success unless the selected model is verified and runnable.
+- Generic profanity can score as toxic even in positive context; the strength slider controls the tradeoff, and release decisions require a representative livestream corpus.
+- TikFinity payloads can change; release versions require privacy-safe compatibility fixtures and parser regression tests.
+- The development Kokoro package is roughly 326 MB and still needs a pinned source, checksum or signature, cancellation, and cleanup verification before it can be a release option.
+- Custom voice-package archive validation exists, but upload/import is not a usable release feature until at least one supported synthesis backend, atomic install and rollback, consent, licensing, progress, cancellation, preview, persistence, and deletion are complete.
+- Narrator, NVDA, JAWS, 200%/400% scaling, physical Stream Deck, clean-install, signing, and Store certification remain human release gates.
+- Closing during active Windows and Kokoro speech is a manual release gate: input must stop immediately and the app must exit at the five-second cleanup deadline without a dialog or focus trap.
+- Built-in SafeSpeak guidance currently uses the Windows default playback device. Streamers who capture desktop audio must ensure that device is not included in the broadcast mix.
 
-See the [product plan](docs/product-plan.md) and [UI/accessibility roadmap](docs/ui-accessibility-roadmap.md).
-
-Voice source, privacy, and installation details are in [voice engines](docs/voice-engines.md).
+See the [moderation model details](docs/moderation-model.md), [product plan](docs/product-plan.md), [accessibility roadmap](docs/ui-accessibility-roadmap.md), [connector guide](docs/connector-development.md), and [voice engine details](docs/voice-engines.md).
 
 ## License
 
-SafeSpeak is licensed under the [MIT License](LICENSE).
+SafeSpeak is proprietary source-visible software; it is not open source.
+Official unmodified SafeSpeak binary releases are free to install and use,
+but the source code and original assets may not be copied, modified, built,
+redistributed, sublicensed, sold, or used to create a competing product
+without prior written permission. Public GitHub hosting still permits the
+limited viewing and forking rights supplied directly by GitHub's Terms of
+Service. See the [SafeSpeak Proprietary Source-Visible License](LICENSE).
+The new license applies prospectively; SafeSpeak revisions already published
+under MIT remain available under the license that accompanied those revisions.
+
+Third-party libraries, models, and data remain under their respective terms.
+See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and the model-specific
+notices distributed with SafeSpeak.

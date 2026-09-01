@@ -43,6 +43,11 @@ public sealed class IntegratedFocusNarrator : IDisposable
             return null;
         }
 
+        if (element is ListBoxItem listBoxItem)
+        {
+            return DescribeListBoxItem(listBoxItem, name);
+        }
+
         var parts = new List<string> { name };
 
         switch (element)
@@ -70,13 +75,21 @@ public sealed class IntegratedFocusNarrator : IDisposable
             case ComboBox comboBox:
                 AddDistinct(parts, GetComboBoxValue(comboBox));
                 parts.Add("selection box");
-                parts.Add("Use Up and Down Arrow keys to change the selection");
+                AddDistinct(
+                    parts,
+                    GetHelpTextOrDefault(
+                        comboBox,
+                        "Use Up and Down Arrow keys to change the selection"));
                 break;
 
             case Slider slider:
                 parts.Add(slider.Value.ToString("0.##", CultureInfo.CurrentCulture));
                 parts.Add("slider");
-                parts.Add("Use Left and Right Arrow keys to adjust");
+                AddDistinct(
+                    parts,
+                    GetHelpTextOrDefault(
+                        slider,
+                        "Use Left and Right Arrow keys to adjust"));
                 break;
 
             case TextBox:
@@ -87,18 +100,19 @@ public sealed class IntegratedFocusNarrator : IDisposable
                 parts.Add("list item");
                 break;
 
-            case ListBoxItem:
-                parts.Add("list item");
-                break;
-
             case ListView:
                 parts.Add("list");
                 parts.Add("Use Up and Down Arrow keys to review messages");
                 break;
 
-            case ListBox:
+            case ListBox listBox:
+                AddDistinct(parts, AutomationProperties.GetItemStatus(listBox));
                 parts.Add("list");
-                parts.Add("Use Up and Down Arrow keys to review items");
+                AddDistinct(
+                    parts,
+                    GetHelpTextOrDefault(
+                        listBox,
+                        "Use Up and Down Arrow keys to review items"));
                 break;
 
             case Button button:
@@ -181,7 +195,55 @@ public sealed class IntegratedFocusNarrator : IDisposable
                 .ToString() ?? string.Empty;
         }
 
+        if (comboBox.SelectedItem is not null)
+        {
+            Type itemType = comboBox.SelectedItem.GetType();
+            foreach (string propertyName in new[] { "DisplayName", "Name", "Title", "Id" })
+            {
+                string? value = itemType
+                    .GetProperty(propertyName)?
+                    .GetValue(comboBox.SelectedItem)?
+                    .ToString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+        }
+
         return string.Empty;
+    }
+
+    private static string DescribeListBoxItem(ListBoxItem item, string itemName)
+    {
+        var parts = new List<string>();
+        ItemsControl? owner = ItemsControl.ItemsControlFromItemContainer(item);
+        if (owner is not null)
+        {
+            AddDistinct(parts, AutomationProperties.GetName(owner));
+            int index = owner.ItemContainerGenerator.IndexFromContainer(item);
+            string position = index >= 0
+                ? $"{itemName}, option {index + 1} of {owner.Items.Count}"
+                : itemName;
+            AddDistinct(parts, position);
+            parts.Add(item.IsSelected ? "selected" : "not selected");
+            AddDistinct(parts, AutomationProperties.GetHelpText(owner));
+        }
+        else
+        {
+            AddDistinct(parts, itemName);
+            parts.Add(item.IsSelected ? "selected list item" : "list item");
+        }
+
+        return string.Join(". ", parts) + ".";
+    }
+
+    private static string GetHelpTextOrDefault(
+        DependencyObject element,
+        string defaultText)
+    {
+        string helpText = CleanAccessKey(AutomationProperties.GetHelpText(element));
+        return string.IsNullOrWhiteSpace(helpText) ? defaultText : helpText;
     }
 
     private static void AddDistinct(ICollection<string> parts, string candidate)

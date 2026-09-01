@@ -8,12 +8,13 @@ public enum SoundCueType
     MessageBlocked,
     TikFinityConnected,
     TikFinityDisconnected,
-    EmergencyPanic,
+    EmergencyStop,
     QueueEmpty
 }
 
 /// <summary>
-/// Contract for private screen reader speech and audio cue announcements that never enter broadcast audio.
+/// Contract for SafeSpeak's optional built-in spoken guidance and audio cues.
+/// Routing depends on the implementation and must be described accurately in the UI.
 /// </summary>
 public interface IScreenReaderBridge : IDisposable
 {

@@ -4,30 +4,21 @@ This separately installed Windows plug-in exposes SafeSpeak controls in Elgato's
 
 ## Current actions
 
-1. Arm or Disarm
-2. Automatic Playback
-3. Pause or Resume
-4. English-only Mode
-5. Speak Usernames
-6. Local Contextual Classifier
-7. Cycle Audience
-8. Cycle Strictness
-9. Emergency Stop
-10. Skip Message
-11. Play Next
-12. Hear Status
-13. Clear Queue
-14. TikFinity Connect or Disconnect
-15. Chat Announcements
-16. Gift Announcements
-17. Follow Announcements
-18. Share Announcements
-19. Subscription Announcements
-20. Viewer Join Announcements
-21. Like Announcements
-22. Broadcast Output
-23. Private Monitor
-24. High Contrast Theme
+The plug-in deliberately exposes only the controls needed during a live session:
+
+1. Hear Status
+2. Arm or Disarm
+3. Emergency Stop
+4. Automatic or Manual Playback Mode
+5. Pause or Resume TTS
+6. Speak Next
+7. Stop Current
+8. Clear Queue
+
+Safety rules, announcement types, source connections, audio routing, usernames,
+language filtering, moderation strength, and themes are configured inside
+SafeSpeak. Keeping those choices in the app gives screen-reader users the label,
+current value, and help text needed to change them safely.
 
 The plug-in uses Elgato's local WebSocket host and SafeSpeak's loopback service at `127.0.0.1:21214`. Control requests use POST with a plug-in marker; SafeSpeak rejects ordinary GET controls and non-local web-page origins. This reduces browser-based localhost attacks, but a future per-user authenticated named-pipe transport remains the preferred security design.
 

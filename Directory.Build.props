@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <!-- Single source of truth for the current SafeSpeak desktop/package version. -->
+    <SafeSpeakVersion>0.1.0.4</SafeSpeakVersion>
+    <Version>$(SafeSpeakVersion)</Version>
+    <AssemblyVersion>$(SafeSpeakVersion)</AssemblyVersion>
+    <FileVersion>$(SafeSpeakVersion)</FileVersion>
+    <InformationalVersion>$(SafeSpeakVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

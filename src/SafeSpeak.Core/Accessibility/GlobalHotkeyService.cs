@@ -5,9 +5,9 @@ namespace SafeSpeak.Core.Accessibility;
 public enum HotkeyAction
 {
     AnnounceStatus,
-    EmergencyPanic,
+    EmergencyStop,
     ToggleArm,
-    SkipCurrent
+    StopCurrentSpeech
 }
 
 public sealed class HotkeyTriggeredEventArgs : EventArgs
@@ -18,6 +18,13 @@ public sealed class HotkeyTriggeredEventArgs : EventArgs
     {
         Action = action;
     }
+}
+
+public sealed record HotkeyRegistrationResult(
+    IReadOnlyList<HotkeyAction> Registered,
+    IReadOnlyList<HotkeyAction> Unavailable)
+{
+    public bool AllRegistered => Unavailable.Count == 0;
 }
 
 /// <summary>
@@ -40,36 +47,48 @@ public sealed class GlobalHotkeyService : IDisposable
     private const uint VK_A = 0x41;
     private const uint VK_K = 0x4B;
 
+    // Keep the numeric IDs stable so upgrades retain the Windows hotkey contract.
     private const int HOTKEY_ID_STATUS = 9001;
-    private const int HOTKEY_ID_PANIC = 9002;
+    private const int HOTKEY_ID_EMERGENCY_STOP = 9002;
     private const int HOTKEY_ID_ARM = 9003;
-    private const int HOTKEY_ID_SKIP = 9004;
+    private const int HOTKEY_ID_STOP_CURRENT_SPEECH = 9004;
 
     private nint _hWnd = nint.Zero;
-    private bool _isRegistered = false;
+    private readonly HashSet<int> _registeredIds = new();
 
     public event EventHandler<HotkeyTriggeredEventArgs>? HotkeyTriggered;
 
-    public void RegisterHotkeys(nint windowHandle)
+    public HotkeyRegistrationResult RegisterHotkeys(nint windowHandle)
     {
-        if (_isRegistered || windowHandle == nint.Zero) return;
+        if (_registeredIds.Count > 0 || windowHandle == nint.Zero)
+        {
+            return new HotkeyRegistrationResult(Array.Empty<HotkeyAction>(), Enum.GetValues<HotkeyAction>());
+        }
 
         _hWnd = windowHandle;
         uint modifiers = MOD_CONTROL | MOD_ALT | MOD_NOREPEAT;
+        var registered = new List<HotkeyAction>();
+        var unavailable = new List<HotkeyAction>();
 
-        // Ctrl + Alt + S: Status Announce
-        RegisterHotKey(_hWnd, HOTKEY_ID_STATUS, modifiers, VK_S);
+        TryRegister(HOTKEY_ID_STATUS, VK_S, HotkeyAction.AnnounceStatus);
+        TryRegister(HOTKEY_ID_EMERGENCY_STOP, VK_P, HotkeyAction.EmergencyStop);
+        TryRegister(HOTKEY_ID_ARM, VK_A, HotkeyAction.ToggleArm);
+        TryRegister(HOTKEY_ID_STOP_CURRENT_SPEECH, VK_K, HotkeyAction.StopCurrentSpeech);
 
-        // Ctrl + Alt + P: Emergency Panic Stop
-        RegisterHotKey(_hWnd, HOTKEY_ID_PANIC, modifiers, VK_P);
+        return new HotkeyRegistrationResult(registered, unavailable);
 
-        // Ctrl + Alt + A: Toggle Arm/Disarm
-        RegisterHotKey(_hWnd, HOTKEY_ID_ARM, modifiers, VK_A);
-
-        // Ctrl + Alt + K: Skip Message
-        RegisterHotKey(_hWnd, HOTKEY_ID_SKIP, modifiers, VK_K);
-
-        _isRegistered = true;
+        void TryRegister(int id, uint key, HotkeyAction action)
+        {
+            if (RegisterHotKey(_hWnd, id, modifiers, key))
+            {
+                _registeredIds.Add(id);
+                registered.Add(action);
+            }
+            else
+            {
+                unavailable.Add(action);
+            }
+        }
     }
 
     public void ProcessWindowMessage(int msg, nint wParam)
@@ -81,9 +100,9 @@ public sealed class GlobalHotkeyService : IDisposable
         HotkeyAction? action = id switch
         {
             HOTKEY_ID_STATUS => HotkeyAction.AnnounceStatus,
-            HOTKEY_ID_PANIC => HotkeyAction.EmergencyPanic,
+            HOTKEY_ID_EMERGENCY_STOP => HotkeyAction.EmergencyStop,
             HOTKEY_ID_ARM => HotkeyAction.ToggleArm,
-            HOTKEY_ID_SKIP => HotkeyAction.SkipCurrent,
+            HOTKEY_ID_STOP_CURRENT_SPEECH => HotkeyAction.StopCurrentSpeech,
             _ => null
         };
 
@@ -95,14 +114,13 @@ public sealed class GlobalHotkeyService : IDisposable
 
     public void UnregisterHotkeys()
     {
-        if (!_isRegistered || _hWnd == nint.Zero) return;
+        if (_hWnd == nint.Zero) return;
 
-        UnregisterHotKey(_hWnd, HOTKEY_ID_STATUS);
-        UnregisterHotKey(_hWnd, HOTKEY_ID_PANIC);
-        UnregisterHotKey(_hWnd, HOTKEY_ID_ARM);
-        UnregisterHotKey(_hWnd, HOTKEY_ID_SKIP);
-
-        _isRegistered = false;
+        foreach (int id in _registeredIds)
+        {
+            UnregisterHotKey(_hWnd, id);
+        }
+        _registeredIds.Clear();
         _hWnd = nint.Zero;
     }
 

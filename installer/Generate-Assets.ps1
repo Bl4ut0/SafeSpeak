@@ -1,72 +1,164 @@
 [CmdletBinding()]
-param([string]$OutputDirectory)
+param(
+    [string]$OutputDirectory,
+    [string]$MasterIconPath
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Add-Type -AssemblyName System.Drawing
-$OutputDirectory = if ($OutputDirectory) { $OutputDirectory } else { Join-Path $PSScriptRoot 'Assets' }
-New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
-function New-SafeSpeakAsset {
+$OutputDirectory = if ($OutputDirectory) {
+    $OutputDirectory
+}
+else {
+    Join-Path $PSScriptRoot 'Assets'
+}
+
+$MasterIconPath = if ($MasterIconPath) {
+    $MasterIconPath
+}
+else {
+    Join-Path $PSScriptRoot 'Assets\SafeSpeakIconMaster-v1.png'
+}
+
+if (-not (Test-Path -LiteralPath $MasterIconPath -PathType Leaf)) {
+    throw "SafeSpeak icon master was not found: $MasterIconPath"
+}
+
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+$master = [System.Drawing.Bitmap]::new($MasterIconPath)
+
+function New-SafeSpeakBitmap {
     param(
-        [Parameter(Mandatory)] [string]$Name,
         [Parameter(Mandatory)] [int]$Width,
-        [Parameter(Mandatory)] [int]$Height
+        [Parameter(Mandatory)] [int]$Height,
+        [Parameter(Mandatory)] [int]$ArtworkSize
     )
 
-    $path = Join-Path $OutputDirectory $Name
-    $bitmap = [System.Drawing.Bitmap]::new($Width, $Height)
+    $bitmap = [System.Drawing.Bitmap]::new(
+        $Width,
+        $Height,
+        [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 
     try {
-        $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-        $graphics.Clear([System.Drawing.Color]::FromArgb(18, 18, 20))
+        $graphics.Clear([System.Drawing.Color]::Transparent)
+        $graphics.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
+        $graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+        $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
 
-        $padding = [Math]::Max(3, [Math]::Round([Math]::Min($Width, $Height) * 0.16))
-        $diameter = [Math]::Max(8, [Math]::Min($Width, $Height) - (2 * $padding))
-        $circleX = [Math]::Round(($Width - $diameter) / 2)
-        $circleY = [Math]::Round(($Height - $diameter) / 2)
-
-        $accent = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(38, 208, 187))
-        $ink = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(18, 18, 20), [Math]::Max(2, $diameter * 0.07))
-        $ink.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $ink.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-
-        try {
-            $graphics.FillEllipse($accent, $circleX, $circleY, $diameter, $diameter)
-
-            # A simple speech-wave mark that remains recognizable at 44 pixels.
-            $centerX = $Width / 2
-            $centerY = $Height / 2
-            $waveWidth = $diameter * 0.48
-            $waveHeight = $diameter * 0.42
-            $left = $centerX - ($waveWidth / 2)
-            $step = $waveWidth / 4
-            $heights = @(0.28, 0.72, 1.0, 0.72, 0.28)
-
-            for ($index = 0; $index -lt $heights.Count; $index++) {
-                $lineHeight = $waveHeight * $heights[$index]
-                $x = $left + ($step * $index)
-                $graphics.DrawLine($ink, $x, $centerY - ($lineHeight / 2), $x, $centerY + ($lineHeight / 2))
-            }
-        }
-        finally {
-            $accent.Dispose()
-            $ink.Dispose()
-        }
-
-        $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+        $left = [Math]::Floor(($Width - $ArtworkSize) / 2)
+        $top = [Math]::Floor(($Height - $ArtworkSize) / 2)
+        $destination = [System.Drawing.Rectangle]::new($left, $top, $ArtworkSize, $ArtworkSize)
+        $graphics.DrawImage(
+            $master,
+            $destination,
+            0,
+            0,
+            $master.Width,
+            $master.Height,
+            [System.Drawing.GraphicsUnit]::Pixel)
     }
     finally {
         $graphics.Dispose()
+    }
+
+    return $bitmap
+}
+
+function New-SafeSpeakPng {
+    param(
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [int]$Width,
+        [Parameter(Mandatory)] [int]$Height,
+        [Parameter(Mandatory)] [int]$ArtworkSize
+    )
+
+    $path = Join-Path $OutputDirectory $Name
+    $bitmap = New-SafeSpeakBitmap -Width $Width -Height $Height -ArtworkSize $ArtworkSize
+    try {
+        $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+    }
+    finally {
         $bitmap.Dispose()
     }
 }
 
-New-SafeSpeakAsset -Name 'StoreLogo.png' -Width 50 -Height 50
-New-SafeSpeakAsset -Name 'Square44x44Logo.png' -Width 44 -Height 44
-New-SafeSpeakAsset -Name 'Square150x150Logo.png' -Width 150 -Height 150
-New-SafeSpeakAsset -Name 'Wide310x150Logo.png' -Width 310 -Height 150
+function Get-SafeSpeakPngFrame {
+    param([Parameter(Mandatory)] [int]$Size)
 
-Write-Host "Generated MSIX assets in $OutputDirectory"
+    $bitmap = New-SafeSpeakBitmap -Width $Size -Height $Size -ArtworkSize $Size
+    $stream = [System.IO.MemoryStream]::new()
+    try {
+        $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Png)
+        # Preserve each PNG as one frame instead of letting PowerShell flatten
+        # the byte array into the function's output pipeline.
+        return ,$stream.ToArray()
+    }
+    finally {
+        $stream.Dispose()
+        $bitmap.Dispose()
+    }
+}
+
+function New-SafeSpeakIco {
+    param([Parameter(Mandatory)] [string]$Name)
+
+    $sizes = @(16, 20, 24, 32, 40, 48, 64, 128, 256)
+    $frames = @($sizes | ForEach-Object { Get-SafeSpeakPngFrame -Size $_ })
+    $path = Join-Path $OutputDirectory $Name
+    $stream = [System.IO.File]::Open(
+        $path,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::None)
+    $writer = [System.IO.BinaryWriter]::new($stream)
+
+    try {
+        # ICONDIR header: reserved, image type, frame count.
+        $writer.Write([uint16]0)
+        $writer.Write([uint16]1)
+        $writer.Write([uint16]$frames.Count)
+
+        $offset = 6 + (16 * $frames.Count)
+        for ($index = 0; $index -lt $frames.Count; $index++) {
+            $size = $sizes[$index]
+            $frame = $frames[$index]
+            $encodedSize = if ($size -eq 256) { 0 } else { $size }
+            $writer.Write([byte]$encodedSize)
+            $writer.Write([byte]$encodedSize)
+            $writer.Write([byte]0)
+            $writer.Write([byte]0)
+            $writer.Write([uint16]1)
+            $writer.Write([uint16]32)
+            $writer.Write([uint32]$frame.Length)
+            $writer.Write([uint32]$offset)
+            $offset += $frame.Length
+        }
+
+        foreach ($frame in $frames) {
+            $writer.Write($frame)
+        }
+    }
+    finally {
+        $writer.Dispose()
+        $stream.Dispose()
+    }
+}
+
+try {
+    New-SafeSpeakPng -Name 'StoreLogo.png' -Width 50 -Height 50 -ArtworkSize 50
+    New-SafeSpeakPng -Name 'Square44x44Logo.png' -Width 44 -Height 44 -ArtworkSize 44
+    New-SafeSpeakPng -Name 'Square150x150Logo.png' -Width 150 -Height 150 -ArtworkSize 150
+    New-SafeSpeakPng -Name 'Wide310x150Logo.png' -Width 310 -Height 150 -ArtworkSize 150
+    New-SafeSpeakIco -Name 'SafeSpeak.ico'
+}
+finally {
+    $master.Dispose()
+}
+
+Write-Host "Generated branded MSIX and executable assets from $MasterIconPath in $OutputDirectory"

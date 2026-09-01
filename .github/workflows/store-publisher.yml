@@ -1,0 +1,161 @@
+name: Microsoft Store publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Store package version (four parts; final component must be 0)
+        required: true
+        default: 1.0.0.0
+        type: string
+      upload_draft:
+        description: Upload the verified bundle to a Partner Center draft
+        required: true
+        default: false
+        type: boolean
+      commit_submission:
+        description: Commit the uploaded draft for Microsoft certification
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safespeak-microsoft-store
+  cancel-in-progress: false
+
+jobs:
+  build-store-bundle:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      PACKAGE_VERSION: ${{ inputs.package_version }}
+      STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
+      STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
+      STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
+      UPLOAD_DRAFT: ${{ inputs.upload_draft }}
+      COMMIT_SUBMISSION: ${{ inputs.commit_submission }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Validate Store workflow inputs
+        shell: pwsh
+        run: |
+          $required = @(
+            'STORE_IDENTITY_NAME',
+            'STORE_PUBLISHER',
+            'STORE_PUBLISHER_DISPLAY_NAME'
+          )
+          $missing = @($required | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+            throw "Missing required GitHub variables: $($missing -join ', ')"
+          }
+          if ($env:COMMIT_SUBMISSION -eq 'true' -and $env:UPLOAD_DRAFT -ne 'true') {
+            throw 'commit_submission requires upload_draft.'
+          }
+
+      - name: Build and verify Store bundle
+        shell: pwsh
+        run: |
+          ./installer/Build-StoreBundle.ps1 `
+            -PackageVersion $env:PACKAGE_VERSION `
+            -IdentityName $env:STORE_IDENTITY_NAME `
+            -Publisher $env:STORE_PUBLISHER `
+            -PublisherDisplayName $env:STORE_PUBLISHER_DISPLAY_NAME
+
+      - name: Upload verified Store candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: SafeSpeak-store-${{ inputs.package_version }}
+          path: |
+            artifacts/store/*.msix
+            artifacts/store/*.msixbundle
+            artifacts/store/*.release.json
+            artifacts/store/*.store-bundle.json
+          if-no-files-found: error
+          retention-days: 30
+
+  partner-center:
+    if: ${{ inputs.upload_draft }}
+    needs: build-store-bundle
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment:
+      name: microsoft-store-production
+    env:
+      STORE_APP_ID: ${{ vars.STORE_APP_ID }}
+      PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+      PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+      PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+      PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+      COMMIT_SUBMISSION: ${{ inputs.commit_submission }}
+
+    steps:
+      - name: Download verified Store candidate
+        uses: actions/download-artifact@v7
+        with:
+          name: SafeSpeak-store-${{ inputs.package_version }}
+          path: artifacts/store
+
+      - name: Install Microsoft Store Developer CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.1
+
+      - name: Validate protected Partner Center configuration
+        shell: pwsh
+        run: |
+          $required = @(
+            'STORE_APP_ID',
+            'PARTNER_CENTER_TENANT_ID',
+            'PARTNER_CENTER_SELLER_ID',
+            'PARTNER_CENTER_CLIENT_ID',
+            'PARTNER_CENTER_CLIENT_SECRET'
+          )
+          $missing = @($required | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+            throw "Missing protected Store configuration: $($missing -join ', ')"
+          }
+
+      - name: Authenticate Microsoft Store Developer CLI
+        shell: pwsh
+        run: |
+          msstore reconfigure `
+            --tenantId $env:PARTNER_CENTER_TENANT_ID `
+            --sellerId $env:PARTNER_CENTER_SELLER_ID `
+            --clientId $env:PARTNER_CENTER_CLIENT_ID `
+            --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
+
+      - name: Upload Partner Center draft or commit approved submission
+        shell: pwsh
+        run: |
+          $bundles = @(Get-ChildItem -LiteralPath 'artifacts/store' `
+            -Filter '*.msixbundle' -File)
+          if ($bundles.Count -ne 1) {
+            throw "Expected exactly one Store bundle and found $($bundles.Count)."
+          }
+          $bundle = $bundles[0]
+          $arguments = @(
+            'publish',
+            '${{ github.workspace }}',
+            '--inputFile', $bundle.FullName,
+            '--appId', $env:STORE_APP_ID
+          )
+          if ($env:COMMIT_SUBMISSION -ne 'true') {
+            $arguments += '--noCommit'
+          }
+          & msstore @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "Microsoft Store Developer CLI failed with exit code $LASTEXITCODE."
+          }

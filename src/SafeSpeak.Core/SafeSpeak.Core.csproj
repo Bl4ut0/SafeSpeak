@@ -8,8 +8,23 @@
 
   <ItemGroup>
     <PackageReference Include="KokoroSharp.CPU" Version="0.8.4" />
+    <!-- Pin the runtime used by both Kokoro and the local moderation model. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="AI\Models\LocalModeration\model.onnx">
+      <Link>Models\Moderation\model.onnx</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="AI\Models\LocalModeration\tokenizer.json;AI\Models\LocalModeration\config.json;AI\Models\LocalModeration\thresholds.json;AI\Models\LocalModeration\MODEL-NOTICE.md;AI\Models\LocalModeration\LICENSE.apache-2.0.txt">
+      <Link>Models\Moderation\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

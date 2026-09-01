@@ -2,16 +2,20 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="SafeSpeakWindowBrush" Color="#FFF7F8FC" />
+        <SolidColorBrush x:Key="SafeSpeakWindowBrush" Color="#FFF4F7FB" />
         <SolidColorBrush x:Key="SafeSpeakSurfaceBrush" Color="#FFFFFFFF" />
-        <SolidColorBrush x:Key="SafeSpeakSurfaceAltBrush" Color="#FFF0F3FA" />
-        <SolidColorBrush x:Key="SafeSpeakTextBrush" Color="#FF152033" />
-        <SolidColorBrush x:Key="SafeSpeakMutedTextBrush" Color="#FF506078" />
-        <SolidColorBrush x:Key="SafeSpeakBorderBrush" Color="#FFC7D0E0" />
-        <SolidColorBrush x:Key="SafeSpeakAccentBrush" Color="#FF2459D3" />
+        <SolidColorBrush x:Key="SafeSpeakSurfaceAltBrush" Color="#FFE9EFF8" />
+        <SolidColorBrush x:Key="SafeSpeakTextBrush" Color="#FF111C2E" />
+        <SolidColorBrush x:Key="SafeSpeakMutedTextBrush" Color="#FF46566F" />
+        <SolidColorBrush x:Key="SafeSpeakBorderBrush" Color="#FF718097" />
+        <SolidColorBrush x:Key="SafeSpeakAccentBrush" Color="#FF2057D4" />
+        <SolidColorBrush x:Key="SafeSpeakAccentSoftBrush" Color="#FFDDE8FF" />
         <SolidColorBrush x:Key="SafeSpeakAccentTextBrush" Color="#FFFFFFFF" />
         <SolidColorBrush x:Key="SafeSpeakDangerBrush" Color="#FFB42318" />
-        <!-- The palette follows Windows system brushes for High Contrast support. -->
+        <SolidColorBrush x:Key="SafeSpeakDangerTextBrush" Color="#FFFFFFFF" />
+        <SolidColorBrush x:Key="SafeSpeakSuccessBrush" Color="#FF147447" />
+        <SolidColorBrush x:Key="SafeSpeakSuccessTextBrush" Color="#FFFFFFFF" />
+        <!-- ThemeManager replaces these semantic startup colors when a saved theme is applied. -->
         <Style x:Key="SafeSpeakFocusVisual" TargetType="Control">
             <Setter Property="Template">
                 <Setter.Value>
@@ -34,11 +38,23 @@
             <Setter Property="UseLayoutRounding" Value="True" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+        </Style>
 
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="44" />
-            <Setter Property="MinWidth" Value="88" />
-            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="MinWidth" Value="76" />
+            <Setter Property="Padding" Value="12,7" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
             <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
@@ -55,7 +71,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
+                                CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                               RecognizesAccessKey="True" />
@@ -87,18 +103,112 @@
         </Style>
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="50" />
             <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
         </Style>
         <Style x:Key="EmergencyButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="MinWidth" Value="132" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakDangerBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakDangerTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakDangerBrush}" />
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="EmergencyBorder"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="EmergencyBorder" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="EmergencyBorder" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderThickness" Value="3" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="EmergencyBorder" Property="Opacity" Value="0.58" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="CompactButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="MinHeight" Value="44" />
             <Setter Property="Padding" Value="12,6" />
+        </Style>
+        <Style x:Key="NavigationActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Margin" Value="3,0,0,0" />
+            <Setter Property="Padding" Value="8,7" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style x:Key="CommandButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+        </Style>
+
+        <Style x:Key="ArmToggleButton" TargetType="ToggleButton">
+            <Setter Property="MinHeight" Value="48" />
+            <Setter Property="MinWidth" Value="190" />
+            <Setter Property="Padding" Value="18,10" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ToggleBorder"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SafeSpeakSuccessBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SafeSpeakSuccessTextBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakSuccessBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="Opacity" Value="0.86" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                <Setter Property="BorderThickness" Value="3" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="TextBox">
@@ -114,33 +224,196 @@
             <Setter Property="Padding" Value="8,5" />
             <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid x:Name="ComboRoot">
+                            <Border x:Name="ComboBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4" />
+                            <ContentPresenter Margin="10,0,38,0"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Stretch"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                            <ToggleButton x:Name="DropDownToggle"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Grid Background="Transparent">
+                                            <Path HorizontalAlignment="Right"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,13,0"
+                                                  Data="M 0 0 L 5 5 L 10 0 Z"
+                                                  Fill="{DynamicResource SafeSpeakTextBrush}" />
+                                        </Grid>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border x:Name="DropDownBorder"
+                                        MinWidth="{Binding ActualWidth, ElementName=ComboRoot}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        Margin="0,2,0,0"
+                                        Padding="2"
+                                        Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                        BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <ScrollViewer CanContentScroll="True"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ComboBorder" Property="BorderBrush"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                <Setter TargetName="ComboBorder" Property="BorderThickness" Value="3" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ComboBorder" Property="BorderBrush"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ComboRoot" Property="Opacity" Value="0.58" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ItemBorder" Property="Opacity" Value="0.58" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="2" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
         </Style>
         <Style TargetType="Slider">
             <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
         </Style>
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="{DynamicResource SafeSpeakWindowBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
         </Style>
         <Style TargetType="TabItem">
             <Setter Property="MinHeight" Value="44" />
-            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Margin" Value="0,0,3,0" />
+            <Setter Property="Padding" Value="12,8" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3,3,0,0">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background"
+                                        Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                <Setter TargetName="TabBorder" Property="BorderBrush"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                <Setter TargetName="TabBorder" Property="BorderBrush"
+                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="TabBorder" Property="Opacity" Value="0.58" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,0,0,16" />
-            <Setter Property="Padding" Value="18" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="Padding" Value="14" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -152,7 +425,7 @@
                                 Background="{DynamicResource SafeSpeakSurfaceBrush}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
+                                CornerRadius="6">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -176,31 +449,111 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
         </Style>
+        <Style TargetType="ListViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+        </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
         <Style x:Key="PageTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="25" />
+            <Setter Property="FontSize" Value="28" />
             <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="LineHeight" Value="34" />
             <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
         </Style>
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="18" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
         </Style>
         <Style x:Key="BodyText" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="22" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
         </Style>
         <Style x:Key="SecondaryText" TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakMutedTextBrush}" />
             <Setter Property="FontSize" Value="14" />
         </Style>
         <Style x:Key="StatusCard" TargetType="Border">
-            <Setter Property="Padding" Value="16" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+            <Setter Property="BorderThickness" Value="4,1,1,1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style x:Key="StatusLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakMutedTextBrush}" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        </Style>
+        <Style x:Key="StatusValue" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,3,0,0" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+        </Style>
+        <Style x:Key="EyebrowText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="CommandSurface" TargetType="Border">
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style x:Key="ContentPanel" TargetType="Border">
+            <Setter Property="Padding" Value="14" />
             <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style x:Key="StatusPill" TargetType="Border">
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style x:Key="LiveStatusBar" TargetType="Border">
+            <Setter Property="Padding" Value="18,11" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+            <Setter Property="BorderThickness" Value="4,1,0,0" />
         </Style>
     </Application.Resources>
 </Application>

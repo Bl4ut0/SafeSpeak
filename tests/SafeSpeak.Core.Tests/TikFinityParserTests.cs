@@ -6,7 +6,7 @@ namespace SafeSpeak.Core.Tests;
 public class TikFinityParserTests
 {
     [Fact]
-    public void ParseTikFinityEvent_ParsesStandardChatPayloadCorrectly()
+    public void ParseLivestreamEvent_ParsesStandardChatPayloadCorrectly()
     {
         string json = """
         {
@@ -22,22 +22,23 @@ public class TikFinityParserTests
         }
         """;
 
-        var msg = TikFinityWebSocketClient.ParseTikFinityEvent(json);
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent(json);
 
-        Assert.NotNull(msg);
-        Assert.Equal("Hello world from TikFinity!", msg.RawText);
-        Assert.Equal("stream_fan_42", msg.Author);
-        Assert.Equal("Stream Fan", msg.AuthorDisplayName);
-        Assert.Equal(AuthorTier.Subscriber, msg.AuthorTier);
-        Assert.True(msg.IsSubscriber);
+        Assert.NotNull(liveEvent);
+        Assert.Equal(LivestreamEventType.Chat, liveEvent.Type);
+        Assert.Equal("Hello world from TikFinity!", liveEvent.Text);
+        Assert.Equal("stream_fan_42", liveEvent.Author);
+        Assert.Equal("Stream Fan", liveEvent.AuthorDisplayName);
+        Assert.Equal(AuthorTier.Subscriber, liveEvent.AuthorTier);
+        Assert.True(liveEvent.IsSubscriber);
     }
 
     [Fact]
-    public void ParseTikFinityEvent_IgnoresNonChatEvents()
+    public void ParseLivestreamEvent_IgnoresUnsupportedEvents()
     {
         string json = """
         {
-            "event": "gift",
+            "event": "unsupported",
             "data": {
                 "giftName": "Rose",
                 "giftCount": 10
@@ -45,8 +46,8 @@ public class TikFinityParserTests
         }
         """;
 
-        var msg = TikFinityWebSocketClient.ParseTikFinityEvent(json);
-        Assert.Null(msg);
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent(json);
+        Assert.Null(liveEvent);
     }
 
     [Fact]
@@ -79,11 +80,11 @@ public class TikFinityParserTests
     }
 
     [Fact]
-    public void ParseTikFinityEvent_HandlesMalformedJsonGracefullyWithoutThrowing()
+    public void ParseLivestreamEvent_HandlesMalformedJsonGracefullyWithoutThrowing()
     {
         string invalidJson = "{ invalid json content ...";
-        var msg = TikFinityWebSocketClient.ParseTikFinityEvent(invalidJson);
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent(invalidJson);
 
-        Assert.Null(msg);
+        Assert.Null(liveEvent);
     }
 }

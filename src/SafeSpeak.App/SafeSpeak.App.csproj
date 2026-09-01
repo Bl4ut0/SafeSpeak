@@ -33,12 +33,12 @@
     <Product>SafeSpeak</Product>
     <Description>Accessible TTS moderation and playback for livestreamers.</Description>
     <Company>SafeSpeak</Company>
-    <Authors>SafeSpeak contributors</Authors>
-    <Copyright>Copyright (c) SafeSpeak contributors</Copyright>
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <Authors>Alex Mammen</Authors>
+    <Copyright>Copyright (c) 2026 Alex Mammen. All rights reserved.</Copyright>
     <RepositoryUrl>https://github.com/Bl4ut0/SafeSpeak</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <NeutralLanguage>en-US</NeutralLanguage>
+    <ApplicationIcon>..\..\installer\Assets\SafeSpeak.ico</ApplicationIcon>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 

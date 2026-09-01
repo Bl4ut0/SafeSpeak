@@ -8,33 +8,46 @@ namespace SafeSpeak.Core.Connectors;
 /// <summary>
 /// Robust WebSocket client for TikFinity's local event feed (ws://localhost:21213/).
 /// </summary>
-public sealed class TikFinityWebSocketClient : ITikFinityConnector
+public sealed class TikFinityWebSocketClient : ISourceConnector
 {
+    private const int MaximumMessageBytes = 256 * 1024;
+    private static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan CloseAcknowledgementTimeout = TimeSpan.FromSeconds(1);
     private readonly Uri _serverUri;
     private ClientWebSocket? _webSocket;
     private CancellationTokenSource? _cts;
+    private Task? _connectionLoopTask;
     private ConnectionState _state = ConnectionState.Disconnected;
     private readonly object _stateLock = new();
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly object _disposeLock = new();
+    private Task? _disposeTask;
+    private int _disposeStarted;
+
+    public static SourceConnectorDescriptor ConnectorDescriptor { get; } = new(
+        Id: "tikfinity",
+        DisplayName: "TikFinity",
+        ProviderName: "TikTok LIVE through TikFinity",
+        ConnectionDescription: "Local TikFinity WebSocket on this computer",
+        Capabilities:
+            SourceConnectorCapabilities.Chat |
+            SourceConnectorCapabilities.Gifts |
+            SourceConnectorCapabilities.Follows |
+            SourceConnectorCapabilities.Shares |
+            SourceConnectorCapabilities.Subscriptions |
+            SourceConnectorCapabilities.Joins |
+            SourceConnectorCapabilities.Likes);
+
+    public SourceConnectorDescriptor Descriptor => ConnectorDescriptor;
 
     public ConnectionState State
     {
         get { lock (_stateLock) return _state; }
-        private set
-        {
-            lock (_stateLock)
-            {
-                if (_state != value)
-                {
-                    _state = value;
-                    StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(value));
-                }
-            }
-        }
+        private set => SetState(value);
     }
 
-    public string EndpointUrl => _serverUri.ToString();
+    public string EndpointDescription => $"{ConnectorDescriptor.ConnectionDescription} ({_serverUri})";
 
-    public event EventHandler<ChatMessage>? MessageReceived;
     public event EventHandler<LivestreamEvent>? EventReceived;
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 
@@ -45,44 +58,67 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
 
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        if (State == ConnectionState.Connected || State == ConnectionState.Connecting)
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeStarted) != 0, this);
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
         {
-            return;
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeStarted) != 0, this);
+            bool connectionLoopIsActive = _connectionLoopTask is { IsCompleted: false };
+            if (connectionLoopIsActive)
+            {
+                return;
+            }
+
+            _cts?.Dispose();
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            // Connecting and automatic reconnect run in the background, but the task is
+            // retained so disconnect and disposal can cancel and observe its completion.
+            _connectionLoopTask = StartConnectionLoopAsync(_cts.Token);
         }
-
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-
-        _ = StartConnectionLoopAsync(_cts.Token);
-        await Task.CompletedTask;
+        finally
+        {
+            _lifecycleGate.Release();
+        }
     }
 
     public async Task DisconnectAsync()
     {
-        _cts?.Cancel();
-
-        if (_webSocket != null)
+        await _lifecycleGate.WaitAsync();
+        try
         {
-            try
+            CancellationTokenSource? connectionCts = _cts;
+            Task? connectionLoopTask = _connectionLoopTask;
+            connectionCts?.Cancel();
+            try { _webSocket?.Abort(); } catch { }
+
+            if (connectionLoopTask is not null)
             {
-                if (_webSocket.State == WebSocketState.Open)
+                try
                 {
-                    await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnected", CancellationToken.None);
+                    await connectionLoopTask.WaitAsync(DisconnectTimeout);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Cancellation is the normal disconnect path.
+                }
+                catch (TimeoutException)
+                {
+                    // A broken WebSocket implementation must not hold shutdown open.
                 }
             }
-            catch
-            {
-                // Ignore disconnect exceptions during teardown
-            }
-            finally
-            {
-                _webSocket.Dispose();
-                _webSocket = null;
-            }
-        }
 
-        State = ConnectionState.Disconnected;
+            _webSocket?.Dispose();
+            _webSocket = null;
+            _connectionLoopTask = null;
+            _cts = null;
+            connectionCts?.Dispose();
+            State = ConnectionState.Disconnected;
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
     }
 
     private async Task StartConnectionLoopAsync(CancellationToken cancellationToken)
@@ -107,6 +143,16 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
                 backoffDelayMs = 1000; // Reset backoff on successful connection
 
                 await ReceiveLoopAsync(_webSocket, cancellationToken);
+
+                // A clean remote close is still a lost source connection. Surface the
+                // retry state and use the same bounded backoff as transport failures so
+                // an unavailable connector cannot cause a tight reconnect loop.
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    SetState(ConnectionState.Reconnecting, "The local connector closed the connection.");
+                    await Task.Delay(backoffDelayMs, cancellationToken);
+                    backoffDelayMs = Math.Min(backoffDelayMs * 2, maxDelayMs);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -114,8 +160,7 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
             }
             catch (Exception ex)
             {
-                State = ConnectionState.Reconnecting;
-                StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(ConnectionState.Reconnecting, ex.Message));
+                SetState(ConnectionState.Reconnecting, ex.Message);
 
                 try
                 {
@@ -132,6 +177,22 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
         State = ConnectionState.Disconnected;
     }
 
+    private void SetState(ConnectionState value, string message = "")
+    {
+        bool shouldRaise;
+        lock (_stateLock)
+        {
+            shouldRaise = _state != value || !string.IsNullOrWhiteSpace(message);
+            _state = value;
+        }
+
+        // Event handlers may read State, so invoke them after releasing the lock.
+        if (shouldRaise)
+        {
+            StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(value, message));
+        }
+    }
+
     private async Task ReceiveLoopAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
         var buffer = new byte[8192];
@@ -146,11 +207,26 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
                 result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Acknowledge Close", CancellationToken.None);
+                    using var closeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    closeCts.CancelAfter(CloseAcknowledgementTimeout);
+                    try
+                    {
+                        await socket.CloseOutputAsync(
+                            WebSocketCloseStatus.NormalClosure,
+                            "Acknowledge Close",
+                            closeCts.Token);
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (WebSocketException) { }
                     return;
                 }
 
                 ms.Write(buffer, 0, result.Count);
+                if (ms.Length > MaximumMessageBytes)
+                {
+                    throw new InvalidDataException(
+                        $"Connector payload exceeded the {MaximumMessageBytes / 1024} KB safety limit.");
+                }
             }
             while (!result.EndOfMessage);
 
@@ -161,20 +237,9 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
             if (liveEvent != null)
             {
                 EventReceived?.Invoke(this, liveEvent);
-                if (liveEvent.Type == LivestreamEventType.Chat)
-                {
-                    MessageReceived?.Invoke(this, liveEvent.ToChatMessage());
-                }
             }
         }
     }
-
-    /// <summary>
-    /// Defensively parses incoming TikFinity JSON payloads.
-    /// Supports standard TikFinity event schemas and flat chat messages.
-    /// </summary>
-    public static ChatMessage? ParseTikFinityEvent(string json)
-        => ParseLivestreamEvent(json) is { Type: LivestreamEventType.Chat } evt ? evt.ToChatMessage() : null;
 
     /// <summary>Parses chat, gift, follow, share, subscribe, join, and like events.</summary>
     public static LivestreamEvent? ParseLivestreamEvent(string json)
@@ -266,9 +331,23 @@ public sealed class TikFinityWebSocketClient : ITikFinityConnector
         return value.ValueKind == JsonValueKind.String && int.TryParse(value.GetString(), out number) ? number : fallback;
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await DisconnectAsync();
-        _cts?.Dispose();
+        lock (_disposeLock)
+        {
+            if (_disposeTask is null)
+            {
+                Volatile.Write(ref _disposeStarted, 1);
+                _disposeTask = DisposeCoreAsync();
+            }
+
+            return new ValueTask(_disposeTask);
+        }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        try { await DisconnectAsync(); }
+        finally { _lifecycleGate.Dispose(); }
     }
 }

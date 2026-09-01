@@ -1,225 +1,272 @@
 <Window x:Class="SafeSpeak.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:SafeSpeak.App.ViewModels"
         xmlns:c="clr-namespace:SafeSpeak.App.Converters"
-        mc:Ignorable="d"
+        xmlns:a11y="clr-namespace:SafeSpeak.App.Accessibility"
         Title="SafeSpeak — Accessible TTS Safety"
-        Height="780" Width="1120"
-        MinHeight="640" MinWidth="760"
+        Height="700" Width="720"
+        MinHeight="620" MinWidth="640"
         WindowStartupLocation="CenterScreen"
-        KeyboardNavigation.TabNavigation="Continue"
-        AutomationProperties.Name="SafeSpeak main window"
-        AutomationProperties.HelpText="Moderate live chat, control text to speech playback, and configure audio and accessibility settings.">
-
-    <Window.DataContext>
-        <vm:MainViewModel />
-    </Window.DataContext>
-
+        KeyboardNavigation.TabNavigation="Cycle"
+        AutomationProperties.Name="SafeSpeak main window">
+    <Window.DataContext><vm:MainViewModel /></Window.DataContext>
     <Window.Resources>
         <c:ArmedToTextConverter x:Key="ArmedToTextConverter" />
         <c:SpeakingToTextConverter x:Key="SpeakingToTextConverter" />
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <c:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <c:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <c:DispositionToBackgroundBrushConverter x:Key="DispositionToBackgroundBrushConverter" />
+        <c:DispositionToForegroundBrushConverter x:Key="DispositionToForegroundBrushConverter" />
 
-        <Style x:Key="FeedItem" TargetType="ListViewItem">
+        <Style x:Key="FeedItem" TargetType="ListViewItem"
+               BasedOn="{StaticResource {x:Type ListViewItem}}">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleSummary}" />
-            <Setter Property="AutomationProperties.HelpText" Value="{Binding SafeReasonDescription}" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid Background="{DynamicResource SafeSpeakWindowBrush}"
+          TextElement.Foreground="{DynamicResource SafeSpeakTextBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Always-visible operating controls. State is written in text, never color alone. -->
-        <Border Grid.Row="0"
-                Padding="20,14"
-                Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                BorderThickness="0,0,0,1">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <!-- Persistent first action plus main tab navigation hub. -->
+        <Grid Grid.Row="0" Margin="10,10,10,8"
+              KeyboardNavigation.TabNavigation="Local">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="4*" />
+            </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0">
-                    <TextBlock Text="SafeSpeak" Style="{StaticResource PageTitle}" />
-                    <TextBlock Text="Accessible live TTS moderation and playback control"
-                               Style="{StaticResource SecondaryText}" />
-                </StackPanel>
+            <Button x:Name="HearStatusButton"
+                    Grid.Column="0" TabIndex="1" Panel.ZIndex="1"
+                    Margin="0,0,3,0" VerticalAlignment="Top"
+                    Style="{StaticResource NavigationActionButton}"
+                    Command="{Binding AnnounceStatusPrivatelyCommand}"
+                    Content="_Hear status"
+                    AutomationProperties.Name="Hear current SafeSpeak status"
+                    AutomationProperties.HelpText="First control in the window and always available on every page. Announces source connection, armed and playback state, queue, current speech, broadcast output, and private status output. Shortcut: Control Alt S." />
 
-                <WrapPanel Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center">
-                    <StackPanel Margin="0,0,28,0">
-                        <TextBlock Text="TikFinity" FontSize="12" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding ConnectionStatusText}"
-                                   FontWeight="Bold"
-                                   TextTrimming="CharacterEllipsis"
-                                   MaxWidth="420"
-                                   AutomationProperties.Name="TikFinity connection status"
-                                   AutomationProperties.LiveSetting="Polite" />
-                    </StackPanel>
-                    <StackPanel Margin="0,0,28,0">
-                        <TextBlock Text="Queue" FontSize="12" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding QueueCount, StringFormat={}{0} messages}"
-                                   FontWeight="Bold"
-                                   AutomationProperties.Name="Queued message count" />
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="Playback" FontSize="12" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding IsSpeaking, Converter={StaticResource SpeakingToTextConverter}}"
-                                   FontWeight="Bold"
-                                   AutomationProperties.Name="Text to speech playback status" />
-                    </StackPanel>
-                </WrapPanel>
+            <TabControl x:Name="MainNavigation"
+                    Grid.ColumnSpan="2" TabIndex="2"
+                    KeyboardNavigation.TabNavigation="Local"
+                    AutomationProperties.Name="SafeSpeak main navigation tabs. Use Left and Right Arrow keys to switch between Live, Safety, Voice, and Settings tabs."
+                    AutomationProperties.HelpText="Use Left and Right Arrow keys to select a tab, then press Tab to move into that tab's controls.">
+            <TabControl.Template>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid KeyboardNavigation.TabNavigation="Local">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="4*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="Transparent" />
+                            <UniformGrid Grid.Column="1" Rows="1" IsItemsHost="True" />
+                        </Grid>
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource SafeSpeakWindowBrush}"
+                                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                BorderThickness="1"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              ContentSource="SelectedContent" />
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </TabControl.Template>
 
-                <UniformGrid Grid.Row="2" Columns="4" Margin="0,14,0,0">
-                    <Button Margin="0,0,8,0"
-                            TabIndex="1"
-                            Command="{Binding ToggleArmCommand}"
-                            Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
-                            AutomationProperties.Name="Toggle text to speech armed state"
-                            AutomationProperties.HelpText="Arms or disarms text to speech. Global shortcut Control Alt A." />
-                    <Button Margin="0,0,8,0"
-                            TabIndex="2"
-                            Style="{StaticResource EmergencyButton}"
-                            Command="{Binding EmergencyPanicCommand}"
-                            Content="_Emergency stop"
-                            AutomationProperties.Name="Emergency stop"
-                            AutomationProperties.HelpText="Immediately stops audio, clears the queue, and disarms SafeSpeak. Global shortcut Control Alt P." />
-                    <Button Margin="0,0,8,0"
-                            TabIndex="3"
-                            Command="{Binding SkipMessageCommand}"
-                            Content="S_kip message"
-                            AutomationProperties.Name="Skip current message" />
-                    <Button TabIndex="4"
-                            Command="{Binding AnnounceStatusPrivatelyCommand}"
-                            Content="_Hear status"
-                            AutomationProperties.Name="Hear private SafeSpeak status"
-                            AutomationProperties.HelpText="Speaks connection, queue, armed, and audio route status privately. Global shortcut Control Alt S." />
-                </UniformGrid>
-            </Grid>
-        </Border>
-
-        <TabControl Grid.Row="1"
-                    Margin="16,12,16,10"
-                    TabIndex="10"
-                    KeyboardNavigation.TabNavigation="Continue"
-                    AutomationProperties.Name="SafeSpeak sections, tab group. Use Left and Right Arrow keys to move between tabs."
-                    AutomationProperties.HelpText="This is a navigable tab group. Press Left or Right Arrow to choose Live feed, Moderation, Audio, or Accessibility. Press Tab to enter the selected section.">
-
-            <TabItem Header="_Live feed"
-                     AutomationProperties.Name="Live feed tab, one of four"
-                     AutomationProperties.HelpText="Review moderated messages and control TikFinity and queue playback. Use Left and Right Arrow keys to change tabs.">
-                <Grid Margin="10,14,10,8">
+            <!-- Tab 1: Live Feed -->
+            <TabItem Header="_Live" AutomationProperties.Name="Live tab, one of four">
+                <Grid Margin="10,10,10,8" MaxWidth="900"
+                      KeyboardNavigation.TabNavigation="Local">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Style="{StaticResource StatusCard}" Margin="0,0,0,12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0">
+                    <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="SafeSpeak" Style="{StaticResource PageTitle}"
+                                   FontSize="24" LineHeight="28"
+                                   VerticalAlignment="Center" />
+                        <UniformGrid Columns="4" Margin="0,6,0,0">
+                            <Border Style="{StaticResource StatusCard}" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="SOURCE" Style="{StaticResource StatusLabel}" />
+                                    <TextBlock Text="{Binding ConnectionStatusText}" Style="{StaticResource StatusValue}"
+                                               AutomationProperties.Name="{Binding ConnectionStatusText}"
+                                               AutomationProperties.LiveSetting="Polite"
+                                               a11y:LiveRegion.Announcement="{Binding ConnectionStatusText}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource StatusCard}" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="TTS SAFETY" Style="{StaticResource StatusLabel}" />
+                                    <TextBlock Text="{Binding ArmedStatusText}" Style="{StaticResource StatusValue}"
+                                               AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Text to speech {0}}"
+                                               AutomationProperties.LiveSetting="Polite"
+                                               a11y:LiveRegion.Announcement="{Binding ArmedStatusText, StringFormat=Text to speech {0}}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource StatusCard}" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="QUEUE" Style="{StaticResource StatusLabel}" />
+                                    <TextBlock Text="{Binding QueueCount, StringFormat={}{0} messages}" Style="{StaticResource StatusValue}"
+                                               AutomationProperties.Name="{Binding QueueCount, StringFormat=Queue has {0} messages}"
+                                               AutomationProperties.LiveSetting="Polite"
+                                               a11y:LiveRegion.Announcement="{Binding QueueCount, StringFormat=Queue has {0} messages}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource StatusCard}">
+                                <StackPanel>
+                                    <TextBlock Text="PLAYBACK" Style="{StaticResource StatusLabel}" />
+                                    <TextBlock Text="{Binding PlaybackModeStatus}" Style="{StaticResource StatusValue}"
+                                               AutomationProperties.Name="{Binding PlaybackModeStatus, StringFormat=Playback mode {0}}"
+                                               AutomationProperties.LiveSetting="Polite"
+                                               a11y:LiveRegion.Announcement="{Binding PlaybackModeStatus, StringFormat=Playback mode {0}}" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource CommandSurface}" Margin="0,0,0,8">
+                        <StackPanel>
+                            <ToggleButton x:Name="ArmToggle" TabIndex="1"
+                                          MinHeight="48"
+                                          Margin="0,0,0,6"
+                                          Style="{StaticResource ArmToggleButton}"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Center"
+                                          FontSize="17"
+                                          IsChecked="{Binding IsArmed, Mode=OneWay}"
+                                          Command="{Binding ToggleArmCommand}"
+                                          Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
+                                          AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Arm toggle button: currently {0}}"
+                                          AutomationProperties.HelpText="Press Enter or Space to arm or disarm. When armed, approved messages play automatically. Shortcut: Control Alt A." />
+
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Live moderation" Style="{StaticResource SectionTitle}" />
-                                    <TextBlock Text="Approved and blocked messages include the author and moderation reason."
-                                               Style="{StaticResource SecondaryText}" />
-                                </StackPanel>
-                                <CheckBox Grid.Column="1"
-                                          Margin="20,0,0,0"
-                                          IsChecked="{Binding IsAutoPlay, Mode=OneWay}"
-                                          IsHitTestVisible="False"
-                                          Focusable="False"
-                                          Content="Automatic playback"
-                                          AutomationProperties.Name="Automatic playback state" />
-                            </Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                            <WrapPanel Grid.Row="1" Margin="0,14,0,0">
-                                <Button Style="{StaticResource CompactButton}" Margin="0,0,8,8"
-                                        TabIndex="11"
-                                        Command="{Binding ConnectTikFinityCommand}"
-                                        Content="_Connect TikFinity"
-                                        AutomationProperties.Name="Connect to TikFinity" />
-                                <Button Style="{StaticResource CompactButton}" Margin="0,0,8,8"
-                                        TabIndex="12"
-                                        Command="{Binding DisconnectTikFinityCommand}"
-                                        Content="_Disconnect TikFinity"
-                                        AutomationProperties.Name="Disconnect from TikFinity" />
-                                <Button Style="{StaticResource CompactButton}" Margin="0,0,8,8"
-                                        TabIndex="13"
-                                        Command="{Binding ToggleAutoPlayCommand}"
-                                        Content="Toggle _automatic playback"
-                                        AutomationProperties.Name="Toggle automatic playback" />
-                                <Button Style="{StaticResource CompactButton}" Margin="0,0,8,8"
-                                        TabIndex="14"
-                                        Command="{Binding PlayNextManualCommand}"
-                                        Content="Play _next"
-                                        AutomationProperties.Name="Play next queued message" />
-                                <Button Style="{StaticResource CompactButton}" Margin="0,0,0,8"
-                                        TabIndex="15"
-                                        Command="{Binding ClearQueueCommand}"
-                                        Content="C_lear queue"
-                                        AutomationProperties.Name="Clear queued messages" />
-                            </WrapPanel>
-                        </Grid>
+                                <Button x:Name="EmergencyStopButton"
+                                        Grid.Row="0" Grid.Column="0" TabIndex="2" Margin="0,0,6,6"
+                                        Style="{StaticResource EmergencyButton}"
+                                        Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
+                                        Command="{Binding EmergencyStopCommand}" Content="_Emergency stop"
+                                        AutomationProperties.Name="Emergency stop"
+                                        AutomationProperties.HelpText="Immediately stops all audio, clears the queue, and disarms SafeSpeak. Re-arm SafeSpeak to resume monitoring and speech. Shortcut: Control Alt P." />
+
+                                <Button Grid.Row="0" Grid.Column="1" TabIndex="3" Margin="0,0,6,6"
+                                        Style="{StaticResource CommandButton}"
+                                        Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding PauseOrResumeTtsCommand}"
+                                        Content="{Binding PauseButtonText}"
+                                        AutomationProperties.Name="{Binding PauseButtonAutomationName}"
+                                        AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
+
+                                <Button Grid.Row="0" Grid.Column="1" TabIndex="4" Margin="0,0,6,6"
+                                        Style="{StaticResource CommandButton}"
+                                        Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding UseAutomaticPlaybackCommand}" Content="_Automatic mode"
+                                        AutomationProperties.Name="Use automatic playback mode button"
+                                        AutomationProperties.HelpText="Approved messages speak automatically while SafeSpeak is armed." />
+
+                                <Button Grid.Row="0" Grid.Column="2" TabIndex="5" Margin="0,0,0,6"
+                                        Style="{StaticResource CommandButton}"
+                                        Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding UseManualPlaybackCommand}" Content="_Manual mode"
+                                        AutomationProperties.Name="Use manual playback mode button"
+                                        AutomationProperties.HelpText="Approved messages wait until Speak next approved message is chosen." />
+
+                                <Button Grid.Row="0" Grid.Column="2" TabIndex="6" Margin="0,0,0,6"
+                                        Style="{StaticResource CommandButton}"
+                                        Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding SpeakNextApprovedMessageCommand}" Content="Speak _next"
+                                        AutomationProperties.Name="Speak next approved message button"
+                                        AutomationProperties.HelpText="In manual mode, speaks exactly one approved queued message." />
+
+                                <Button Grid.Row="1" Grid.Column="0" TabIndex="7" Margin="0,0,6,0"
+                                        Style="{StaticResource CommandButton}"
+                                        Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding StopCurrentSpeechCommand}" Content="Stop _current"
+                                        AutomationProperties.Name="Stop current speech button. Shortcut: Control Alt K."
+                                        AutomationProperties.HelpText="Immediately stops only the message currently speaking." />
+
+                                <Button Grid.Row="1" Grid.Column="1" TabIndex="8" Margin="0,0,6,0"
+                                        Style="{StaticResource CommandButton}"
+                                        Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding ClearQueueCommand}" Content="_Clear queue"
+                                        AutomationProperties.Name="Clear pending text to speech queue button"
+                                        AutomationProperties.HelpText="Removes pending approved messages without stopping the current message or disarming SafeSpeak." />
+
+                            </Grid>
+                        </StackPanel>
                     </Border>
 
-                    <ListView Grid.Row="1"
-                              TabIndex="16"
-                              ItemsSource="{Binding LiveFeed}"
+                    <Border Grid.Row="2" Style="{StaticResource StatusCard}" Margin="0,0,0,8" Padding="10">
+                        <DockPanel LastChildFill="False">
+                            <StackPanel DockPanel.Dock="Left">
+                                <TextBlock Text="Live Stream Source" Style="{StaticResource SectionTitle}" />
+                                <TextBlock Text="{Binding SourceDescription}" Style="{StaticResource SecondaryText}" />
+                            </StackPanel>
+                            <Button DockPanel.Dock="Right" TabIndex="9" Margin="12,0,0,0" VerticalAlignment="Center"
+                                    Style="{StaticResource CompactButton}"
+                                    Command="{Binding RetrySourceConnectionCommand}" Content="_Reconnect"
+                                    AutomationProperties.Name="Reconnect to live stream source button" />
+                        </DockPanel>
+                    </Border>
+
+                    <TextBlock Grid.Row="3" Text="Live activity"
+                               Style="{StaticResource SectionTitle}" Margin="0,0,0,5" />
+
+                    <ListView Grid.Row="4" TabIndex="10" ItemsSource="{Binding LiveFeed}"
                               ItemContainerStyle="{StaticResource FeedItem}"
-                              SelectionMode="Single"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              VirtualizingPanel.IsVirtualizing="True"
-                              AutomationProperties.Name="Moderated live chat messages"
-                              AutomationProperties.HelpText="Use arrow keys to review messages. Each item includes result, author, message, and moderation reason.">
+                              AutomationProperties.Name="Live moderation activity list. Shows incoming messages, safety dispositions, and moderation reasons.">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource StatusCard}" Padding="14">
+                                <Border Style="{StaticResource StatusCard}" Padding="14" Margin="0,0,0,4">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Width="130" Margin="0,0,16,0">
-                                            <TextBlock Text="Moderation result" FontSize="12" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding Disposition}" FontWeight="Bold" TextWrapping="Wrap" />
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <!-- Header line: Status badge + Author -->
+                                        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,6">
+                                            <Border CornerRadius="4" Padding="8,2" Margin="0,0,10,0"
+                                                    Background="{Binding Disposition, Converter={StaticResource DispositionToBackgroundBrushConverter}}">
+                                                <TextBlock Text="{Binding Disposition}" FontWeight="Bold" FontSize="13"
+                                                           Foreground="{Binding Disposition, Converter={StaticResource DispositionToForegroundBrushConverter}}" />
+                                            </Border>
+                                            <TextBlock Text="{Binding SafeAuthorDisplayName}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
                                         </StackPanel>
-                                        <StackPanel Grid.Column="1">
-                                            <WrapPanel>
-                                                <TextBlock Text="Author: " FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding SafeAuthorDisplayName}" Margin="0,0,12,0" />
-                                                <TextBlock Text="Audience: " FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding Message.AuthorTier}" />
-                                            </WrapPanel>
-                                            <TextBlock Text="{Binding SafeDisplayText}"
-                                                       Margin="0,6,0,0"
-                                                       FontSize="16"
-                                                       FontWeight="SemiBold"
-                                                       TextWrapping="Wrap" />
-                                            <WrapPanel Margin="0,6,0,0">
-                                                <TextBlock Text="Reason: " FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding SafeReasonDescription}" TextWrapping="Wrap" />
-                                            </WrapPanel>
-                                        </StackPanel>
+
+                                        <!-- Message content -->
+                                        <TextBlock Grid.Row="1" Text="{Binding SafeDisplayText}" FontSize="15" TextWrapping="Wrap" Margin="0,0,0,4" />
+
+                                        <!-- Moderation reason note -->
+                                        <TextBlock Grid.Row="2" Text="{Binding SafeReasonDescription}"
+                                                   Style="{StaticResource SecondaryText}" FontSize="13" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -228,277 +275,546 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="_Moderation"
-                     AutomationProperties.Name="Moderation tab, two of four"
-                     AutomationProperties.HelpText="Configure language, script, username, and local contextual safety rules. Use Left and Right Arrow keys to change tabs.">
+            <!-- Tab 2: Safety -->
+            <TabItem Header="_Safety" AutomationProperties.Name="Safety tab, two of four">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="10,14,10,8" MaxWidth="900" HorizontalAlignment="Stretch">
-                        <TextBlock Text="Moderation controls" Style="{StaticResource PageTitle}" Margin="0,0,0,4" />
-                        <TextBlock Text="Changes apply to new incoming messages. Every setting has a written label and is keyboard accessible."
-                                   Style="{StaticResource SecondaryText}" Margin="0,0,0,18" />
+                    <StackPanel Margin="14,12,14,10" MaxWidth="760"
+                                KeyboardNavigation.TabNavigation="Local">
+                        <TextBlock Text="Safety" Style="{StaticResource PageTitle}" FontSize="26" LineHeight="30" />
 
-                        <GroupBox Header="Language and message rules" AutomationProperties.Name="Language and message rules">
-                            <StackPanel>
-                                <CheckBox TabIndex="21" IsChecked="{Binding Config.EnglishOnly}"
-                                          Content="Allow _English-language messages only"
-                                          AutomationProperties.HelpText="Rejects messages that are primarily written in other writing systems." />
-                                <CheckBox TabIndex="22" IsChecked="{Binding Config.RejectMixedScripts}"
-                                          Content="Reject mi_xed writing systems"
-                                          AutomationProperties.HelpText="Blocks mixed Cyrillic, Greek, and Latin characters commonly used to evade filters." />
-                                <CheckBox TabIndex="23" IsChecked="{Binding Config.StripUrls}"
-                                          Content="Remove _links before speech" />
-                                <CheckBox TabIndex="24" IsChecked="{Binding Config.SpeakUsernames}"
-                                          Content="Speak _usernames before messages" />
-                            </StackPanel>
-                        </GroupBox>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Label Target="{Binding ElementName=ModerationSlider}"
+                                   Content="_Moderation strength" Padding="0,0,0,4" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding ModerationStrengthSummary}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"
+                                       AutomationProperties.Name="{Binding ModerationLevelAccessibleText}"
+                                       AutomationProperties.LiveSetting="Polite"
+                                       a11y:LiveRegion.Announcement="{Binding ModerationLevelAccessibleText}" />
+                        </Grid>
+                        <Slider x:Name="ModerationSlider" TabIndex="1" Minimum="1" Maximum="4"
+                                Value="{Binding ModerationLevel, UpdateSourceTrigger=PropertyChanged}"
+                                TickFrequency="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="{Binding ModerationLevelAccessibleText}"
+                                AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust moderation strictness from Relaxed to Maximum." />
+                        <TextBlock Text="{Binding ModerationLevelDescription}"
+                                   Style="{StaticResource SecondaryText}" Margin="0,2,0,8" />
 
-                        <GroupBox Header="Context-aware safety layer" AutomationProperties.Name="Context aware local safety settings">
+                        <Border Style="{StaticResource ContentPanel}" Padding="0" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="This optional local layer supplements the deterministic rules with contextual and heuristic checks. It does not send chat text to a cloud moderation service."
-                                           Style="{StaticResource SecondaryText}" Margin="0,0,0,8" />
-                                <CheckBox TabIndex="25" IsChecked="{Binding Config.AiClassificationEnabled}"
-                                          Content="Enable local _contextual checks"
-                                          AutomationProperties.HelpText="Evaluates message context locally for harassment, threats, and insults." />
-                                <Label Target="{Binding ElementName=SensitivitySlider}"
-                                       Content="Context _sensitivity" Margin="-5,8,0,0" />
-                                <Slider x:Name="SensitivitySlider" TabIndex="26"
-                                        Minimum="0.3" Maximum="0.95"
-                                        Value="{Binding Config.AiToxicityThreshold}"
-                                        TickFrequency="0.05" IsSnapToTickEnabled="True"
-                                        AutomationProperties.Name="Context safety sensitivity"
-                                        AutomationProperties.HelpText="Changes how strongly the contextual safety layer reacts to uncertain messages." />
-                                <TextBlock Text="{Binding Config.AiToxicityThreshold, StringFormat=Current sensitivity: {0:F2}}"
-                                           Style="{StaticResource SecondaryText}" />
+                                <Grid Margin="12,9">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Filtering model" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="{Binding IntentModelShortStatus}"
+                                               TextAlignment="Right" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SafeSpeakSuccessBrush}"
+                                               AutomationProperties.Name="{Binding IntentModelStatus}" />
+                                </Grid>
+                                <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="0,1,0,0" />
+                                <Grid Margin="12,9">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Banned words" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="{Binding BannedRulesSummary}"
+                                               TextAlignment="Right" Style="{StaticResource SecondaryText}" />
+                                </Grid>
+                                <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="0,1,0,0" />
+                                <Grid Margin="12,9">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Evasion rules" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="{Binding EvasionRulesSummary}"
+                                               TextAlignment="Right" Style="{StaticResource SecondaryText}" />
+                                </Grid>
                             </StackPanel>
-                        </GroupBox>
+                        </Border>
 
-                        <GroupBox Header="Live event announcements" AutomationProperties.Name="Live event announcement settings">
-                            <StackPanel>
-                                <TextBlock Text="Choose exactly which TikTok LIVE events enter the speech queue. Every option is also available as a Stream Deck action."
-                                           Style="{StaticResource SecondaryText}" Margin="0,0,0,8" />
-                                <WrapPanel>
-                                    <CheckBox TabIndex="27" Width="210" IsChecked="{Binding AnnounceChatMessages}" Content="_Chat messages" />
-                                    <CheckBox TabIndex="28" Width="210" IsChecked="{Binding AnnounceGifts}" Content="_Gifts" />
-                                    <CheckBox TabIndex="29" Width="210" IsChecked="{Binding AnnounceFollows}" Content="_Follows" />
-                                    <CheckBox TabIndex="30" Width="210" IsChecked="{Binding AnnounceShares}" Content="_Shares" />
-                                    <CheckBox TabIndex="31" Width="210" IsChecked="{Binding AnnounceSubscriptions}" Content="S_ubscriptions" />
-                                    <CheckBox TabIndex="32" Width="210" IsChecked="{Binding AnnounceJoins}" Content="_Viewer joins" />
-                                    <CheckBox TabIndex="33" Width="210" IsChecked="{Binding AnnounceLikes}" Content="_Likes" />
-                                </WrapPanel>
-                            </StackPanel>
-                        </GroupBox>
+                        <TextBlock Text="Banned words and phrases" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <DockPanel Margin="0,0,0,6">
+                            <Button DockPanel.Dock="Right" TabIndex="3" Margin="8,0,0,0"
+                                    Command="{Binding AddCustomBlockedTermCommand}" Content="_Add"
+                                    AutomationProperties.Name="Add banned term button" />
+                            <TextBox x:Name="BannedTermInput" TabIndex="2"
+                                     Text="{Binding CustomBlockedInput, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="New banned word or phrase input box. Type a term and press Enter or Add.">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding AddCustomBlockedTermCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
+                        </DockPanel>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ListBox TabIndex="4" MinHeight="54" MaxHeight="72"
+                                     ItemsSource="{Binding CustomBlockedTerms}"
+                                     SelectedItem="{Binding SelectedCustomBlockedTerm}"
+                                     AutomationProperties.Name="Custom banned terms. Use Arrow keys to browse terms." />
+                            <Button Grid.Column="1" TabIndex="5" Margin="8,0,0,0"
+                                    VerticalAlignment="Top"
+                                    Command="{Binding RemoveSelectedCustomBlockedTermCommand}"
+                                    Content="_Remove"
+                                    AutomationProperties.Name="Remove selected banned term button" />
+                        </Grid>
 
-                        <GroupBox Header="Additional blocked terms" AutomationProperties.Name="Additional blocked terms">
-                            <StackPanel>
-                                <TextBlock Text="Add one term or phrase. Built-in severe-abuse rules remain active."
-                                           Style="{StaticResource SecondaryText}" Margin="0,0,0,8" />
-                                <DockPanel LastChildFill="True">
-                                    <Button DockPanel.Dock="Right" TabIndex="35"
-                                            Margin="10,0,0,0"
-                                            Command="{Binding AddCustomBlockedTermCommand}"
-                                            Content="_Add term"
-                                            AutomationProperties.Name="Add blocked term" />
-                                    <TextBox TabIndex="34"
-                                             Text="{Binding CustomBlockedInput, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.Name="New blocked term"
-                                             AutomationProperties.HelpText="Type a word or phrase, then choose Add term." />
-                                </DockPanel>
-                            </StackPanel>
-                        </GroupBox>
+                        <TextBlock Text="Test a message" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" TabIndex="7" Margin="8,0,0,0"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding TestFilterCommand}" Content="_Test filter"
+                                    AutomationProperties.Name="Test current safety filter button" />
+                            <TextBox x:Name="FilterTestInput" TabIndex="6"
+                                     Text="{Binding FilterTestInput, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Message to test against the current safety settings">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding TestFilterCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
+                        </DockPanel>
+                        <Border Margin="0,8,0,0" Padding="12,9"
+                                Visibility="{Binding HasFilterTestResult, Converter={StaticResource BoolToVisibilityConverter}}"
+                                AutomationProperties.Name="{Binding FilterTestResult}"
+                                AutomationProperties.LiveSetting="Assertive"
+                                a11y:LiveRegion.Announcement="{Binding FilterTestResult}">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource ContentPanel}">
+                                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakDangerBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding FilterTestPassed}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakSuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding FilterTestResult}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        </Border>
+                        <TextBlock Text="Test messages are not broadcast, queued, added to Live Activity, or logged."
+                                   Style="{StaticResource SecondaryText}" Margin="0,7,0,0" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="_Audio"
-                     AutomationProperties.Name="Audio tab, three of four"
-                     AutomationProperties.HelpText="Choose broadcast and private outputs, voice, speed, volume, and offline voices. Use Left and Right Arrow keys to change tabs.">
+            <!-- Tab 3: Voice -->
+            <TabItem Header="_Voice" AutomationProperties.Name="Voice tab, three of four">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="10,14,10,8" MaxWidth="900" HorizontalAlignment="Stretch">
-                        <TextBlock Text="Audio and voices" Style="{StaticResource PageTitle}" Margin="0,0,0,4" />
-                        <TextBlock Text="Route approved speech to your broadcast device and choose how messages sound."
-                                   Style="{StaticResource SecondaryText}" Margin="0,0,0,18" />
+                    <StackPanel Margin="14,12,14,10" MaxWidth="760"
+                                KeyboardNavigation.TabNavigation="Local">
+                        <TextBlock Text="Voice" Style="{StaticResource PageTitle}" FontSize="26" LineHeight="30" />
 
-                        <GroupBox Header="Broadcast and private outputs" AutomationProperties.Name="Broadcast and private audio outputs">
+                        <TextBlock Text="Current voice" FontWeight="SemiBold" Margin="0,9,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="VoiceCombo" TabIndex="1"
+                                      ItemsSource="{Binding Voices}"
+                                      SelectedValuePath="Id" SelectedValue="{Binding SelectedVoice}"
+                                      AutomationProperties.Name="Active speech voice"
+                                      AutomationProperties.HelpText="Use Up and Down Arrow keys to choose a voice. SafeSpeak spoken guidance announces the option and its position. Use Preview to hear a sample.">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem"
+                                           BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                        <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   AutomationProperties.Name="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Grid.Column="1" TabIndex="2" Margin="8,0,0,0"
+                                    Command="{Binding TestSelectedVoiceCommand}" Content="_Preview"
+                                    AutomationProperties.Name="Preview selected voice button. Plays a test phrase using the current voice settings." />
+                        </Grid>
+
+                        <Border Style="{StaticResource ContentPanel}" Margin="0,10,0,10">
                             <StackPanel>
-                                <CheckBox TabIndex="41" IsChecked="{Binding BroadcastOutputEnabled}"
-                                          Content="Enable _broadcast output"
-                                          AutomationProperties.HelpText="Sends approved speech to the broadcast output device." />
-                                <Label Target="{Binding ElementName=OutputDeviceCombo}" Content="Broadcast _output device" Margin="-5,4,0,2" />
-                                <ComboBox x:Name="OutputDeviceCombo" TabIndex="42"
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Label Target="{Binding ElementName=RateSlider}" Content="Speech spee_d" Padding="0" FontWeight="SemiBold" />
+                                    <Slider x:Name="RateSlider" Grid.Column="1" TabIndex="3"
+                                            Minimum="-5" Maximum="5" Margin="14,0"
+                                            Value="{Binding SpeechRate}" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            AutomationProperties.Name="Voice speed slider from -5 slow to +5 fast"
+                                            AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust voice speed one step at a time." />
+                                    <TextBlock Grid.Column="2" Text="{Binding SpeechRate, StringFormat={}{0:+0;-0;0}}"
+                                               VerticalAlignment="Center" MinWidth="28" TextAlignment="Right" />
+                                </Grid>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Label Target="{Binding ElementName=VolumeSlider}" Content="Vol_ume" Padding="0" FontWeight="SemiBold" />
+                                    <Slider x:Name="VolumeSlider" Grid.Column="1" TabIndex="4"
+                                            Minimum="0" Maximum="100" Margin="14,0"
+                                            Value="{Binding SpeechVolume}" TickFrequency="10"
+                                            AutomationProperties.Name="Voice volume slider from 0 to 100 percent"
+                                            AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust voice volume in ten percent steps." />
+                                    <TextBlock Grid.Column="2" Text="{Binding SpeechVolume, StringFormat={}{0}%}"
+                                               VerticalAlignment="Center" MinWidth="38" TextAlignment="Right" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="Broadcast output" Style="{StaticResource SectionTitle}" FontSize="17" />
+                                <CheckBox TabIndex="5" IsChecked="{Binding BroadcastOutputEnabled}" Margin="0,7,0,7"
+                                          Content="_Send approved speech to the stream output"
+                                          AutomationProperties.HelpText="When checked, approved TTS audio plays through the selected broadcast output device." />
+                                <Label Target="{Binding ElementName=OutputCombo}" Content="_Output device" Padding="0,0,0,4" />
+                                <ComboBox x:Name="OutputCombo" TabIndex="6"
                                           ItemsSource="{Binding AudioEndpoints}"
-                                          SelectedValuePath="Id"
-                                          SelectedValue="{Binding SelectedAudioEndpoint}"
-                                          DisplayMemberPath="Name"
-                                          AutomationProperties.Name="Broadcast output device" />
-
-                                <CheckBox TabIndex="43" Margin="0,12,0,0" IsChecked="{Binding PrivateMonitorEnabled}"
-                                          Content="Enable _private monitor"
-                                          AutomationProperties.HelpText="Plays a private copy on a second output for the streamer." />
-                                <Label Target="{Binding ElementName=PrivateOutputDeviceCombo}" Content="_Private monitor device" Margin="-5,4,0,2" />
-                                <ComboBox x:Name="PrivateOutputDeviceCombo" TabIndex="44"
-                                          ItemsSource="{Binding AudioEndpoints}"
-                                          SelectedValuePath="Id"
-                                          SelectedValue="{Binding SelectedPrivateAudioEndpoint}"
-                                          DisplayMemberPath="Name"
-                                          AutomationProperties.Name="Private monitor output device" />
-                                <CheckBox TabIndex="45" IsChecked="{Binding MirrorApprovedMessagesToPrivateMonitor}"
-                                          Content="Mirror approved messages to the private monitor" />
-                                <CheckBox TabIndex="46" IsChecked="{Binding PrivateModerationNoticesEnabled}"
-                                          Content="Speak safe _blocked-message notices on the private monitor"
-                                          AutomationProperties.HelpText="Announces the safe author name and rejection category privately, but never reads the blocked message." />
-                                <TextBlock Text="For isolated stream audio, choose a virtual cable as broadcast and headphones as private. Single-output mode works without extra software."
-                                           Style="{StaticResource SecondaryText}" Margin="0,8,0,0" />
-                                <Button TabIndex="47" Margin="0,12,0,0" HorizontalAlignment="Left"
-                                        Command="{Binding OpenVirtualCableGuideCommand}"
-                                        Content="Open _virtual audio cable guide"
-                                        AutomationProperties.HelpText="Opens instructions for routing SafeSpeak separately from other computer audio." />
+                                          SelectedValuePath="Id" SelectedValue="{Binding SelectedAudioEndpoint}"
+                                          AutomationProperties.Name="Broadcast audio device"
+                                          AutomationProperties.HelpText="Use Up and Down Arrow keys to select an audio output. SafeSpeak spoken guidance announces the option and its position.">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem"
+                                               BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                            <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}"
+                                                       AutomationProperties.Name="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
-                        </GroupBox>
+                        </Border>
 
-                        <GroupBox Header="Voice and delivery" AutomationProperties.Name="Voice and delivery settings">
+                        <Border Style="{StaticResource ContentPanel}">
                             <StackPanel>
-                                <Label Target="{Binding ElementName=VoiceCombo}" Content="Active _voice" Margin="-5,0,0,2" />
-                                <ComboBox x:Name="VoiceCombo" TabIndex="48"
-                                          ItemsSource="{Binding Voices}"
-                                          SelectedValuePath="Id"
-                                          SelectedValue="{Binding SelectedVoice}"
-                                          DisplayMemberPath="DisplayName"
-                                          AutomationProperties.Name="Active text to speech voice" />
-                                <TextBlock Text="The active voice is used for approved TikTok speech and this page's private voice test. SafeSpeak's integrated reader uses a separate fast Windows voice so keyboard navigation remains immediate."
-                                           Style="{StaticResource SecondaryText}" Margin="0,6,0,10" />
-                                <Button TabIndex="49"
-                                        HorizontalAlignment="Left"
-                                        Command="{Binding TestSelectedVoiceCommand}"
-                                        Content="_Test selected voice"
-                                        AutomationProperties.Name="Test selected text to speech voice"
-                                        AutomationProperties.HelpText="Plays a private sample through the private monitor when enabled, or the Windows default audio device otherwise. The sample is never sent to the broadcast output." />
-
-                                <Label Target="{Binding ElementName=RateSlider}" Content="Speech _rate" Margin="-5,10,0,0" />
-                                <Slider x:Name="RateSlider" TabIndex="50"
-                                        Minimum="-5" Maximum="5" Value="{Binding SpeechRate}"
-                                        TickFrequency="1" IsSnapToTickEnabled="True"
-                                        AutomationProperties.Name="Speech rate" />
-                                <TextBlock Text="{Binding SpeechRate, StringFormat=Current rate: {0}}" Style="{StaticResource SecondaryText}" />
-
-                                <Label Target="{Binding ElementName=VolumeSlider}" Content="Speech _volume" Margin="-5,10,0,0" />
-                                <Slider x:Name="VolumeSlider" TabIndex="51"
-                                        Minimum="0" Maximum="100" Value="{Binding SpeechVolume}"
-                                        TickFrequency="5" IsSnapToTickEnabled="True"
-                                        AutomationProperties.Name="Speech volume" />
-                                <TextBlock Text="{Binding SpeechVolume, StringFormat=Current volume: {0} percent}" Style="{StaticResource SecondaryText}" />
+                                <TextBlock Text="Local neural voices" Style="{StaticResource SectionTitle}" FontSize="17" />
+                                <TextBlock Text="{Binding KokoroInstallationStatus}" Style="{StaticResource SecondaryText}"
+                                           TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <Grid Visibility="{Binding ShowKokoroInstallAction, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Button TabIndex="7" HorizontalAlignment="Stretch"
+                                            Command="{Binding InstallKokoroCommand}"
+                                            IsEnabled="{Binding IsDownloadingVoice, Converter={StaticResource InverseBoolConverter}}"
+                                            Content="_Install 27 local neural voices"
+                                            AutomationProperties.Name="Install 27 offline Kokoro neural voices button, approximately 330 megabyte download" />
+                                    <ProgressBar Height="8" VerticalAlignment="Bottom" Minimum="0" Maximum="100"
+                                                 Value="{Binding VoiceDownloadProgress}"
+                                                 Visibility="{Binding IsDownloadingVoice, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </Grid>
                             </StackPanel>
-                        </GroupBox>
-
-                        <GroupBox Header="Kokoro offline natural voices" AutomationProperties.Name="Kokoro offline natural voices">
-                            <StackPanel>
-                                <TextBlock Text="{Binding KokoroInstallationStatus}" Style="{StaticResource BodyText}"
-                                           AutomationProperties.LiveSetting="Polite" />
-                                <TextBlock Text="The optional model is downloaded once. All synthesis then runs locally, and the voice dropdown gains American and British voices."
-                                           Style="{StaticResource SecondaryText}" Margin="0,6,0,12" />
-                                <Button TabIndex="52" HorizontalAlignment="Left"
-                                        Command="{Binding InstallKokoroCommand}"
-                                        Content="_Install Kokoro voices"
-                                        AutomationProperties.Name="Install Kokoro offline voices"
-                                        AutomationProperties.HelpText="Downloads approximately 330 megabytes and installs twenty seven local English voices." />
-                                <ProgressBar Value="{Binding VoiceDownloadProgress}"
-                                             Height="12" Margin="0,4,0,12"
-                                             Visibility="{Binding IsDownloadingVoice, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                             AutomationProperties.Name="Voice package download progress" />
-                            </StackPanel>
-                        </GroupBox>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="_Accessibility"
-                     AutomationProperties.Name="Accessibility tab, four of four"
-                     AutomationProperties.HelpText="Change integrated reader and visual settings and review keyboard shortcuts. Use Left and Right Arrow keys to change tabs.">
+            <!-- Tab 4: Settings -->
+            <TabItem Header="Se_ttings" AutomationProperties.Name="Settings tab, four of four">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="10,14,10,8" MaxWidth="900" HorizontalAlignment="Stretch">
-                        <TextBlock Text="Accessibility" Style="{StaticResource PageTitle}" Margin="0,0,0,4" />
-                        <TextBlock Text="SafeSpeak supports Windows Narrator, full keyboard operation, system High Contrast colors, and optional integrated spoken guidance."
-                                   Style="{StaticResource SecondaryText}" Margin="0,0,0,18" />
+                    <StackPanel Margin="14,12,14,10" MaxWidth="760"
+                                KeyboardNavigation.TabNavigation="Local">
+                        <TextBlock Text="Settings" Style="{StaticResource PageTitle}" FontSize="26" LineHeight="30" />
 
-                        <GroupBox Header="SafeSpeak integrated reader" AutomationProperties.Name="SafeSpeak integrated reader">
-                            <StackPanel>
-                                <TextBlock Text="{Binding IntegratedReaderStatus}"
-                                           FontSize="18" FontWeight="Bold"
-                                           AutomationProperties.Name="{Binding IntegratedReaderStatus}"
-                                           AutomationProperties.LiveSetting="Polite" />
-                                <TextBlock Text="The integrated reader uses a fast Windows voice for controls and SafeSpeak state changes. TikTok messages use the selected stream voice separately, preventing two voices from announcing the same control. Windows Narrator can read every control whether this reader is enabled or disabled."
-                                           Style="{StaticResource BodyText}" Margin="0,6,0,12" />
-                                <Button TabIndex="61" HorizontalAlignment="Left"
-                                        Command="{Binding RerunAccessibilityWizardCommand}"
-                                        Content="_Change integrated reader setting"
-                                        AutomationProperties.Name="Change SafeSpeak integrated reader setting"
-                                        AutomationProperties.HelpText="Opens the accessible setup and requires two matching confirmations before remembering the choice." />
-                                <Label Target="{Binding ElementName=ReaderRateSlider}"
-                                       Content="Integrated reader _speed" Margin="-5,12,0,0" />
-                                <Slider x:Name="ReaderRateSlider" TabIndex="62"
-                                        Minimum="-5" Maximum="5"
-                                        Value="{Binding ReaderSpeechRate}"
-                                        TickFrequency="1" IsSnapToTickEnabled="True"
-                                        AutomationProperties.Name="Integrated reader speech speed"
-                                        AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust the SafeSpeak reader voice speed. This does not change stream message speed." />
-                                <TextBlock Text="{Binding ReaderSpeechRate, StringFormat=Current reader speed: {0}}"
-                                           Style="{StaticResource SecondaryText}" />
-                            </StackPanel>
-                        </GroupBox>
+                        <Label Target="{Binding ElementName=ThemeSelector}" Content="_Theme" Padding="0" Margin="0,9,0,5" FontWeight="SemiBold" />
+                        <ListBox x:Name="ThemeSelector" TabIndex="1"
+                                 ItemsSource="{Binding ThemeChoices}"
+                                 SelectedValuePath="Value"
+                                 SelectedValue="{Binding SelectedTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 MinHeight="132" Padding="0" BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 AutomationProperties.Name="Theme selector"
+                                 AutomationProperties.ItemStatus="{Binding ThemeSelectionAccessibleText}"
+                                 AutomationProperties.HelpText="Use Left and Right or Up and Down Arrow keys to choose Light, Dark, or High Contrast. Each option is announced as it is selected.">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="Margin" Value="0,0,6,0" />
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                    <Setter Property="AutomationProperties.PositionInSet" Value="{Binding Position}" />
+                                    <Setter Property="AutomationProperties.SizeOfSet" Value="3" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="ThemeCard"
+                                                        Padding="8"
+                                                        Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                                        BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4">
+                                                    <ContentPresenter />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThemeCard" Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                                        <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                                        <Setter TargetName="ThemeCard" Property="BorderThickness" Value="3" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <Border x:Name="ThemePreview" Height="70" Margin="0,0,0,6"
+                                                Background="#FFF7F8FC" BorderBrush="#FFC7D0E0"
+                                                BorderThickness="1" CornerRadius="3">
+                                            <Grid Margin="8">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="10" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+                                                <Border x:Name="PreviewHeader" Background="#FFD7DEEA" CornerRadius="1" />
+                                                <Grid Grid.Row="1" Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="42" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <Border x:Name="PreviewLineOne" Height="6" Width="58" HorizontalAlignment="Left" Background="#FF9BA8BA" />
+                                                        <Border x:Name="PreviewLineTwo" Height="6" Width="43" Margin="0,5,0,0" HorizontalAlignment="Left" Background="#FFC7D0E0" />
+                                                    </StackPanel>
+                                                    <Border x:Name="PreviewAction" Grid.Column="1" Height="24" VerticalAlignment="Center" Background="#FF2057D4" CornerRadius="2" />
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextAlignment="Center" />
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding DisplayName}" Value="Dark">
+                                            <Setter TargetName="ThemePreview" Property="Background" Value="#FF121C2C" />
+                                            <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FF94A3B8" />
+                                            <Setter TargetName="PreviewHeader" Property="Background" Value="#FF28364B" />
+                                            <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFCBD5E1" />
+                                            <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FF718096" />
+                                            <Setter TargetName="PreviewAction" Property="Background" Value="#FF3B82F6" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding DisplayName}" Value="High Contrast">
+                                            <Setter TargetName="ThemePreview" Property="Background" Value="#FF000000" />
+                                            <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FFFFFF00" />
+                                            <Setter TargetName="PreviewHeader" Property="Background" Value="#FFFFFFFF" />
+                                            <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFFFFF00" />
+                                            <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FFFFFFFF" />
+                                            <Setter TargetName="PreviewAction" Property="Background" Value="#FFFFFF00" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{Binding ThemeStatus}" Style="{StaticResource SecondaryText}"
+                                   TextWrapping="Wrap" Margin="0,4,0,10"
+                                   AutomationProperties.Name="{Binding ThemeStatus}"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   a11y:LiveRegion.Announcement="{Binding ThemeStatus}" />
 
-                        <GroupBox Header="Visual accessibility" AutomationProperties.Name="Visual accessibility settings">
+                        <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
-                                <CheckBox TabIndex="63" IsChecked="{Binding UseHighContrastTheme}"
-                                          Content="Use SafeSpeak extra _high contrast theme"
-                                          AutomationProperties.HelpText="Uses black surfaces, white text, and yellow focus and accent colors. Windows High Contrast is also supported automatically." />
-                                <TextBlock Text="This theme can be used independently of Windows High Contrast and is saved for the next launch. Keyboard focus always uses a thick visible outline."
-                                           Style="{StaticResource SecondaryText}" />
+                                <CheckBox TabIndex="2"
+                                          IsChecked="{Binding SpokenGuidanceEnabled, Mode=TwoWay}"
+                                          Content="_Use SafeSpeak built-in spoken guidance"
+                                          AutomationProperties.Name="Use SafeSpeak built-in spoken guidance"
+                                          AutomationProperties.HelpText="Independent of the visual theme. Windows Narrator, NVDA, and JAWS remain supported." />
+                                <TextBlock Text="{Binding SpokenGuidanceStatus}"
+                                           Style="{StaticResource SecondaryText}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,4,0,0"
+                                           AutomationProperties.Name="{Binding SpokenGuidanceStatus}"
+                                           AutomationProperties.LiveSetting="Polite"
+                                           a11y:LiveRegion.Announcement="{Binding SpokenGuidanceStatus}" />
+                                <Grid Margin="0,7,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Label Target="{Binding ElementName=ReaderRateSlider}" Content="Reader spee_d" Padding="0" />
+                                    <Slider x:Name="ReaderRateSlider" Grid.Column="1" TabIndex="3" Minimum="-5" Maximum="5" Margin="12,0,0,0"
+                                            Value="{Binding ReaderSpeechRate}" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            AutomationProperties.Name="Built-in screen reader speech speed slider"
+                                            AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust built-in reader speed one step at a time." />
+                                </Grid>
                             </StackPanel>
-                        </GroupBox>
+                        </Border>
 
-                        <GroupBox Header="Global shortcuts" AutomationProperties.Name="Global keyboard shortcuts">
-                            <StackPanel>
-                                <TextBlock Text="These shortcuts work while another application has focus."
-                                           Style="{StaticResource SecondaryText}" Margin="0,0,0,12" />
-                                <TextBlock Text="Control + Alt + S — Hear private system status" Style="{StaticResource BodyText}" Margin="0,3" />
-                                <TextBlock Text="Control + Alt + P — Emergency stop: stop audio, clear queue, and disarm" Style="{StaticResource BodyText}" Margin="0,3" FontWeight="Bold" />
-                                <TextBlock Text="Control + Alt + A — Arm or disarm text to speech" Style="{StaticResource BodyText}" Margin="0,3" />
-                                <TextBlock Text="Control + Alt + K — Skip the current message" Style="{StaticResource BodyText}" Margin="0,3" />
-                            </StackPanel>
-                        </GroupBox>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                        <GroupBox Header="Keyboard navigation" AutomationProperties.Name="Keyboard navigation help">
-                            <StackPanel>
-                                <TextBlock Text="Press Tab and Shift + Tab to move through controls. Use arrow keys to change tabs, lists, sliders, and selections. Press Space to toggle a check box and Enter to activate a button. Access-key letters are underlined when you press Alt."
-                                           Style="{StaticResource BodyText}" />
+                            <Border Grid.Column="0" Style="{StaticResource ContentPanel}" VerticalAlignment="Stretch">
+                                <StackPanel>
+                                    <TextBlock Text="Language and audience" Style="{StaticResource SectionTitle}" FontSize="17" />
+                                    <CheckBox TabIndex="4" IsChecked="{Binding EnglishOnly}" Margin="0,7,0,3"
+                                              Content="Filter to _English and Latin-script chat"
+                                              AutomationProperties.Name="Filter chat to English and Latin script"
+                                              AutomationProperties.HelpText="When enabled, unsupported writing systems are blocked before speech." />
+                                    <CheckBox TabIndex="5" IsChecked="{Binding RejectMixedScripts}" Margin="0,3"
+                                              Content="Block mi_xed-script evasion"
+                                              AutomationProperties.Name="Block mixed-script evasion"
+                                              AutomationProperties.HelpText="Blocks words that mix writing systems to disguise banned or hostile language." />
+                                    <Label Target="{Binding ElementName=AudienceSelector}"
+                                           Content="Chat _audience" Padding="0" Margin="0,7,0,4" />
+                                    <ComboBox x:Name="AudienceSelector" TabIndex="6"
+                                              ItemsSource="{Binding AudienceChoices}"
+                                              SelectedValuePath="Value"
+                                              SelectedValue="{Binding SelectedAudienceMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              AutomationProperties.Name="Chat audience selector"
+                                              AutomationProperties.ItemStatus="{Binding AudienceSelectionAccessibleText}"
+                                              AutomationProperties.HelpText="Use Up and Down Arrow keys to choose Everyone, Followers, Subscribers, or Moderators. SafeSpeak announces the selected option and its position.">
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                                <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                                <Setter Property="AutomationProperties.PositionInSet" Value="{Binding Position}" />
+                                                <Setter Property="AutomationProperties.SizeOfSet" Value="4" />
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           AutomationProperties.Name="{Binding DisplayName}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <CheckBox TabIndex="7" IsChecked="{Binding AllowDonorsToSpeak}" Margin="0,7,0,0"
+                                              Content="Also allow current-stream _gift senders"
+                                              AutomationProperties.Name="Allow current-stream gift senders to speak"
+                                              AutomationProperties.HelpText="When enabled, a person who sends a gift during this armed session may speak even if they do not meet the selected audience tier. Their name and message are still moderated." />
+                                    <TextBlock Text="{Binding RequiredSafetyFeaturesStatus}"
+                                               Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,7,0,0"
+                                               AutomationProperties.Name="{Binding RequiredSafetyFeaturesStatus}" />
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Grid.Column="2">
+                                <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Stream announcements" Style="{StaticResource SectionTitle}" FontSize="17" />
+                                        <UniformGrid Columns="2" Margin="0,5,0,0">
+                                            <CheckBox TabIndex="8" IsChecked="{Binding AnnounceChatMessages}" Margin="0,3"
+                                                      Content="_Chat" AutomationProperties.Name="Announce chat messages"
+                                                      AutomationProperties.HelpText="Controls whether approved chat messages enter the text-to-speech queue." />
+                                            <CheckBox TabIndex="9" IsChecked="{Binding AnnounceGifts}" Margin="0,3"
+                                                      Content="_Gifts" AutomationProperties.Name="Announce gifts"
+                                                      AutomationProperties.HelpText="Controls spoken gift announcements." />
+                                            <CheckBox TabIndex="10" IsChecked="{Binding AnnounceFollows}" Margin="0,3"
+                                                      Content="_Follows" AutomationProperties.Name="Announce follows"
+                                                      AutomationProperties.HelpText="Controls spoken follow announcements." />
+                                            <CheckBox TabIndex="11" IsChecked="{Binding AnnounceShares}" Margin="0,3"
+                                                      Content="_Shares" AutomationProperties.Name="Announce shares"
+                                                      AutomationProperties.HelpText="Controls spoken share announcements." />
+                                            <CheckBox TabIndex="12" IsChecked="{Binding AnnounceSubscriptions}" Margin="0,3"
+                                                      Content="S_ubscriptions" AutomationProperties.Name="Announce subscriptions"
+                                                      AutomationProperties.HelpText="Controls spoken subscription announcements." />
+                                            <CheckBox TabIndex="13" IsChecked="{Binding AnnounceJoins}" Margin="0,3"
+                                                      Content="_Joins" AutomationProperties.Name="Announce viewer joins"
+                                                      AutomationProperties.HelpText="Controls spoken viewer-join announcements." />
+                                            <CheckBox TabIndex="14" IsChecked="{Binding AnnounceLikes}" Margin="0,3"
+                                                      Content="_Likes" AutomationProperties.Name="Announce likes"
+                                                      AutomationProperties.HelpText="Controls spoken like announcements." />
+                                        </UniformGrid>
+                                        <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                                BorderThickness="0,1,0,0" Margin="0,7,0,5" />
+                                        <TextBlock Text="While paused" FontWeight="SemiBold" />
+                                        <CheckBox TabIndex="15" IsChecked="{Binding PauseAllTtsWhilePaused}" Margin="0,5,0,3"
+                                                  Content="Pause _all TTS, including events"
+                                                  AutomationProperties.Name="Pause all text to speech including event announcements"
+                                                  AutomationProperties.HelpText="When checked, every approved message and event waits until TTS resumes. Emergency Stop always stops and clears everything." />
+                                        <UniformGrid Columns="2">
+                                            <CheckBox TabIndex="16" IsChecked="{Binding AllowGiftAnnouncementsWhilePaused}"
+                                                      IsEnabled="{Binding PauseAllTtsWhilePaused, Converter={StaticResource InverseBoolConverter}}"
+                                                      Margin="0,3" Content="Allow _gifts"
+                                                      AutomationProperties.Name="Allow gift announcements while chat TTS is paused" />
+                                            <CheckBox TabIndex="17" IsChecked="{Binding AllowFollowAnnouncementsWhilePaused}"
+                                                      IsEnabled="{Binding PauseAllTtsWhilePaused, Converter={StaticResource InverseBoolConverter}}"
+                                                      Margin="0,3" Content="Allow _follows"
+                                                      AutomationProperties.Name="Allow follow announcements while chat TTS is paused" />
+                                            <CheckBox TabIndex="18" IsChecked="{Binding AllowShareAnnouncementsWhilePaused}"
+                                                      IsEnabled="{Binding PauseAllTtsWhilePaused, Converter={StaticResource InverseBoolConverter}}"
+                                                      Margin="0,3" Content="Allow _shares"
+                                                      AutomationProperties.Name="Allow share announcements while chat TTS is paused" />
+                                            <CheckBox TabIndex="19" IsChecked="{Binding AllowSubscriptionAnnouncementsWhilePaused}"
+                                                      IsEnabled="{Binding PauseAllTtsWhilePaused, Converter={StaticResource InverseBoolConverter}}"
+                                                      Margin="0,3" Content="Allow s_ubscriptions"
+                                                      AutomationProperties.Name="Allow subscription announcements while chat TTS is paused" />
+                                        </UniformGrid>
+                                        <TextBlock Text="{Binding PauseRoutingSummary}" Style="{StaticResource SecondaryText}"
+                                                   TextWrapping="Wrap" Margin="0,5,0,0"
+                                                   AutomationProperties.Name="{Binding PauseRoutingSummary}"
+                                                   AutomationProperties.LiveSetting="Polite"
+                                                   a11y:LiveRegion.Announcement="{Binding PauseRoutingSummary}" />
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
-                        </GroupBox>
+                        </Grid>
+
+                        <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
+                            <StackPanel>
+                                <CheckBox TabIndex="20" IsChecked="{Binding EnableStreamAuditLogging}"
+                                          Content="_Save chat and moderation decisions to a local text log"
+                                          AutomationProperties.Name="Save chat and moderation decisions to a local text log"
+                                          AutomationProperties.HelpText="When enabled, raw chat, usernames, gifts, and safety decisions are saved locally for post-stream review." />
+                                <TextBlock Text="Logs can include usernames, raw chat, and blocked text. Logging is off until you enable it."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,7"
+                                           Foreground="{DynamicResource SafeSpeakDangerBrush}" />
+                                <TextBlock Text="{Binding AuditLogsDirectoryDisplay, StringFormat=Log folder: {0}}"
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,7"
+                                           AutomationProperties.Name="{Binding AuditLogsDirectoryDisplay, StringFormat=SafeSpeak log folder: {0}}" />
+                                <Button TabIndex="21" HorizontalAlignment="Left"
+                                        Command="{Binding OpenAuditLogsFolderCommand}"
+                                        Content="_Open logs folder"
+                                        AutomationProperties.Name="Open stream audit logs folder button"
+                                        AutomationProperties.HelpText="Opens the displayed local folder. If Windows cannot open it, SafeSpeak writes and announces an error." />
+                            </StackPanel>
+                        </Border>
+
+                        <Button TabIndex="22" HorizontalAlignment="Stretch"
+                                Command="{Binding RerunAccessibilityWizardCommand}"
+                                Content="_Run Setup Again"
+                                AutomationProperties.Name="Run SafeSpeak setup again button"
+                                AutomationProperties.HelpText="Reviews streaming-platform, filtering, spoken-guidance, and theme choices. Cancel preserves your current settings, logs, imported voices, and downloaded models." />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-        </TabControl>
+            </TabControl>
+        </Grid>
 
-        <Border Grid.Row="2"
-                Padding="16,9"
-                Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                BorderThickness="0,1,0,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Text="{Binding LiveStatusAnnouncement}"
-                           TextWrapping="Wrap"
-                           AutomationProperties.Name="SafeSpeak latest status"
-                           AutomationProperties.LiveSetting="Assertive" />
-                <TextBlock Grid.Column="1"
-                           Margin="16,0,0,0"
-                           Text="Stream Deck integration: local port 21214"
-                           Style="{StaticResource SecondaryText}"
-                           VerticalAlignment="Center"
-                           AutomationProperties.Name="Stream Deck integration uses local port 21214" />
-            </Grid>
+        <!-- Bottom Screen Reader Live Announcement Banner -->
+        <Border Grid.Row="1" Style="{StaticResource LiveStatusBar}">
+            <TextBlock Text="{Binding LiveStatusAnnouncement}" TextWrapping="Wrap"
+                       AutomationProperties.Name="{Binding LiveStatusAnnouncement}"
+                       AutomationProperties.LiveSetting="Polite"
+                       a11y:LiveRegion.Announcement="{Binding LiveStatusAnnouncement}" />
         </Border>
     </Grid>
 </Window>

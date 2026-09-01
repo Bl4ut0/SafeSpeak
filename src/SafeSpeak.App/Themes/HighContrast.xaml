@@ -1,0 +1,16 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="SafeSpeakWindowBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="SafeSpeakSurfaceBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="SafeSpeakSurfaceAltBrush" Color="#FF1A1A1A" />
+    <SolidColorBrush x:Key="SafeSpeakTextBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="SafeSpeakMutedTextBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="SafeSpeakBorderBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="SafeSpeakAccentBrush" Color="#FFFFFF00" />
+    <SolidColorBrush x:Key="SafeSpeakAccentSoftBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="SafeSpeakAccentTextBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="SafeSpeakDangerBrush" Color="#FFFFFF00" />
+    <SolidColorBrush x:Key="SafeSpeakDangerTextBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="SafeSpeakSuccessBrush" Color="#FFFFFF00" />
+    <SolidColorBrush x:Key="SafeSpeakSuccessTextBrush" Color="#FF000000" />
+</ResourceDictionary>

@@ -3,8 +3,8 @@ using System.Speech.Synthesis;
 namespace SafeSpeak.Core.Accessibility;
 
 /// <summary>
-/// Handles private auditory notifications and UIA screen reader announcements.
-/// Audio is directed strictly to the user's default communication channel and never enters the broadcast audio session.
+/// Handles SafeSpeak's built-in spoken guidance. Speech uses the Windows default
+/// playback device; stream software may capture it if desktop audio is included.
 /// </summary>
 public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 {
@@ -12,6 +12,14 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     private readonly object _lock = new();
 
     public bool IsEnhancedAccessibilityEnabled { get; set; } = true;
+
+    public bool IsSpeechAvailable
+    {
+        get
+        {
+            lock (_lock) return _privateSynth is not null;
+        }
+    }
 
     public event EventHandler<string>? AnnouncementRequested;
 
@@ -48,7 +56,8 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         if (string.IsNullOrWhiteSpace(text)) return;
 
-        // Trigger UIA Live Region event for NVDA/JAWS/Narrator
+        // Non-WPF hosts may mirror this request. WPF views raise real
+        // LiveRegionChanged events through the LiveRegion attached behavior.
         AnnouncementRequested?.Invoke(this, text);
 
         if (!IsEnhancedAccessibilityEnabled) return;

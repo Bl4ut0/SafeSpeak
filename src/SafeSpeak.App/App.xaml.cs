@@ -33,25 +33,29 @@ public partial class App : Application
         try
         {
             var settings = AppSettings.Load();
-            ThemeManager.Apply(settings.UseHighContrastTheme);
+            ThemeManager.Apply(settings.EffectiveTheme);
             SystemParameters.StaticPropertyChanged += (_, args) =>
             {
                 if (args.PropertyName == nameof(SystemParameters.HighContrast))
-                    ThemeManager.Apply(AppSettings.Load().UseHighContrastTheme);
+                    ThemeManager.RefreshForSystemSettings();
             };
 
-            if (!settings.HasConfirmedReaderPreference)
+            if (!settings.HasCompletedOnboarding)
             {
                 var tempAnnouncer = new ScreenReaderAnnouncer();
                 AccessibilitySetupDialog? wizard = null;
 
-                var setupVm = new AccessibilitySetupViewModel(settings, tempAnnouncer, () =>
-                {
-                    var mainWindow = new MainWindow();
-                    MainWindow = mainWindow;
-                    mainWindow.Show();
-                    wizard?.Close();
-                });
+                var setupVm = new AccessibilitySetupViewModel(
+                    settings,
+                    tempAnnouncer,
+                    onCompleted: () =>
+                    {
+                        var mainWindow = new MainWindow();
+                        MainWindow = mainWindow;
+                        mainWindow.Show();
+                        wizard?.Close();
+                    },
+                    onRestartRequired: Shutdown);
 
                 wizard = new AccessibilitySetupDialog(setupVm);
                 wizard.Closed += (_, _) => tempAnnouncer.Dispose();

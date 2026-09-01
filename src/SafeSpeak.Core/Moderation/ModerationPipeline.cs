@@ -6,14 +6,17 @@ namespace SafeSpeak.Core.Moderation;
 /// <summary>
 /// Multi-tiered moderation pipeline orchestrating deterministic anti-evasion rules and AI intent classification.
 /// </summary>
-public sealed class ModerationPipeline
+public sealed class ModerationPipeline : IDisposable
 {
     private readonly RuleEngine _ruleEngine;
-    private readonly IIntentClassifier _intentClassifier;
+    private IIntentClassifier _intentClassifier;
+    private readonly object _classifierLifetimeLock = new();
+    private readonly List<IIntentClassifier> _retiredClassifiers = new();
+    private int _disposed;
 
     public ModerationConfig Config { get; }
     public RuleEngine Rules => _ruleEngine;
-    public IIntentClassifier Classifier => _intentClassifier;
+    public IIntentClassifier Classifier => Volatile.Read(ref _intentClassifier);
 
     public ModerationPipeline(
         ModerationConfig? config = null,
@@ -22,7 +25,25 @@ public sealed class ModerationPipeline
     {
         Config = config ?? new ModerationConfig();
         _ruleEngine = ruleEngine ?? new RuleEngine();
-        _intentClassifier = intentClassifier ?? new HeuristicIntentClassifier();
+        _intentClassifier = intentClassifier ?? new LocalOnnxIntentClassifier();
+    }
+
+    /// <summary>
+    /// Swaps the active intent classification engine at runtime without
+    /// disposing an engine that an in-flight message may still be using.
+    /// </summary>
+    public void SetIntentClassifier(IIntentClassifier classifier)
+    {
+        ArgumentNullException.ThrowIfNull(classifier);
+        lock (_classifierLifetimeLock)
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            var old = Interlocked.Exchange(ref _intentClassifier, classifier);
+            if (!ReferenceEquals(old, classifier))
+            {
+                _retiredClassifiers.Add(old);
+            }
+        }
     }
 
     /// <summary>
@@ -32,6 +53,8 @@ public sealed class ModerationPipeline
         ChatMessage message,
         CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+
         if (message == null || string.IsNullOrWhiteSpace(message.RawText))
         {
             return new ModerationDecision
@@ -60,7 +83,10 @@ public sealed class ModerationPipeline
         }
 
         // 2. Audience Eligibility Rule
-        if (!_ruleEngine.IsAudienceEligible(message, Config.AudienceMode))
+        if (!_ruleEngine.IsAudienceEligible(
+                message,
+                Config.AudienceMode,
+                Config.AllowDonorsToSpeak))
         {
             return new ModerationDecision
             {
@@ -136,40 +162,68 @@ public sealed class ModerationPipeline
             };
         }
 
-        // 7. Tier 2: AI / SLM Intent Classification
-        double toxicityScore = 0.0;
-        if (Config.AiClassificationEnabled)
+        // 7. Intent classification. The deterministic blocklist above is always
+        // enforced; the user-facing moderation level controls only uncertain
+        // contextual hostility.
+        IntentClassificationResult intentResult;
+        try
         {
-            var aiResult = await _intentClassifier.ClassifyAsync(normalizedForInspection, cancellationToken);
-            toxicityScore = aiResult.ToxicityScore;
-
-            if (aiResult.IsToxic || toxicityScore >= Config.AiToxicityThreshold)
+            intentResult = await _intentClassifier.ClassifyAsync(
+                normalizedForInspection,
+                cancellationToken);
+            if (!HasValidIntentScores(intentResult))
             {
-                var reasonCode = aiResult.ThreatScore > 0.7
-                    ? ModerationReasonCode.ThreatOrHarassment
-                    : ModerationReasonCode.SevereToxicity;
-
-                return new ModerationDecision
-                {
-                    Message = message,
-                    Disposition = ModerationDisposition.Rejected,
-                    ReasonCode = reasonCode,
-                    ReasonDescription = $"AI Intent Classifier flagged content as {aiResult.FlaggedCategory} (Score: {toxicityScore:P0})",
-                    SpokenText = string.Empty,
-                    NormalizedText = normalizedForInspection,
-                    ToxicityScore = toxicityScore,
-                    TriggeredRules = new[] { aiResult.FlaggedCategory }
-                };
+                throw new InvalidDataException("The contextual safety layer returned invalid scores.");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return new ModerationDecision
+            {
+                Message = message,
+                Disposition = ModerationDisposition.Rejected,
+                ReasonCode = ModerationReasonCode.SevereToxicity,
+                ReasonDescription = "The contextual safety layer was unavailable",
+                SpokenText = string.Empty,
+                NormalizedText = normalizedForInspection
+            };
+        }
+        double toxicityScore = intentResult.ToxicityScore;
+
+        if (toxicityScore >= Config.IntentToxicityThreshold)
+        {
+            var reasonCode = intentResult.ThreatScore > 0.7 ||
+                             intentResult.HarassmentScore > 0.7
+                ? ModerationReasonCode.ThreatOrHarassment
+                : ModerationReasonCode.SevereToxicity;
+
+            return new ModerationDecision
+            {
+                Message = message,
+                Disposition = ModerationDisposition.Rejected,
+                ReasonCode = reasonCode,
+                ReasonDescription =
+                    $"Intent filter flagged {intentResult.FlaggedCategory} at moderation level {Math.Clamp(Config.IntentModerationLevel, 1, 4)} (score {toxicityScore:0.00} >= threshold {Config.IntentToxicityThreshold:0.00})",
+                SpokenText = string.Empty,
+                NormalizedText = normalizedForInspection,
+                ToxicityScore = toxicityScore,
+                TriggeredRules = new[] { intentResult.FlaggedCategory }
+            };
         }
 
         // 8. Prepare Cleaned Spoken Output
         string speechCleaned = UnicodeNormalizer.CleanForSpeech(message.RawText, Config.StripUrls);
 
-        string safeDisplayName = GetSafeDisplayName(message.AuthorDisplayName);
-        string finalSpokenText = Config.SpeakUsernames
-            ? $"{safeDisplayName} says: {speechCleaned}"
-            : speechCleaned;
+        string safeDisplayName = await GetSafeDisplayNameAsync(
+            message.AuthorDisplayName,
+            cancellationToken);
+        string finalSpokenText = message.AttributionStyle == SpokenAttributionStyle.LeadingName
+            ? $"{safeDisplayName} {speechCleaned}"
+            : $"{safeDisplayName} says: {speechCleaned}";
 
         return new ModerationDecision
         {
@@ -185,7 +239,9 @@ public sealed class ModerationPipeline
         };
     }
 
-    private string GetSafeDisplayName(string? displayName)
+    private async Task<string> GetSafeDisplayNameAsync(
+        string? displayName,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 50)
         {
@@ -208,7 +264,68 @@ public sealed class ModerationPipeline
             return "A viewer";
         }
 
+        try
+        {
+            IntentClassificationResult nameIntent = await _intentClassifier.ClassifyAsync(
+                normalized,
+                cancellationToken);
+            if (!HasValidIntentScores(nameIntent) ||
+                nameIntent.ToxicityScore >= Config.IntentToxicityThreshold)
+            {
+                return "A viewer";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // A display name is optional attribution. Fail closed to a neutral label.
+            return "A viewer";
+        }
+
         string cleaned = UnicodeNormalizer.CleanForSpeech(displayName, stripUrls: true);
         return string.IsNullOrWhiteSpace(cleaned) ? "A viewer" : cleaned;
+    }
+
+    private static bool HasValidIntentScores(IntentClassificationResult? result)
+    {
+        if (result is null) return false;
+
+        return IsProbability(result.ToxicityScore) &&
+               IsProbability(result.SevereToxicityScore) &&
+               IsProbability(result.ObsceneScore) &&
+               IsProbability(result.ThreatScore) &&
+               IsProbability(result.HarassmentScore) &&
+               IsProbability(result.InsultScore) &&
+               IsProbability(result.IdentityHateScore);
+    }
+
+    private static bool IsProbability(double value) =>
+        double.IsFinite(value) && value is >= 0 and <= 1;
+
+    public void Dispose()
+    {
+        List<IIntentClassifier> classifiers;
+        lock (_classifierLifetimeLock)
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            classifiers = new List<IIntentClassifier>(_retiredClassifiers.Count + 1)
+            {
+                _intentClassifier
+            };
+            classifiers.AddRange(_retiredClassifiers);
+            _retiredClassifiers.Clear();
+        }
+
+        var disposedClassifiers = new HashSet<IIntentClassifier>(ReferenceEqualityComparer.Instance);
+        foreach (IIntentClassifier classifier in classifiers)
+        {
+            if (disposedClassifiers.Add(classifier))
+            {
+                classifier.Dispose();
+            }
+        }
     }
 }

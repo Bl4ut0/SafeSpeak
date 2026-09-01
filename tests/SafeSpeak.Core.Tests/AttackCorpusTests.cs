@@ -3,7 +3,8 @@ using SafeSpeak.Core.Moderation;
 
 namespace SafeSpeak.Core.Tests;
 
-public class AttackCorpusTests
+[Collection("Local moderation runtime")]
+public class AttackCorpusTests : IDisposable
 {
     private readonly ModerationPipeline _pipeline;
 
@@ -79,7 +80,7 @@ public class AttackCorpusTests
     [Fact]
     public async Task ProcessMessage_HonorsAudienceTierRequirements()
     {
-        var subOnlyPipeline = new ModerationPipeline(new ModerationConfig
+        using var subOnlyPipeline = new ModerationPipeline(new ModerationConfig
         {
             AudienceMode = AudienceMode.SubscribersOnly,
             UserCooldownSeconds = 0
@@ -109,9 +110,36 @@ public class AttackCorpusTests
     }
 
     [Fact]
+    public async Task ProcessMessage_CanAllowCurrentStreamDonorsThroughAudienceRestriction()
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            AudienceMode = AudienceMode.SubscribersOnly,
+            AllowDonorsToSpeak = true,
+            UserCooldownSeconds = 0
+        });
+        var donorMessage = new ChatMessage
+        {
+            Author = "gift_sender",
+            RawText = "Thank you for the stream",
+            AuthorTier = AuthorTier.Viewer,
+            IsDonor = true
+        };
+
+        ModerationDecision allowed = await pipeline.ProcessMessageAsync(donorMessage);
+
+        Assert.True(allowed.Passed);
+
+        pipeline.Config.AllowDonorsToSpeak = false;
+        ModerationDecision blocked = await pipeline.ProcessMessageAsync(
+            donorMessage with { Id = Guid.NewGuid().ToString("N") });
+        Assert.Equal(ModerationReasonCode.AudienceRestricted, blocked.ReasonCode);
+    }
+
+    [Fact]
     public async Task ProcessMessage_ReplacesUnsafeDisplayNameBeforeSpeech()
     {
-        var pipeline = new ModerationPipeline(new ModerationConfig
+        using var pipeline = new ModerationPipeline(new ModerationConfig
         {
             SpeakUsernames = true,
             UserCooldownSeconds = 0
@@ -151,7 +179,7 @@ public class AttackCorpusTests
     {
         var config = new ModerationConfig { UserCooldownSeconds = 0 };
         config.CustomAllowedTerms.Add("friendly phrase");
-        var pipeline = new ModerationPipeline(config);
+        using var pipeline = new ModerationPipeline(config);
 
         var decision = await pipeline.ProcessMessageAsync(new ChatMessage
         {
@@ -169,7 +197,7 @@ public class AttackCorpusTests
         var config = new ModerationConfig { UserCooldownSeconds = 0 };
         config.CustomBlockedTerms.Add("pineapple");
         config.CustomAllowedTerms.Add("pineapple");
-        var pipeline = new ModerationPipeline(config);
+        using var pipeline = new ModerationPipeline(config);
 
         var decision = await pipeline.ProcessMessageAsync(new ChatMessage
         {
@@ -179,4 +207,6 @@ public class AttackCorpusTests
 
         Assert.True(decision.Passed);
     }
+
+    public void Dispose() => _pipeline.Dispose();
 }
