@@ -194,6 +194,15 @@ public sealed class ReleaseEntryPointContractTests
     }
 
     [Fact]
+    public void StoreManifest_UsesAStoreSupportedDefaultLanguage()
+    {
+        string manifest = Source("installer", "AppxManifest.xml");
+
+        Assert.Contains("<Resource Language=\"en-US\" />", manifest);
+        Assert.DoesNotContain("x-generate", manifest, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void StorePublisherWorkflow_IsManualProtectedAndDraftByDefault()
     {
         string workflow = Source(".github", "workflows", "store-publisher.yml");
@@ -207,7 +216,13 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("-PackageVersion $env:PACKAGE_VERSION", workflow);
         Assert.DoesNotContain("-PackageVersion '${{ inputs.package_version }}'", workflow);
         Assert.Contains("name: microsoft-store-production", workflow);
-        Assert.Contains("microsoft/microsoft-store-apppublisher@v1.1", workflow);
+        Assert.Contains("microsoft/microsoft-store-apppublisher@v1.4", workflow);
+        Assert.Contains("version: v0.3.9", workflow);
+        Assert.Matches(
+            new Regex("(?m)^\\s*'publish',\\r?\\n\\s*\\$bundle\\.FullName,"),
+            workflow);
+        Assert.DoesNotContain("--inputFile", workflow, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("'${{ github.workspace }}',", workflow);
         Assert.Contains("$arguments += '--noCommit'", workflow);
         Assert.Contains("PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}", workflow);
         Assert.DoesNotContain("PARTNER_CENTER_CLIENT_SECRET: ${{ vars.", workflow);
