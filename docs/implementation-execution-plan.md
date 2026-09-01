@@ -522,15 +522,23 @@ Matches are not automatically errors. Classify them as current, compatibility, m
 Update this block at the end of every session.
 
 - Checkpoint ID: DEVELOPMENT-CI-TRACK
-- Status: DEVELOPMENT TRACK IMPLEMENTED LOCALLY; branch push and first remote development run remain to be verified.
-- Last completed work: separated branch-triggered CI into a fast `develop` track and a full `main` release-integration track. Development CI runs both authoritative test suites through Build-Release, creates only an unsigned x64 portable ZIP/report, retains it for seven days, and has no publishing authority.
+- Status: COMPLETE; `develop` exists remotely and its first isolated development build is green.
+- Last completed work: separated branch-triggered CI into a fast `develop` track and a full `main` release-integration track. Development CI runs both authoritative test suites through Build-Release, creates only an unsigned x64 portable ZIP/report, retains it for seven days, and has no publishing authority. GitHub run 33469553000 proved the branch routing and artifact path; no main-release or Store-publisher run was created for the `develop` push.
 - Files changed in the follow-up: development-build workflow; main workflow branch scope; release-entry contract tests; README and packaging/development-track documentation; this checkpoint.
-- Tests run: pending for this checkpoint. The last baseline remains Core 273/273 and App.Contracts 85/85, with GitHub Actions run 33468750183 green for full x64/ARM64 release packaging.
+- Tests run: local App.Contracts passed 86/86 and diff integrity passed. GitHub Actions Development build 33469553000 passed in 2m23s and uploaded `SafeSpeak-development-e069bd9dcde89dc1ad47d363e7ec357a2ef7c13e-win-x64`, 240,421,272 bytes, expiring 2026-09-08. The preceding full-release baseline remains Core 273/273 and GitHub Actions run 33468750183 green for x64/ARM64 ZIP/MSIX packaging.
 - Known blockers: real Light/Dark/High Contrast 100/200/400% keyboard/UIA evidence; Narrator/NVDA/JAWS passes; real audible SAPI/Kokoro cancellation; Partner Center-assigned app ID/identity/publisher and an initial certified live listing; Entra app registration with Partner Center Manager role; GitHub variables/environment secrets and reviewer; privacy-policy URL and listing/support/age-rating/screenshots; runFullTrust justification; final signed candidate and WACK report.
-- Next exact action: run the application-contract tests and diff checks, push the workflow definition to `main` without starting another release build, create/push `develop`, and verify its first non-publishing development artifact. Then continue the live manual accessibility pass against the emulator before any Store submission.
+- Next exact action: restore working Partner Center browser control, inspect the existing submission without changing it, capture the Microsoft-assigned identity values, then prepare a new candidate only after the remaining accessibility and listing requirements are resolved. The 2026-09-01 control attempt failed before browser connection because Codex's Windows sandbox helper could not refresh; no Partner Center field or submission changed.
 - Do not do next: do not use the audit bundle for submission; do not commit Partner Center secrets; do not enable push-to-Store publishing; do not commit a Store submission before reviewing its draft; do not run final WACK or submit before the P0 accessibility gates pass.
 
 ## Session log
+
+### 2026-09-01 - isolated development CI track
+
+- Added a permanent `develop` branch and a dedicated Development build workflow. Pushes and pull requests targeting `develop` run the authoritative release tests once, create only an unsigned x64 portable ZIP/report under `artifacts/development`, and retain the artifact for seven days.
+- Scoped the Main release build's pull-request trigger to `main`; a pull request targeting `develop` can no longer enter the full x64/ARM64 ZIP/MSIX and Stream Deck matrix. Store publishing remains manual-only and protected.
+- Added contract coverage that rejects Store commands, credentials, environments, MSIX format, or main-branch triggers in development CI. Local App.Contracts passed 86/86 and diff integrity passed.
+- Created and pushed `develop`. GitHub Actions run 33469553000 completed successfully in 2m23s and uploaded the 240,421,272-byte development artifact, expiring 2026-09-08. GitHub reported no Main release build or Microsoft Store publisher run for that branch.
+- A later attempt to inspect the signed-in Partner Center session through browser/computer control failed during runtime startup because the Codex Windows sandbox helper could not refresh. The required reset/retry also failed before any browser action, so no Store configuration, package, or submission was changed.
 
 ### 2026-08-31 - GitHub push and deterministic tokenizer checkout
 
