@@ -78,7 +78,7 @@ public sealed class ReleaseEntryPointContractTests
         string workflow = Source(".github", "workflows", "desktop-build.yml");
 
         Assert.Contains(
-            "run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format Both",
+            "run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format All",
             workflow);
         Assert.Equal(1, Count(workflow, "./installer/Build-Release.ps1"));
         Assert.DoesNotContain("dotnet restore", workflow, StringComparison.OrdinalIgnoreCase);
@@ -87,6 +87,16 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("TikFinityEmulator", workflow, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("branches: [main]", workflow);
         Assert.DoesNotContain("branches: [develop]", workflow);
+        Assert.Contains("tags: ['v*']", workflow);
+        Assert.Contains("artifacts/*.msi", workflow);
+        Assert.Contains("name: Publish tagged GitHub release", workflow);
+        Assert.Contains("actions/download-artifact@v7", workflow);
+        Assert.Contains("merge-multiple: true", workflow);
+        Assert.Contains("$expectedTag = \"v$($versions[0])\"", workflow);
+        Assert.Contains("does not match package version", workflow);
+        Assert.Contains("gh release create", workflow);
+        Assert.Contains("GH_REPO: ${{ github.repository }}", workflow);
+        Assert.Contains("SHA256SUMS.txt", workflow);
     }
 
     [Fact]
@@ -126,6 +136,54 @@ public sealed class ReleaseEntryPointContractTests
             readme);
         Assert.Contains("It never starts or owns the TikFinity emulator.", readme);
         Assert.Contains("`installer/Build-Release.ps1`", readme);
+    }
+
+    [Fact]
+    public void MsiInstaller_ProvidesNativeMaintenanceAndRepairReset()
+    {
+        string releaseScript = ReleaseScript();
+        string msiScript = Source("installer", "Build-Msi.ps1");
+        string wixProject = Source(
+            "installer", "SafeSpeak.Installer", "SafeSpeak.Installer.wixproj");
+        string package = Source("installer", "SafeSpeak.Installer", "Package.wxs");
+        string localization = Source(
+            "installer", "SafeSpeak.Installer", "SafeSpeak.en-us.wxl");
+
+        Assert.Contains("[ValidateSet('Zip', 'Msix', 'Msi', 'Both', 'All')]", releaseScript);
+        Assert.Contains("Join-Path $PSScriptRoot 'Build-Msi.ps1'", releaseScript);
+        Assert.Contains("if ($Format -in @('Msi', 'All'))", releaseScript);
+        Assert.Contains("@($zipPath, $msixPath, $msiPath)", releaseScript);
+
+        Assert.Contains("WixToolset.Sdk/5.0.2", wixProject);
+        Assert.Contains("WixToolset.UI.wixext", wixProject);
+        Assert.Contains("WixToolset.Util.wixext", wixProject);
+        Assert.Contains("<SuppressIces>ICE61</SuppressIces>", wixProject);
+
+        Assert.Contains("<MajorUpgrade AllowSameVersionUpgrades=\"yes\"", package);
+        Assert.Contains("<MediaTemplate EmbedCab=\"yes\"", package);
+        Assert.Contains("<ui:WixUI Id=\"WixUI_InstallDir\"", package);
+        Assert.Contains("SafeSpeakStartMenuShortcut", package);
+        Assert.Contains("RepairResetComponent", package);
+        Assert.Contains("REINSTALL AND NOT REMOVE=&quot;ALL&quot;", package);
+        Assert.Contains("Property=\"SAFESPEAKAPPDATA\"", package);
+        Assert.Contains("RemoveFolderEx", package);
+        Assert.Contains("Uninstall preserves user data", package);
+
+        Assert.Contains("WelcomeDlgDescription", localization);
+        Assert.Contains("Windows+Ctrl+Enter", localization);
+        Assert.Contains("Windows Narrator", localization);
+        Assert.Contains("MaintenanceTypeDlgRepairText", localization);
+        Assert.Contains("permanently remove the current user's local settings", localization);
+
+        Assert.Contains("WindowsInstaller.Installer", msiScript);
+        Assert.Contains("Get-MsiRowCount", msiScript);
+        Assert.Contains("SELECT `File` FROM `File`", msiScript);
+        Assert.Contains("SELECT `Shortcut` FROM `Shortcut`", msiScript);
+        Assert.Contains("SELECT `UpgradeCode` FROM `Upgrade`", msiScript);
+        Assert.Contains("SELECT `RemoveFolderEx` FROM `Wix4RemoveFolderEx`", msiScript);
+        Assert.Contains("WHERE ``Component``='RepairResetComponent'", msiScript);
+        Assert.Contains("'%LOCALAPPDATA%\\SafeSpeak'", msiScript);
+        Assert.Contains("unknown-publisher warning", msiScript);
     }
 
     [Fact]

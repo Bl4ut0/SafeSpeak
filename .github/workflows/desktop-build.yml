@@ -5,6 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -34,7 +35,7 @@ jobs:
 
       - name: Build, test, and package desktop application
         shell: pwsh
-        run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format Both
+        run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format All
 
       - name: Validate and package Stream Deck plug-in
         if: matrix.architecture == 'x64'
@@ -50,7 +51,64 @@ jobs:
           path: |
             artifacts/*.zip
             artifacts/*.msix
+            artifacts/*.msi
             artifacts/*.release.json
             artifacts/*.streamDeckPlugin
           if-no-files-found: error
           retention-days: 14
+
+  publish-github-release:
+    name: Publish tagged GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: SafeSpeak-windows-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $reports = @(Get-ChildItem -LiteralPath 'release-assets' -Filter '*.release.json' -File |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
+          $versions = @($reports.packageVersion | Sort-Object -Unique)
+          if ($reports.Count -ne 2 -or $versions.Count -ne 1) {
+            throw 'The x64 and ARM64 release reports do not contain one shared package version.'
+          }
+          $expectedTag = "v$($versions[0])"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag '$env:GITHUB_REF_NAME' does not match package version '$($versions[0])'. Expected '$expectedTag'."
+          }
+
+          $assets = @(Get-ChildItem -LiteralPath 'release-assets' -File |
+            Where-Object { $_.Name -ne 'SHA256SUMS.txt' } |
+            Sort-Object Name)
+          if ($assets.Count -eq 0) {
+            throw 'No verified release assets were downloaded.'
+          }
+          $checksums = foreach ($asset in $assets) {
+            $hash = (Get-FileHash -LiteralPath $asset.FullName -Algorithm SHA256).Hash
+            "$hash *$($asset.Name)"
+          }
+          $checksums | Set-Content -LiteralPath 'release-assets/SHA256SUMS.txt' -Encoding ascii
+
+      - name: Publish permanent GitHub release downloads
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath 'release-assets' -File |
+            Sort-Object Name |
+            Select-Object -ExpandProperty FullName)
+          gh release create $env:GITHUB_REF_NAME @assets `
+            --verify-tag `
+            --generate-notes `
+            --title "SafeSpeak $env:GITHUB_REF_NAME"

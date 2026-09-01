@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-US"
+                 Codepage="1252"
+                 xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="WelcomeDlgDescription"
+          Value="The Setup Wizard will install [ProductName]. For spoken setup, press Windows+Ctrl+Enter to start Windows Narrator. Click Next to continue or Cancel to exit." />
+  <String Id="MaintenanceWelcomeDlgDescription"
+          Value="The Setup Wizard can change, repair, or remove [ProductName]. For spoken setup, press Windows+Ctrl+Enter to start Windows Narrator." />
+  <String Id="MaintenanceTypeDlgRepairText"
+          Value="Repair SafeSpeak and permanently remove the current user's local settings, audit logs, and downloaded optional models." />
+</WixLocalization>

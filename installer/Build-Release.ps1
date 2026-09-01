@@ -6,7 +6,7 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')]
     [string]$PackageVersion,
 
-    [ValidateSet('Zip', 'Msix', 'Both')]
+    [ValidateSet('Zip', 'Msix', 'Msi', 'Both', 'All')]
     [string]$Format = 'Both',
 
     [string]$IdentityName = 'SafeSpeak.App',
@@ -52,7 +52,9 @@ $stagingDirectory = Join-Path $artifactRoot ".staging-$runtimeIdentifier"
 $verificationDirectory = Join-Path $artifactRoot ".verify-$runtimeIdentifier"
 $zipPath = Join-Path $artifactRoot "SafeSpeak-$PackageVersion-$runtimeIdentifier.zip"
 $msixPath = Join-Path $artifactRoot "SafeSpeak_${PackageVersion}_${Architecture}.msix"
+$msiPath = Join-Path $artifactRoot "SafeSpeak_${PackageVersion}_${Architecture}.msi"
 $manifestReportPath = Join-Path $artifactRoot "SafeSpeak-$PackageVersion-$runtimeIdentifier.release.json"
+$msiBuildScript = Join-Path $PSScriptRoot 'Build-Msi.ps1'
 
 function Invoke-CheckedCommand {
     param(
@@ -142,7 +144,7 @@ if ($publishesCurrentDesktop) {
 Remove-ReleaseDirectory -Path $publishDirectory
 Remove-ReleaseDirectory -Path $stagingDirectory
 Remove-ReleaseDirectory -Path $verificationDirectory
-Remove-Item -LiteralPath $zipPath, $msixPath, $manifestReportPath -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $zipPath, $msixPath, $msiPath, $manifestReportPath -Force -ErrorAction SilentlyContinue
 
 Push-Location $repoRoot
 try {
@@ -327,12 +329,12 @@ Get-ChildItem -LiteralPath $publishDirectory -File -Recurse |
     Where-Object { $_.Extension -in @('.lib', '.pdb') } |
     Remove-Item -Force
 
-if ($Format -in @('Zip', 'Both')) {
+if ($Format -in @('Zip', 'Both', 'All')) {
     Compress-Archive -Path (Join-Path $publishDirectory '*') -DestinationPath $zipPath -CompressionLevel Optimal
     Write-Host "Created portable desktop archive: $zipPath"
 }
 
-if ($Format -in @('Msix', 'Both')) {
+if ($Format -in @('Msix', 'Both', 'All')) {
     $makeAppx = Find-WindowsSdkTool -ToolName 'makeappx.exe'
 
     New-Item -ItemType Directory -Force -Path $stagingDirectory | Out-Null
@@ -412,11 +414,32 @@ if ($Format -in @('Msix', 'Both')) {
     Write-Host "Created MSIX package: $msixPath"
 }
 
-$artifacts = @($zipPath, $msixPath) |
+if ($Format -in @('Msi', 'All')) {
+    if (-not (Test-Path -LiteralPath $msiBuildScript -PathType Leaf)) {
+        throw "The MSI build entry point is missing: $msiBuildScript"
+    }
+
+    & $msiBuildScript `
+        -Architecture $Architecture `
+        -PackageVersion $PackageVersion `
+        -PayloadDirectory $publishDirectory `
+        -OutputPath $msiPath `
+        -CertificateThumbprint $CertificateThumbprint `
+        -TimestampUrl $TimestampUrl `
+        -KeepStaging:$KeepStaging
+    if ($LASTEXITCODE -ne 0) {
+        throw "MSI build failed with exit code $LASTEXITCODE."
+    }
+    if (-not (Test-Path -LiteralPath $msiPath -PathType Leaf)) {
+        throw "MSI build completed without the expected package: $msiPath"
+    }
+}
+
+$artifacts = @($zipPath, $msixPath, $msiPath) |
     Where-Object { Test-Path -LiteralPath $_ } |
     ForEach-Object {
         $item = Get-Item -LiteralPath $_
-        $signature = if ($item.Extension -eq '.msix') { Get-AuthenticodeSignature -LiteralPath $_ } else { $null }
+        $signature = if ($item.Extension -in @('.msix', '.msi')) { Get-AuthenticodeSignature -LiteralPath $_ } else { $null }
         [ordered]@{
             file = $item.Name
             bytes = $item.Length

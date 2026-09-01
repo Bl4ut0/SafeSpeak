@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="SafeSpeak"
+           Manufacturer="The Project Hub"
+           Version="$(var.PackageVersion)"
+           UpgradeCode="$(var.UpgradeCode)"
+           Language="1033"
+           Scope="perMachine"
+           InstallerVersion="500">
+    <SummaryInformation Description="SafeSpeak Windows desktop installer"
+                        Manufacturer="The Project Hub" />
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of SafeSpeak is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="SafeSpeakIcon" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="SafeSpeakIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/Bl4ut0/SafeSpeak/issues" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Bl4ut0/SafeSpeak" />
+    <Property Id="ARPCOMMENTS"
+              Value="Repair restores SafeSpeak and resets its Local AppData. Uninstall preserves user data." />
+    <Property Id="SAFESPEAKAPPDATA" Value="%LOCALAPPDATA%\SafeSpeak" Secure="yes" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="ManufacturerFolder" Name="The Project Hub">
+        <Directory Id="INSTALLFOLDER" Name="SafeSpeak" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="SafeSpeak" />
+    </StandardDirectory>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcutComponent" Guid="*">
+        <Shortcut Id="SafeSpeakStartMenuShortcut"
+                  Name="SafeSpeak"
+                  Description="Accessible livestream text-to-speech and moderation"
+                  Target="[INSTALLFOLDER]SafeSpeak.App.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="SafeSpeakIcon" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\The Project Hub\SafeSpeak"
+                       Name="StartMenuShortcutVersion"
+                       Type="string"
+                       Value="$(var.PackageVersion)"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="RepairResetComponent"
+                 Guid="*"
+                 Transitive="yes"
+                 Condition="REINSTALL AND NOT REMOVE=&quot;ALL&quot;">
+        <util:RemoveFolderEx Id="ResetSafeSpeakLocalAppData"
+                             Property="SAFESPEAKAPPDATA"
+                             On="install"
+                             Condition="REINSTALL AND NOT REMOVE=&quot;ALL&quot;" />
+        <RegistryValue Root="HKLM"
+                       Key="Software\The Project Hub\SafeSpeak"
+                       Name="RepairResetEnabled"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="SafeSpeakFeature" Title="SafeSpeak" Level="1">
+      <Files Include="$(var.PayloadDirectory)\**" Directory="INSTALLFOLDER" />
+      <ComponentRef Id="ApplicationShortcutComponent" />
+      <ComponentRef Id="RepairResetComponent" />
+    </Feature>
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtfPath)" />
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+  </Package>
+</Wix>

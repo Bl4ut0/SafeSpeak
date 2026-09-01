@@ -1,13 +1,14 @@
 # SafeSpeak desktop packaging and Microsoft Store readiness
 
-SafeSpeak has one release build entry point: `installer/Build-Release.ps1`. It reads the current four-part desktop version from `Directory.Build.props`, restores the pinned .NET SDK dependencies, runs the Core test suite, publishes a self-contained WPF application, creates the requested artifacts, and verifies the structure of the generated MSIX by unpacking it again. It never starts or owns the TikFinity emulator.
+SafeSpeak has one release build entry point: `installer/Build-Release.ps1`. It reads the current four-part desktop version from `Directory.Build.props`, restores the pinned .NET SDK dependencies, runs the Core test suite, publishes a self-contained WPF application, creates the requested artifacts, and verifies the generated MSIX and MSI packages. It never starts or owns the TikFinity emulator.
 
 ## Prerequisites
 
 - Windows 10 version 2004 (build 19041) or later.
 - The .NET SDK selected by `global.json`.
 - Windows 10 or Windows 11 SDK App Packaging tools (`makeappx.exe`) when building MSIX.
-- A trusted code-signing certificate only when producing a sideloadable signed MSIX. Partner Center identity values and signing credentials are not stored in this repository.
+- WiX Toolset SDK 5.0.2, restored automatically from the pinned package reference when building MSI.
+- A trusted code-signing certificate when producing public MSI or sideloadable MSIX downloads. Partner Center identity values and signing credentials are not stored in this repository.
 
 The portable ZIP is self-contained. Its users do not need to install .NET separately.
 
@@ -16,7 +17,7 @@ The portable ZIP is self-contained. Its users do not need to install .NET separa
 From the repository root:
 
 ```powershell
-./installer/Build-Release.ps1 -Architecture x64 -Format Both
+./installer/Build-Release.ps1 -Architecture x64 -Format All
 ```
 
 The command creates:
@@ -24,6 +25,7 @@ The command creates:
 - `artifacts/SafeSpeak-<version>-win-x64/`: the expanded self-contained desktop application;
 - `artifacts/SafeSpeak-<version>-win-x64.zip`: portable desktop distribution;
 - `artifacts/SafeSpeak_<version>_x64.msix`: packaged desktop distribution;
+- `artifacts/SafeSpeak_<version>_x64.msi`: Windows Installer distribution with upgrade, repair, and uninstall support;
 - `artifacts/SafeSpeak-<version>-win-x64.release.json`: source provenance, executable and managed-runtime metadata, file sizes, SHA-256 hashes, local-model identity, runtime, and signature status;
 - `artifacts/current-win-x64.json`: the atomic pointer to the exact verified current executable and release report.
 
@@ -35,9 +37,19 @@ For a local release test, the build-and-run helper performs the x64 ZIP build wi
 ./installer/Build-And-Run.ps1
 ```
 
-Use `-Format Zip` on a computer without the Windows SDK. The release build runs both the Core suite and the WPF accessibility-contract suite by default. Use `-SkipTests` only after both suites have already passed in the same clean source revision. `-KeepStaging` preserves the generated MSIX layout for diagnosis.
+Use `-Format Zip` on a computer without the Windows SDK. `Both` preserves the original ZIP + MSIX output, while `All` adds MSI and `Msi` builds only the Windows Installer package after publishing the application. The release build runs both the Core suite and the WPF accessibility-contract suite by default. Use `-SkipTests` only after both suites have already passed in the same clean source revision. `-KeepStaging` preserves generated packaging layouts for diagnosis.
 
-The publish profiles deliberately produce a multi-file, self-contained application. WPF, KokoroSharp, ONNX Runtime, NAudio, voice embeddings, and other native/runtime files are therefore included explicitly. Trimming and single-file bundling are disabled because both can hide missing native assets until runtime. The roughly 326 MB Kokoro model itself is installed only after an explicit in-app request and is not embedded in the base ZIP/MSIX.
+The publish profiles deliberately produce a multi-file, self-contained application. WPF, KokoroSharp, ONNX Runtime, NAudio, voice embeddings, and other native/runtime files are therefore included explicitly. Trimming and single-file bundling are disabled because both can hide missing native assets until runtime. The roughly 326 MB Kokoro model itself is installed only after an explicit in-app request and is not embedded in the base ZIP/MSIX/MSI.
+
+## MSI installation, repair, and removal
+
+The WiX MSI installs SafeSpeak per-machine under `Program Files\The Project Hub\SafeSpeak`, creates a Start-menu shortcut, and registers SafeSpeak with Windows Apps & Features. Windows Installer supplies repair, major upgrades, rollback, and uninstall; no separate uninstaller executable is bundled.
+
+Windows Narrator is already included with Windows and is not redistributed inside the MSI. The setup uses standard accessible Windows Installer controls, and its welcome and maintenance screens tell users to press **Windows+Ctrl+Enter** to start Narrator for spoken setup.
+
+Repair is also SafeSpeak's explicit reset operation. Running **Repair** restores the packaged application files and recursively removes `%LOCALAPPDATA%\SafeSpeak` for the user performing the repair. This permanently removes that user's settings, audit logs, and downloaded optional models so the next launch starts clean. Close SafeSpeak before repair. Ordinary uninstall removes the installed program and shortcut but preserves Local AppData.
+
+The build opens the completed MSI database and verifies product identity, version, payload-file count, Start-menu shortcut, and major-upgrade metadata. `-CertificateThumbprint` signs both MSI and MSIX outputs when they are requested. Without a certificate, the MSI remains installable but Windows identifies it as coming from an unknown publisher.
 
 ## Signed test package
 
@@ -110,7 +122,7 @@ The Entra application represented by those credentials must be associated with P
 
 `.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions also validates and packages the separate Stream Deck plug-in, then uploads the ZIP, unsigned MSIX, plug-in installer, and release report for inspection. The workflow intentionally does not publish or sign a public release because those actions require protected project credentials and an explicit release decision.
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A pushed `v*` tag publishes those verified files plus `SHA256SUMS.txt` as permanent GitHub Release downloads. Until a code-signing certificate is configured for the workflow, direct MSI/MSIX downloads are unsigned and show an unknown-publisher warning.
 
 The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. Store packaging and Partner Center access remain in the separate manual-only publisher workflow.
 

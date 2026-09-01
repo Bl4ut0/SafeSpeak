@@ -1,0 +1,26 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>$(MsiOutputName)</OutputName>
+    <OutputPath>$(MsiOutputDirectory)</OutputPath>
+    <IntermediateOutputPath>$(MsiIntermediateOutputPath)</IntermediateOutputPath>
+    <InstallerPlatform>$(InstallerArchitecture)</InstallerPlatform>
+    <DebugType>none</DebugType>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- SafeSpeak uses four-part desktop versions. Windows Installer compares
+         only the first three fields, so same-version major upgrades are
+         intentionally enabled for a changed fourth field. -->
+    <SuppressIces>ICE61</SuppressIces>
+    <DefineConstants>
+      PayloadDirectory=$(PayloadDirectory);
+      PackageVersion=$(PackageVersion);
+      UpgradeCode=$(UpgradeCode);
+      IconPath=$(IconPath);
+      LicenseRtfPath=$(LicenseRtfPath)
+    </DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>

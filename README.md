@@ -21,7 +21,7 @@ The redesign below is in progress. Items described as targets are not release cl
 - Closing the main window immediately disarms speech, stops accepting source events, and starts cleanup off the interface thread. Connector, speech, audio, and local-model resources get a five-second cleanup window before the app exits; shutdown errors never open a blocking dialog.
 - Installed Windows voices are available now. Kokoro and imported voice packs remain development paths until their assets, real synthesis backends, cancellation, trust, and accessible install flows pass the release gates.
 - A single main output, voice, test action, rate, and volume in the primary interface.
-- Repeatable self-contained ZIP and MSIX builds for x64 and arm64.
+- Repeatable self-contained ZIP, MSI, and MSIX builds for x64 and arm64.
 
 The repository retains some advanced audio, event-routing, simulator, and Stream Deck infrastructure for compatibility, but those controls are outside the release-critical interface. See [main and later tracks](docs/release-tracks.md).
 
@@ -32,10 +32,10 @@ dotnet build src/SafeSpeak.App/SafeSpeak.App.csproj -c Release
 dotnet test tests/SafeSpeak.Core.Tests/SafeSpeak.Core.Tests.csproj -c Release
 ```
 
-Build a self-contained ZIP and MSIX candidate:
+Build self-contained ZIP, MSI, and MSIX candidates:
 
 ```powershell
-./installer/Build-Release.ps1 -Architecture x64 -Format Both
+./installer/Build-Release.ps1 -Architecture x64 -Format All
 ```
 
 Repository work uses two separate CI tracks. Pushes and pull requests targeting
@@ -43,6 +43,11 @@ Repository work uses two separate CI tracks. Pushes and pull requests targeting
 portable ZIP for seven days. Pushes and pull requests targeting `main` run the
 full x64/ARM64 release packaging workflow. Microsoft Store packaging and upload
 remain manual, protected actions; development CI cannot contact Partner Center.
+Pushing a `v*` tag publishes the verified desktop packages as permanent GitHub
+Release downloads. The MSI supplies Windows-native upgrade, repair, and
+uninstall; repair also resets the current user's SafeSpeak Local AppData.
+Its setup screens support Windows Narrator and show the **Windows+Ctrl+Enter**
+shortcut needed to start spoken setup.
 See the [development track guide](docs/development-track.md).
 
 The current four-part desktop version comes from `Directory.Build.props`. To test, build the self-contained x64 executable, and launch that exact verified build in one command, run `./installer/Build-And-Run.ps1`. The launcher validates the app host, managed code, runtime manifests, and pinned moderation assets before starting. This workflow does not start or stop the TikFinity emulator. The MSIX path requires Windows SDK packaging tools. Store submissions also require the identity assigned by Partner Center. See the [packaging guide](installer/README.md).
@@ -54,7 +59,7 @@ The current four-part desktop version comes from `Directory.Build.props`. To tes
 - `tests/SafeSpeak.Core.Tests` — deterministic safety and regression tests
 - `docs` — product tracks, accessibility gates, connector rules, and voice details
 - `streamdeck` — optional secondary Stream Deck plug-in
-- `installer` — ZIP/MSIX and WinGet build tooling
+- `installer` — ZIP/MSI/MSIX and WinGet build tooling
 - `tools` — TikFinity emulator and development utilities
 
 ## Important limitations
