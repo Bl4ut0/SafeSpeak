@@ -1,0 +1,73 @@
+name: iOS simulator test build
+
+on:
+  pull_request:
+    branches:
+      - ios/develop
+      - ios/main
+  push:
+    branches:
+      - ios/develop
+      - ios/main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safespeak-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Test portable core and build iOS simulator app
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install mobile .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: mobile/global.json
+
+      - name: Install iOS workload
+        working-directory: mobile
+        run: dotnet workload install maui-ios
+
+      - name: Test portable mobile foundation
+        working-directory: mobile
+        run: dotnet test ../tests/SafeSpeak.Mobile.Foundation.Tests/SafeSpeak.Mobile.Foundation.Tests.csproj -c Release
+
+      - name: Build unsigned iOS simulator app
+        working-directory: mobile
+        run: >-
+          dotnet build ../src/SafeSpeak.Mobile/SafeSpeak.Mobile.csproj
+          -c Release
+          -f net10.0-ios
+          -p:SafeSpeakMobileTargetFrameworks=net10.0-ios
+          -p:RuntimeIdentifier=iossimulator-arm64
+          -p:ArchiveOnBuild=false
+          -p:CodesignKey=
+          -p:CodesignProvision=
+
+      - name: Package simulator app
+        shell: bash
+        run: |
+          app_path="$(find src/SafeSpeak.Mobile/bin/Release/net10.0-ios -type d -name '*.app' | head -n 1)"
+          if [[ -z "$app_path" ]]; then
+            echo "No iOS simulator app was produced."
+            exit 1
+          fi
+          mkdir -p artifacts/ios
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" artifacts/ios/SafeSpeak-iOS-simulator.zip
+
+      - name: Upload iOS simulator test build
+        uses: actions/upload-artifact@v7
+        with:
+          name: SafeSpeak-iOS-simulator-${{ github.sha }}
+          path: artifacts/ios/SafeSpeak-iOS-simulator.zip
+          if-no-files-found: error
+          retention-days: ${{ (github.ref_name == 'ios/main' || github.base_ref == 'ios/main') && 14 || 7 }}

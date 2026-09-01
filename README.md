@@ -1,6 +1,6 @@
 # SafeSpeak
 
-SafeSpeak is a Windows-first, accessibility-focused application that turns approved livestream chat into speech. It connects to a local source, filters banned terms and hostile intent before audio, and keeps the everyday experience to four keyboard-friendly areas: Live, Safety, Voice, and Settings.
+SafeSpeak is an accessibility-focused application that turns approved livestream chat into speech. The Windows application remains the first release target; isolated Android and iOS development tracks now provide an early mobile test foundation. SafeSpeak filters banned terms and hostile intent before audio and always starts disarmed.
 
 > [!WARNING]
 > SafeSpeak reduces TTS abuse risk but cannot guarantee that every hostile message will be detected. It always starts disarmed. Disable any independent source-platform TTS and keep the platform's own moderation and trusted moderators active.
@@ -50,13 +50,20 @@ Its setup screens support Windows Narrator and show the **Windows+Ctrl+Enter**
 shortcut needed to start spoken setup.
 See the [development track guide](docs/development-track.md).
 
+Mobile work is isolated on `android/develop`, `android/main`, `ios/develop`, and
+`ios/main`. Android CI produces a test APK, while iOS CI produces an unsigned
+Simulator build. Neither mobile workflow publishes or contains store signing
+authority. See the [mobile development tracks](docs/mobile-development-tracks.md).
+
 The current four-part desktop version comes from `Directory.Build.props`. To test, build the self-contained x64 executable, and launch that exact verified build in one command, run `./installer/Build-And-Run.ps1`. The launcher validates the app host, managed code, runtime manifests, and pinned moderation assets before starting. This workflow does not start or stop the TikFinity emulator. The MSIX path requires Windows SDK packaging tools. Store submissions also require the identity assigned by Partner Center. See the [packaging guide](installer/README.md).
 
 ## Repository layout
 
 - `src/SafeSpeak.App` — keyboard-first WPF interface
+- `src/SafeSpeak.Mobile` — shared Android/iOS .NET MAUI test application
 - `src/SafeSpeak.Core` — moderation, speech, normalized events, connectors, accessibility, and audio
 - `tests/SafeSpeak.Core.Tests` — deterministic safety and regression tests
+- `tests/SafeSpeak.Mobile.Foundation.Tests` — portable mobile safety and connector-contract tests
 - `docs` — product tracks, accessibility gates, connector rules, and voice details
 - `streamdeck` — optional secondary Stream Deck plug-in
 - `installer` — ZIP/MSI/MSIX and WinGet build tooling

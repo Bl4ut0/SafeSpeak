@@ -45,6 +45,7 @@ public sealed class OfflineEventSimulator : ISourceConnector
     {
         EventReceived?.Invoke(this, new LivestreamEvent
         {
+            Platform = "Offline simulator",
             Type = LivestreamEventType.Chat,
             Author = author,
             AuthorDisplayName = author,

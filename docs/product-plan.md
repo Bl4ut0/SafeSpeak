@@ -2,7 +2,7 @@
 
 ## Product goal
 
-Ship one calm Windows application that a blind or low-vision streamer can operate under pressure. SafeSpeak automatically receives livestream events, rejects unsafe speech locally, and keeps the streamer in control through a small, predictable keyboard interface.
+Ship one calm Windows application that a blind or low-vision streamer can operate under pressure, while incubating Android and iOS companions on isolated development tracks. SafeSpeak receives normalized livestream events, rejects unsafe speech locally, and keeps the streamer in control.
 
 The first release optimizes for one source, one speech route, one automatic moderation path, and four areas: Live, Safety, Voice, and Settings. See [release tracks](release-tracks.md) for the scope boundary.
 
@@ -83,6 +83,7 @@ Status: next.
 ### Phase 4 — later track
 
 - Additional connectors following [connector development](connector-development.md)
+- Android and iOS test builds following [mobile development tracks](mobile-development-tracks.md), using native system TTS without requiring TikFinity
 - Additional unsupported voice engines and remote voice endpoints
 - Advanced routing, event channels, Stream Deck hardening, diagnostics, and optional manual review
 

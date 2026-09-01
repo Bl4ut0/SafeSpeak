@@ -2,6 +2,9 @@
   <PropertyGroup>
     <!-- Single source of truth for the current SafeSpeak desktop/package version. -->
     <SafeSpeakVersion>0.1.0.4</SafeSpeakVersion>
+    <!-- Mobile stores require a three-part display version plus an integer build. -->
+    <SafeSpeakMobileVersion>0.1.0</SafeSpeakMobileVersion>
+    <SafeSpeakMobileBuild>4</SafeSpeakMobileBuild>
     <Version>$(SafeSpeakVersion)</Version>
     <AssemblyVersion>$(SafeSpeakVersion)</AssemblyVersion>
     <FileVersion>$(SafeSpeakVersion)</FileVersion>

@@ -3,6 +3,10 @@
 SafeSpeak uses `develop` for ordinary implementation and test builds. The
 default `main` branch remains the release-integration track.
 
+Android and iOS use separate branch families and workflows so mobile test
+builds cannot trigger or publish a Windows package. See
+[mobile development tracks](mobile-development-tracks.md).
+
 ## Branch and workflow boundaries
 
 | Change | Workflow | Output | Publishing authority |
@@ -13,6 +17,8 @@ default `main` branch remains the release-integration track.
 | Pull request targeting `main` | Main release build | Same release-candidate artifacts | None |
 | Push a `v*` tag | Main release build | Permanent GitHub Release with verified ZIP/MSI/MSIX packages, Stream Deck package, reports, and SHA-256 checksums | GitHub Releases only |
 | Manual Store workflow | Microsoft Store publisher | Store bundle; optional protected draft/commit stages | Protected `microsoft-store-production` environment only |
+| Push/PR to `android/develop` or `android/main` | Android test build | Test APK, retained for 7 or 14 days | None |
+| Push/PR to `ios/develop` or `ios/main` | iOS simulator test build | Unsigned Simulator ZIP, retained for 7 or 14 days | None |
 
 The development workflow has read-only repository permissions. It contains no
 Store identity, credential, signing, release, deployment, or Partner Center

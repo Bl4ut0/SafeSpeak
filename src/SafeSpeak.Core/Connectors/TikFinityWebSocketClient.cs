@@ -304,6 +304,7 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
 
             return new LivestreamEvent
             {
+                Platform = "TikTok LIVE",
                 Type = type,
                 Author = author,
                 AuthorDisplayName = displayName,
