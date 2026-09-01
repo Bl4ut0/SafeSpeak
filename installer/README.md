@@ -108,7 +108,11 @@ The Entra application represented by those credentials must be associated with P
 
 ## Continuous packaging verification
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests, pushes to `main`, and manual dispatches. GitHub Actions also validates and packages the separate Stream Deck plug-in, then uploads the ZIP, unsigned MSIX, plug-in installer, and release report for inspection. The workflow intentionally does not publish or sign a public release because those actions require protected project credentials and an explicit release decision.
+`.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
+
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions also validates and packages the separate Stream Deck plug-in, then uploads the ZIP, unsigned MSIX, plug-in installer, and release report for inspection. The workflow intentionally does not publish or sign a public release because those actions require protected project credentials and an explicit release decision.
+
+The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. Store packaging and Partner Center access remain in the separate manual-only publisher workflow.
 
 ## WinGet publication
 

@@ -85,6 +85,32 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("dotnet test", workflow, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("dotnet publish", workflow, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TikFinityEmulator", workflow, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("branches: [main]", workflow);
+        Assert.DoesNotContain("branches: [develop]", workflow);
+    }
+
+    [Fact]
+    public void DevelopmentBuildWorkflow_IsIsolatedPortableAndNonPublishing()
+    {
+        string workflow = Source(".github", "workflows", "development-build.yml");
+
+        Assert.Contains("name: Development build", workflow);
+        Assert.Equal(2, Count(workflow, "branches: [develop]"));
+        Assert.DoesNotContain("branches: [main]", workflow);
+        Assert.Contains(
+            "run: ./installer/Build-Release.ps1 -Architecture x64 -Format Zip -OutputDirectory artifacts/development",
+            workflow);
+        Assert.Equal(1, Count(workflow, "./installer/Build-Release.ps1"));
+        Assert.Contains("artifacts/development/*.zip", workflow);
+        Assert.Contains("artifacts/development/*.release.json", workflow);
+        Assert.Contains("retention-days: 7", workflow);
+        Assert.DoesNotContain("-Format Both", workflow);
+        Assert.DoesNotContain("-Format Msix", workflow);
+        Assert.DoesNotContain("Build-StoreBundle", workflow, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("microsoft-store", workflow, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secrets.", workflow, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("environment:", workflow, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TikFinityEmulator", workflow, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

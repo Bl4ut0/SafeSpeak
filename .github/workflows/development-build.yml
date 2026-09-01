@@ -1,0 +1,44 @@
+name: Development build
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safespeak-development-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-build:
+    name: Test and package x64 portable build
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Run release tests and build portable application
+        shell: pwsh
+        run: ./installer/Build-Release.ps1 -Architecture x64 -Format Zip -OutputDirectory artifacts/development
+
+      - name: Upload development test artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SafeSpeak-development-${{ github.sha }}-win-x64
+          path: |
+            artifacts/development/*.zip
+            artifacts/development/*.release.json
+          if-no-files-found: error
+          retention-days: 7

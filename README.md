@@ -38,6 +38,13 @@ Build a self-contained ZIP and MSIX candidate:
 ./installer/Build-Release.ps1 -Architecture x64 -Format Both
 ```
 
+Repository work uses two separate CI tracks. Pushes and pull requests targeting
+`develop` run the non-publishing development workflow and retain an unsigned x64
+portable ZIP for seven days. Pushes and pull requests targeting `main` run the
+full x64/ARM64 release packaging workflow. Microsoft Store packaging and upload
+remain manual, protected actions; development CI cannot contact Partner Center.
+See the [development track guide](docs/development-track.md).
+
 The current four-part desktop version comes from `Directory.Build.props`. To test, build the self-contained x64 executable, and launch that exact verified build in one command, run `./installer/Build-And-Run.ps1`. The launcher validates the app host, managed code, runtime manifests, and pinned moderation assets before starting. This workflow does not start or stop the TikFinity emulator. The MSIX path requires Windows SDK packaging tools. Store submissions also require the identity assigned by Partner Center. See the [packaging guide](installer/README.md).
 
 ## Repository layout
