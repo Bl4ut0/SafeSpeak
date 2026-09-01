@@ -435,7 +435,7 @@ Theme resources should be split into Themes/Base.xaml, Themes/Light.xaml, Themes
 | ID | Status | Work | Acceptance evidence |
 | --- | --- | --- | --- |
 | TEST-001 | IN PROGRESS | Expand Core tests for migration, onboarding, playback, moderation test, patterns, voice, logs, reset, connectors. | 273 deterministic Core tests pass; reset-all, custom pattern, imported synthesis, and real-engine coverage remain. |
-| TEST-002 | DONE | Add SafeSpeak.App.Contracts.Tests for XAML names, labels, TabIndex, hidden focus, item names, focus styles, and redaction bindings. | 84/84 contracts pass for onboarding, announcements, themes, shell, settings routing, Stream Deck, voice-install state, redaction, lifecycle wiring, release entry points, Store publisher guards, and packaged legal notices. |
+| TEST-002 | DONE | Add SafeSpeak.App.Contracts.Tests for XAML names, labels, TabIndex, hidden focus, item names, focus styles, and redaction bindings. | 85/85 contracts pass for onboarding, announcements, themes, shell, settings routing, Stream Deck, voice-install state, redaction, lifecycle wiring, release entry points, Store publisher guards, packaged legal notices, and deterministic hash-verified asset checkout. |
 | TEST-003 | NOT STARTED | Add Windows UIA harness for focus, tab order, selection events, state patterns, dialogs, and live regions. | Machine-readable clean-Windows evidence. |
 | TEST-004 | NOT STARTED | Keyboard-only script in every theme at 100, 200, and 400 percent. | Checklist/screenshots; no clipped or unreachable action. |
 | TEST-005 | NOT STARTED | Run with Narrator, NVDA, and JAWS. | Options stated exactly once; no traps or hostile leaks. |
@@ -522,15 +522,22 @@ Matches are not automatically errors. Classify them as current, compatibility, m
 Update this block at the end of every session.
 
 - Checkpoint ID: PROPRIETARY-LICENSE-AND-PUSH
-- Status: PROPRIETARY SOURCE-VISIBLE LICENSING AND PACKAGED NOTICES VERIFIED; GitHub push is the current action, while Store submission remains gated.
-- Last completed work: replaced the MIT license prospectively with the SafeSpeak Proprietary Source-Visible License; retained free use of official unmodified binaries; recorded GitHub public-fork and historical-MIT limitations; added versioned third-party notices; updated executable authorship; and made release/MSIX creation fail when required legal notices are missing.
-- Files changed this session: LICENSE; THIRD-PARTY-NOTICES.md; README.md; SafeSpeak.App.csproj; Build-Release.ps1; release-entry contract tests; this checkpoint.
-- Tests run: PowerShell syntax passed; Core passed 273/273; App.Contracts passed 84/84. A production x64 publish plus ZIP/MSIX packaging audit passed. MakeAppx pack/unpack verified LICENSE.txt, THIRD-PARTY-NOTICES.md, Apache-2.0, NAudio, ONNX Runtime license, and full ONNX Runtime third-party notices inside the MSIX. ZIP SHA-256: 5D833F2CE9B5862C02E90ED04A1CAE2BEA33B2F50F80F929C22D328926982955; unsigned MSIX SHA-256: C27CB7060850723D12ECC21F52CD5432CAC53B156DDF15A6D63D315B5392CFAF.
+- Status: MAIN PUSHED; deterministic cross-platform tokenizer checkout fix is verified locally and awaiting its follow-up push/CI rerun; Store submission remains gated.
+- Last completed work: pushed the composite overhaul as 3fe2274; diagnosed the first GitHub Actions run's Windows CRLF conversion of the checksum-pinned tokenizer; added deterministic Git attributes for the tokenizer/model; and added a regression contract.
+- Files changed in the follow-up: .gitattributes; release-entry contract tests; this checkpoint.
+- Tests run: indexed-checkout tokenizer SHA-256 matched 851CA67100D372CA3AE031A6ABD168F53489EEBFD7D89523F35C5C9B4D372C3C; Core passed 273/273; App.Contracts passed 85/85; staged diff integrity passed. The prior production x64 ZIP/MSIX legal-notice audit also remains current.
 - Known blockers: real Light/Dark/High Contrast 100/200/400% keyboard/UIA evidence; Narrator/NVDA/JAWS passes; real audible SAPI/Kokoro cancellation; Partner Center-assigned app ID/identity/publisher and an initial certified live listing; Entra app registration with Partner Center Manager role; GitHub variables/environment secrets and reviewer; privacy-policy URL and listing/support/age-rating/screenshots; runFullTrust justification; final signed candidate and WACK report.
-- Next exact action: commit and push the verified composite implementation to origin/main, confirm the remote commit and GitHub Actions start, then continue the live manual accessibility pass against the emulator before any Store submission.
+- Next exact action: commit and push the deterministic-checkout follow-up, wait for both GitHub Actions architecture jobs to complete, then continue the live manual accessibility pass before any Store submission.
 - Do not do next: do not use the audit bundle for submission; do not commit Partner Center secrets; do not enable push-to-Store publishing; do not commit a Store submission before reviewing its draft; do not run final WACK or submit before the P0 accessibility gates pass.
 
 ## Session log
+
+### 2026-08-31 - GitHub push and deterministic tokenizer checkout
+
+- Committed the 115-file composite overhaul as 3fe2274 and pushed it to origin/main. Local and remote commit IDs matched and the working tree was clean. GitHub accepted the 86.76 MiB ONNX model with its expected over-50-MiB advisory warning; the file remains below GitHub's 100 MiB hard limit.
+- The first Desktop build run reached both x64 and ARM64 test steps, then correctly failed because Windows checkout converted tokenizer.json from LF to CRLF and the classifier rejected its changed SHA-256. The model itself remained byte-identical.
+- Added .gitattributes rules that treat model.onnx as binary and force tokenizer.json to LF on every checkout. Added an application contract so this byte-stability requirement cannot disappear silently.
+- Verification: a fresh checkout from the staged Git index produced tokenizer SHA-256 851CA67100D372CA3AE031A6ABD168F53489EEBFD7D89523F35C5C9B4D372C3C; Core passed 273/273; App.Contracts passed 85/85; staged diff integrity passed.
 
 ### 2026-08-31 - proprietary source-visible license and packaged legal notices
 

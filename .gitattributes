@@ -1,0 +1,3 @@
+# Hash-verified moderation assets must be byte-identical on every platform.
+src/SafeSpeak.Core/AI/Models/LocalModeration/model.onnx binary
+src/SafeSpeak.Core/AI/Models/LocalModeration/tokenizer.json text eol=lf

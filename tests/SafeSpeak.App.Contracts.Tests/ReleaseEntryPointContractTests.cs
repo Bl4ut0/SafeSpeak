@@ -137,6 +137,19 @@ public sealed class ReleaseEntryPointContractTests
     }
 
     [Fact]
+    public void HashVerifiedModerationAssets_UseDeterministicGitAttributes()
+    {
+        string attributes = Source(".gitattributes");
+
+        Assert.Contains(
+            "src/SafeSpeak.Core/AI/Models/LocalModeration/model.onnx binary",
+            attributes);
+        Assert.Contains(
+            "src/SafeSpeak.Core/AI/Models/LocalModeration/tokenizer.json text eol=lf",
+            attributes);
+    }
+
+    [Fact]
     public void StoreBundleBuilder_UsesBothArchitecturesAndStoreGuards()
     {
         string script = Source("installer", "Build-StoreBundle.ps1");
