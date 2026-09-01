@@ -522,12 +522,12 @@ Matches are not automatically errors. Classify them as current, compatibility, m
 Update this block at the end of every session.
 
 - Checkpoint ID: PROPRIETARY-LICENSE-AND-PUSH
-- Status: MAIN PUSHED; deterministic cross-platform tokenizer checkout fix is verified locally and awaiting its follow-up push/CI rerun; Store submission remains gated.
-- Last completed work: pushed the composite overhaul as 3fe2274; diagnosed the first GitHub Actions run's Windows CRLF conversion of the checksum-pinned tokenizer; added deterministic Git attributes for the tokenizer/model; and added a regression contract.
+- Status: MAIN PUSHED AND DESKTOP CI GREEN; Store submission remains intentionally gated and was not run.
+- Last completed work: pushed the composite overhaul as 3fe2274 and the deterministic tokenizer checkout fix as aa78d9d; verified the replacement GitHub Actions Desktop build through both architectures and artifact uploads.
 - Files changed in the follow-up: .gitattributes; release-entry contract tests; this checkpoint.
-- Tests run: indexed-checkout tokenizer SHA-256 matched 851CA67100D372CA3AE031A6ABD168F53489EEBFD7D89523F35C5C9B4D372C3C; Core passed 273/273; App.Contracts passed 85/85; staged diff integrity passed. The prior production x64 ZIP/MSIX legal-notice audit also remains current.
+- Tests run: indexed-checkout tokenizer SHA-256 matched 851CA67100D372CA3AE031A6ABD168F53489EEBFD7D89523F35C5C9B4D372C3C; local Core passed 273/273; local App.Contracts passed 85/85; staged diff integrity passed. GitHub Actions run 33468750183 passed x64 and ARM64 build/test/ZIP/MSIX packaging plus artifact upload; x64 also passed Stream Deck validation/packaging as designed. The prior production x64 ZIP/MSIX legal-notice audit remains current.
 - Known blockers: real Light/Dark/High Contrast 100/200/400% keyboard/UIA evidence; Narrator/NVDA/JAWS passes; real audible SAPI/Kokoro cancellation; Partner Center-assigned app ID/identity/publisher and an initial certified live listing; Entra app registration with Partner Center Manager role; GitHub variables/environment secrets and reviewer; privacy-policy URL and listing/support/age-rating/screenshots; runFullTrust justification; final signed candidate and WACK report.
-- Next exact action: commit and push the deterministic-checkout follow-up, wait for both GitHub Actions architecture jobs to complete, then continue the live manual accessibility pass before any Store submission.
+- Next exact action: continue the live manual accessibility pass against the emulator before any Store submission. When Partner Center is available, configure assigned Store identity values and protected credentials, run Store build-only, and review a draft before certification.
 - Do not do next: do not use the audit bundle for submission; do not commit Partner Center secrets; do not enable push-to-Store publishing; do not commit a Store submission before reviewing its draft; do not run final WACK or submit before the P0 accessibility gates pass.
 
 ## Session log
@@ -538,6 +538,7 @@ Update this block at the end of every session.
 - The first Desktop build run reached both x64 and ARM64 test steps, then correctly failed because Windows checkout converted tokenizer.json from LF to CRLF and the classifier rejected its changed SHA-256. The model itself remained byte-identical.
 - Added .gitattributes rules that treat model.onnx as binary and force tokenizer.json to LF on every checkout. Added an application contract so this byte-stability requirement cannot disappear silently.
 - Verification: a fresh checkout from the staged Git index produced tokenizer SHA-256 851CA67100D372CA3AE031A6ABD168F53489EEBFD7D89523F35C5C9B4D372C3C; Core passed 273/273; App.Contracts passed 85/85; staged diff integrity passed.
+- Pushed the fix as aa78d9d. Replacement Desktop build run 33468750183 completed successfully: x64 passed build/tests/ZIP/MSIX, Stream Deck packaging, and artifact upload in 3m17s; ARM64 passed build/tests/ZIP/MSIX and artifact upload in 4m23s. No Store publisher workflow or Partner Center action ran.
 
 ### 2026-08-31 - proprietary source-visible license and packaged legal notices
 
