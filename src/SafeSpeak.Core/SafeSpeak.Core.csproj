@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFrameworks>net8.0;net8.0-windows</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <PackageReference Include="KokoroSharp.CPU" Version="0.8.4" />
     <!-- Pin the runtime used by both Kokoro and the local moderation model. -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
@@ -14,7 +14,7 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <Content Include="AI\Models\LocalModeration\model.onnx">
       <Link>Models\Moderation\model.onnx</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -25,6 +25,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+  </ItemGroup>
+
+  <!-- The portable target contains moderation, normalized events, connector contracts,
+       and the mobile speech abstraction. Desktop-only audio/accessibility implementations
+       remain available exclusively to the Windows application. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <Compile Remove="Accessibility\GlobalHotkeyService.cs;Accessibility\ScreenReaderAnnouncer.cs;Accessibility\SoundCuePlayer.cs" />
+    <Compile Remove="AI\LocalOnnxIntentClassifier.cs" />
+    <Compile Remove="Audio\KokoroModelManager.cs;Audio\ModularTtsEngine.cs;Audio\SystemSpeechTtsEngine.cs;Audio\WasapiAudioRouter.cs" />
   </ItemGroup>
 
 </Project>

@@ -1,13 +1,25 @@
 name: Microsoft Store publisher
 
 on:
+  workflow_run:
+    workflows:
+      - Main release build
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       package_version:
         description: Store package version (four parts; final component must be 0)
         required: true
-        default: 1.0.0.0
+        default: 1.0.1.0
         type: string
+      verify_connection:
+        description: Authenticate and verify access to the SafeSpeak Partner Center product
+        required: true
+        default: true
+        type: boolean
       upload_draft:
         description: Upload the verified bundle to a Partner Center draft
         required: true
@@ -28,24 +40,79 @@ concurrency:
 
 jobs:
   build-store-bundle:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main') }}
     runs-on: windows-latest
     timeout-minutes: 90
+    outputs:
+      store_package_version: ${{ steps.store-version.outputs.version }}
     env:
-      PACKAGE_VERSION: ${{ inputs.package_version }}
       STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
       STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
       STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
-      UPLOAD_DRAFT: ${{ inputs.upload_draft }}
-      COMMIT_SUBMISSION: ${{ inputs.commit_submission }}
+      UPLOAD_DRAFT: ${{ github.event_name == 'workflow_run' || inputs.upload_draft }}
+      COMMIT_SUBMISSION: ${{ github.event_name == 'workflow_run' || inputs.commit_submission }}
 
     steps:
       - name: Check out source
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Install pinned .NET SDK
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+
+      - name: Cache pinned Kokoro smoke-test model
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}\safespeak-kokoro\kokoro.onnx
+          key: kokoro-v2-${{ runner.os }}-0CFD5E79AAB70A3D8C1A57DC639835110DDB32C9F5FF4FDD1F4DB202EA43BB05
+
+      - name: Prepare pinned Kokoro smoke-test model
+        shell: pwsh
+        env:
+          KOKORO_MODEL_PATH: ${{ runner.temp }}\safespeak-kokoro\kokoro.onnx
+          KOKORO_MODEL_URL: https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx
+          KOKORO_MODEL_SHA256: 0CFD5E79AAB70A3D8C1A57DC639835110DDB32C9F5FF4FDD1F4DB202EA43BB05
+        run: |
+          $modelDirectory = Split-Path -Parent $env:KOKORO_MODEL_PATH
+          New-Item -ItemType Directory -Path $modelDirectory -Force | Out-Null
+          $downloadPath = "$($env:KOKORO_MODEL_PATH).download"
+          if (-not (Test-Path -LiteralPath $env:KOKORO_MODEL_PATH) -or
+              (Get-FileHash -LiteralPath $env:KOKORO_MODEL_PATH -Algorithm SHA256).Hash -ne $env:KOKORO_MODEL_SHA256) {
+            Remove-Item -LiteralPath $env:KOKORO_MODEL_PATH -Force -ErrorAction SilentlyContinue
+            Invoke-WebRequest -Uri $env:KOKORO_MODEL_URL -OutFile $downloadPath
+            $actualHash = (Get-FileHash -LiteralPath $downloadPath -Algorithm SHA256).Hash
+            if ($actualHash -ne $env:KOKORO_MODEL_SHA256) {
+              Remove-Item -LiteralPath $downloadPath -Force -ErrorAction SilentlyContinue
+              throw "The Kokoro smoke-test model failed integrity verification: $actualHash"
+            }
+            Move-Item -LiteralPath $downloadPath -Destination $env:KOKORO_MODEL_PATH -Force
+          }
+          "SAFESPEAK_KOKORO_MODEL_PATH=$($env:KOKORO_MODEL_PATH)" >> $env:GITHUB_ENV
+
+      - name: Resolve Store package version
+        id: store-version
+        shell: pwsh
+        env:
+          REQUESTED_PACKAGE_VERSION: ${{ inputs.package_version }}
+        run: |
+          $version = $env:REQUESTED_PACKAGE_VERSION
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            [xml]$props = Get-Content -LiteralPath 'Directory.Build.props' -Raw
+            $version = [string](
+              $props.Project.PropertyGroup.SafeSpeakStoreVersion |
+                Select-Object -First 1)
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+            throw 'The Store package version must contain four numeric components.'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Validate Store workflow inputs
         shell: pwsh
@@ -69,7 +136,7 @@ jobs:
         shell: pwsh
         run: |
           ./installer/Build-StoreBundle.ps1 `
-            -PackageVersion $env:PACKAGE_VERSION `
+            -PackageVersion '${{ steps.store-version.outputs.version }}' `
             -IdentityName $env:STORE_IDENTITY_NAME `
             -Publisher $env:STORE_PUBLISHER `
             -PublisherDisplayName $env:STORE_PUBLISHER_DISPLAY_NAME
@@ -77,7 +144,7 @@ jobs:
       - name: Upload verified Store candidate
         uses: actions/upload-artifact@v7
         with:
-          name: SafeSpeak-store-${{ inputs.package_version }}
+          name: SafeSpeak-store-${{ steps.store-version.outputs.version }}
           path: |
             artifacts/store/*.msix
             artifacts/store/*.msixbundle
@@ -87,7 +154,7 @@ jobs:
           retention-days: 30
 
   partner-center:
-    if: ${{ inputs.upload_draft }}
+    if: ${{ github.event_name == 'workflow_run' || inputs.verify_connection || inputs.upload_draft }}
     needs: build-store-bundle
     runs-on: windows-latest
     timeout-minutes: 30
@@ -99,13 +166,14 @@ jobs:
       PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
       PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
       PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
-      COMMIT_SUBMISSION: ${{ inputs.commit_submission }}
+      COMMIT_SUBMISSION: ${{ github.event_name == 'workflow_run' || inputs.commit_submission }}
 
     steps:
       - name: Download verified Store candidate
+        if: ${{ github.event_name == 'workflow_run' || inputs.upload_draft }}
         uses: actions/download-artifact@v7
         with:
-          name: SafeSpeak-store-${{ inputs.package_version }}
+          name: SafeSpeak-store-${{ needs.build-store-bundle.outputs.store_package_version }}
           path: artifacts/store
 
       - name: Install Microsoft Store Developer CLI
@@ -139,7 +207,12 @@ jobs:
             --clientId $env:PARTNER_CENTER_CLIENT_ID `
             --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
 
+      - name: Verify SafeSpeak Partner Center access
+        shell: pwsh
+        run: msstore apps get $env:STORE_APP_ID
+
       - name: Upload Partner Center draft or commit approved submission
+        if: ${{ github.event_name == 'workflow_run' || inputs.upload_draft }}
         shell: pwsh
         run: |
           $bundles = @(Get-ChildItem -LiteralPath 'artifacts/store' `

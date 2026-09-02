@@ -21,6 +21,7 @@ The descriptor declares a lowercase stable ID, display/provider names, a non-sec
 
 Map provider payloads to `LivestreamEvent` before raising them:
 
+- provider name to `Platform`
 - provider user ID to `Author`
 - already-safe display label candidate to `AuthorDisplayName`
 - chat body to `Text`
@@ -80,6 +81,13 @@ State is conveyed as text and through a UI Automation live-region event. Do not 
 7. Run the shared moderation corpus against normalized chat.
 8. Add accessible connection copy and manual Narrator/NVDA/JAWS tests.
 9. Document provider version compatibility and privacy behavior.
+
+Planned mobile connectors are listed in `ConnectorRoadmap`, but a roadmap item
+is not a working connector. YouTube Live, Twitch, and direct TikTok LIVE work
+must use official, policy-compliant authentication and APIs. The TikTok entry
+remains access-required until appropriate developer access exists. A local
+desktop-to-mobile relay may be developed without TikFinity, but it must use an
+authenticated pairing flow and the same normalized event contract.
 
 Example registration:
 

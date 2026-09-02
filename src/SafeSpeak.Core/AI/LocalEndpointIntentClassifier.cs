@@ -40,7 +40,7 @@ public sealed class LocalEndpointIntentClassifier : IIntentClassifier
 
         _endpointUrl = endpoint.AbsoluteUri.TrimEnd('/');
         _modelName = string.IsNullOrWhiteSpace(modelName) ? "llama3.2:1b" : modelName;
-        _fallback = fallback ?? new LocalOnnxIntentClassifier();
+        _fallback = fallback ?? IntentClassifierDefaults.CreateLocal();
 
         if (httpClient != null)
         {

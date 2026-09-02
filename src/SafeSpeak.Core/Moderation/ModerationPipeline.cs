@@ -25,7 +25,7 @@ public sealed class ModerationPipeline : IDisposable
     {
         Config = config ?? new ModerationConfig();
         _ruleEngine = ruleEngine ?? new RuleEngine();
-        _intentClassifier = intentClassifier ?? new LocalOnnxIntentClassifier();
+        _intentClassifier = intentClassifier ?? IntentClassifierDefaults.CreateLocal();
     }
 
     /// <summary>

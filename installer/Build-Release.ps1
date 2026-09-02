@@ -185,12 +185,28 @@ $executablePath = Join-Path $publishDirectory 'SafeSpeak.App.exe'
 if (-not (Test-Path -LiteralPath $executablePath)) {
     throw "Publish completed without the expected desktop executable: $executablePath"
 }
+$signTool = $null
+if ($CertificateThumbprint) {
+    $signTool = Find-WindowsSdkTool -ToolName 'signtool.exe'
+    Invoke-CheckedCommand -FilePath $signTool -ArgumentList @(
+        'sign', '/sha1', $CertificateThumbprint,
+        '/fd', 'SHA256', '/tr', $TimestampUrl, '/td', 'SHA256',
+        $executablePath
+    )
+    Invoke-CheckedCommand -FilePath $signTool -ArgumentList @(
+        'verify', '/pa', '/v', $executablePath
+    )
+}
+else {
+    Write-Warning 'The application executable is unsigned. Public ZIP and MSI releases require a trusted Authenticode code-signing certificate.'
+}
 $executableInfo = Get-Item -LiteralPath $executablePath
 $executableFileVersion = [string]$executableInfo.VersionInfo.FileVersion
 if ($executableFileVersion -ne $PackageVersion) {
     throw "Published executable version '$executableFileVersion' does not match package version '$PackageVersion'."
 }
 $executableSha256 = (Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash
+$executableSignature = Get-AuthenticodeSignature -LiteralPath $executablePath
 $executableRelativePath = "SafeSpeak-$PackageVersion-$runtimeIdentifier\SafeSpeak.App.exe"
 $reportRelativePath = "SafeSpeak-$PackageVersion-$runtimeIdentifier.release.json"
 $requiredRuntimeFileNames = @(
@@ -399,7 +415,6 @@ if ($Format -in @('Msix', 'Both', 'All')) {
     }
 
     if ($CertificateThumbprint) {
-        $signTool = Find-WindowsSdkTool -ToolName 'signtool.exe'
         Invoke-CheckedCommand -FilePath $signTool -ArgumentList @(
             'sign', '/sha1', $CertificateThumbprint,
             '/fd', 'SHA256', '/tr', $TimestampUrl, '/td', 'SHA256',
@@ -483,6 +498,13 @@ $report = [ordered]@{
         bytes = $executableInfo.Length
         sha256 = $executableSha256
         fileVersion = $executableFileVersion
+        signatureStatus = $executableSignature.Status.ToString()
+        signerSubject = if ($executableSignature.SignerCertificate) {
+            $executableSignature.SignerCertificate.Subject
+        }
+        else {
+            $null
+        }
     }
     expandedRuntimeFiles = $expandedRuntimeFiles
     source = [ordered]@{

@@ -1,0 +1,172 @@
+name: Apple TestFlight release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      display_version:
+        description: Public version in three-part form, such as 0.1.0
+        required: true
+        default: 0.1.0
+        type: string
+      build_number:
+        description: Increasing App Store build number
+        required: true
+        default: '4'
+        type: string
+      upload_to_testflight:
+        description: Upload the signed IPA to TestFlight
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safespeak-apple-testflight-production
+  cancel-in-progress: false
+
+jobs:
+  signed-ios-release:
+    name: Build signed iOS archive
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment:
+      name: apple-app-store-production
+    env:
+      DISPLAY_VERSION: ${{ inputs.display_version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      APPLE_CODESIGN_IDENTITY: ${{ vars.APPLE_CODESIGN_IDENTITY }}
+      APPLE_PROVISIONING_PROFILE_NAME: ${{ vars.APPLE_PROVISIONING_PROFILE_NAME }}
+
+    steps:
+      - name: Require the iOS release branch and valid version
+        shell: bash
+        env:
+          APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" == "ios/main" ]] || { echo "TestFlight candidates must run from ios/main."; exit 1; }
+          [[ "$DISPLAY_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "display_version must contain three numeric parts."; exit 1; }
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "build_number must be a positive integer."; exit 1; }
+          required=(
+            APPLE_DISTRIBUTION_CERTIFICATE_BASE64
+            APPLE_CERTIFICATE_PASSWORD
+            APPLE_PROVISIONING_PROFILE_BASE64
+            APPLE_CODESIGN_IDENTITY
+            APPLE_PROVISIONING_PROFILE_NAME
+          )
+          for name in "${required[@]}"; do
+            [[ -n "${!name:-}" ]] || { echo "Missing protected Apple signing configuration: $name"; exit 1; }
+          done
+
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install mobile .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: mobile/global.json
+
+      - name: Install iOS workload
+        working-directory: mobile
+        run: dotnet workload install maui-ios
+
+      - name: Test portable mobile foundation
+        working-directory: mobile
+        run: dotnet test ../tests/SafeSpeak.Mobile.Foundation.Tests/SafeSpeak.Mobile.Foundation.Tests.csproj -c Release
+
+      - name: Restore protected Apple signing files
+        shell: bash
+        env:
+          APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/safespeak-distribution.p12"
+          profile_directory="$HOME/Library/MobileDevice/Provisioning Profiles"
+          profile_path="$profile_directory/SafeSpeak-AppStore.mobileprovision"
+          keychain_path="$RUNNER_TEMP/safespeak-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+
+          printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" | /usr/bin/base64 -D > "$certificate_path"
+          mkdir -p "$profile_directory"
+          printf '%s' "$APPLE_PROVISIONING_PROFILE_BASE64" | /usr/bin/base64 -D > "$profile_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
+
+          echo "SAFESPEAK_KEYCHAIN_PATH=$keychain_path" >> "$GITHUB_ENV"
+          echo "SAFESPEAK_PROFILE_PATH=$profile_path" >> "$GITHUB_ENV"
+          echo "SAFESPEAK_CERTIFICATE_PATH=$certificate_path" >> "$GITHUB_ENV"
+
+      - name: Build signed App Store archive
+        working-directory: mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish ../src/SafeSpeak.Mobile/SafeSpeak.Mobile.csproj \
+            -c Release \
+            -f net10.0-ios \
+            -p:SafeSpeakMobileTargetFrameworks=net10.0-ios \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:ArchiveOnBuild=true \
+            -p:ApplicationDisplayVersion="$DISPLAY_VERSION" \
+            -p:ApplicationVersion="$BUILD_NUMBER" \
+            -p:CodesignKey="$APPLE_CODESIGN_IDENTITY" \
+            -p:CodesignProvision="$APPLE_PROVISIONING_PROFILE_NAME"
+
+          ipa_count="$(find ../src/SafeSpeak.Mobile/bin/Release/net10.0-ios -type f -name '*.ipa' | wc -l | tr -d ' ')"
+          [[ "$ipa_count" == "1" ]] || { echo "Expected exactly one signed IPA and found $ipa_count."; exit 1; }
+          ipa_path="$(find ../src/SafeSpeak.Mobile/bin/Release/net10.0-ios -type f -name '*.ipa' -print -quit)"
+          mkdir -p ../artifacts/ios-release
+          cp "$ipa_path" "../artifacts/ios-release/SafeSpeak-$DISPLAY_VERSION-$BUILD_NUMBER.ipa"
+
+      - name: Upload signed release candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: SafeSpeak-iOS-${{ inputs.display_version }}-${{ inputs.build_number }}-signed
+          path: artifacts/ios-release/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Validate TestFlight upload credentials
+        if: inputs.upload_to_testflight
+        shell: bash
+        env:
+          APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          required=(APPSTORE_API_KEY_ID APPSTORE_ISSUER_ID APPSTORE_API_PRIVATE_KEY)
+          for name in "${required[@]}"; do
+            [[ -n "${!name:-}" ]] || { echo "Missing protected TestFlight configuration: $name"; exit 1; }
+          done
+
+      - name: Upload to TestFlight
+        if: inputs.upload_to_testflight
+        uses: apple-actions/upload-testflight-build@v4
+        with:
+          app-path: artifacts/ios-release/SafeSpeak-${{ inputs.display_version }}-${{ inputs.build_number }}.ipa
+          issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          uses-non-exempt-encryption: 'false'
+          wait-for-processing: 'true'
+          backend: AppStoreAPI
+
+      - name: Remove protected signing files
+        if: always()
+        shell: bash
+        run: |
+          [[ -z "${SAFESPEAK_KEYCHAIN_PATH:-}" ]] || security delete-keychain "$SAFESPEAK_KEYCHAIN_PATH" || true
+          [[ -z "${SAFESPEAK_PROFILE_PATH:-}" ]] || rm -f "$SAFESPEAK_PROFILE_PATH"
+          [[ -z "${SAFESPEAK_CERTIFICATE_PATH:-}" ]] || rm -f "$SAFESPEAK_CERTIFICATE_PATH"

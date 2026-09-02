@@ -14,7 +14,8 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
         string Text,
         string? VoiceId,
         int Rate,
-        int Volume);
+        int Volume,
+        TaskCompletionSource Completion);
 
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
@@ -22,7 +23,7 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
     private readonly CancellationTokenSource _lifetimeCts = new();
     private readonly object _playbackLock = new();
     private readonly Task _worker;
-    private CancellationTokenSource? _playbackCts;
+    private CancellationTokenSource? _activeRequestCts;
     private long _latestVersion;
     private bool _disposed;
 
@@ -38,30 +39,53 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
         {
             SingleReader = true,
             SingleWriter = false,
-            FullMode = BoundedChannelFullMode.DropOldest
+            FullMode = BoundedChannelFullMode.Wait
         });
         _worker = Task.Run(ProcessRequestsAsync);
     }
 
     public void Speak(string text, bool interrupt = false)
     {
-        if (_disposed || string.IsNullOrWhiteSpace(text)) return;
+        _ = SpeakAsync(text, interrupt);
+    }
+
+    public Task SpeakAsync(string text, bool interrupt = false)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(text)) return Task.CompletedTask;
 
         long version = Interlocked.Increment(ref _latestVersion);
         if (interrupt) StopPlayback();
 
-        _requests.Writer.TryWrite(new SpeechRequest(
+        while (_requests.Reader.TryRead(out SpeechRequest? supersededRequest))
+        {
+            supersededRequest.Completion.TrySetCanceled();
+        }
+
+        var completion = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new SpeechRequest(
             version,
             text,
             VoiceId,
             Math.Clamp(Rate, -5, 5),
-            Math.Clamp(Volume, 0, 100)));
+            Math.Clamp(Volume, 0, 100),
+            completion);
+        if (!_requests.Writer.TryWrite(request))
+        {
+            completion.TrySetException(
+                new InvalidOperationException("The voice preview queue is unavailable."));
+        }
+
+        return completion.Task;
     }
 
     public void Stop()
     {
         Interlocked.Increment(ref _latestVersion);
-        while (_requests.Reader.TryRead(out _)) { }
+        while (_requests.Reader.TryRead(out SpeechRequest? request))
+        {
+            request.Completion.TrySetCanceled();
+        }
         StopPlayback();
     }
 
@@ -76,6 +100,14 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
 
                 try
                 {
+                    var requestCts = CancellationTokenSource.CreateLinkedTokenSource(
+                        _lifetimeCts.Token);
+                    lock (_playbackLock)
+                    {
+                        _activeRequestCts?.Dispose();
+                        _activeRequestCts = requestCts;
+                    }
+
                     using var waveStream = new MemoryStream();
                     await _ttsEngine.SynthesizeToWaveStreamAsync(
                         request.Text,
@@ -83,33 +115,34 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
                         request.VoiceId,
                         request.Rate,
                         100,
-                        _lifetimeCts.Token);
+                        requestCts.Token);
 
-                    if (request.Version != Volatile.Read(ref _latestVersion)) continue;
-
-                    var playbackCts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
-                    lock (_playbackLock)
+                    if (request.Version != Volatile.Read(ref _latestVersion))
                     {
-                        _playbackCts?.Dispose();
-                        _playbackCts = playbackCts;
+                        request.Completion.TrySetCanceled();
+                        continue;
                     }
 
                     await _audioRouter.PlayWaveStreamAsync(
                         new MemoryStream(waveStream.ToArray(), writable: false),
                         request.Volume / 100.0f,
-                        playbackCts.Token);
+                        requestCts.Token);
+                    request.Completion.TrySetResult();
                 }
-                catch (OperationCanceledException) { }
-                catch
+                catch (OperationCanceledException)
                 {
-                    // A failed preview must not affect navigation or stream TTS.
+                    request.Completion.TrySetCanceled();
+                }
+                catch (Exception ex)
+                {
+                    request.Completion.TrySetException(ex);
                 }
                 finally
                 {
                     lock (_playbackLock)
                     {
-                        _playbackCts?.Dispose();
-                        _playbackCts = null;
+                        _activeRequestCts?.Dispose();
+                        _activeRequestCts = null;
                     }
                 }
             }
@@ -121,7 +154,7 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
     {
         lock (_playbackLock)
         {
-            _playbackCts?.Cancel();
+            _activeRequestCts?.Cancel();
             _audioRouter.Stop();
         }
     }
@@ -131,16 +164,16 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
         if (_disposed) return;
         _disposed = true;
         _requests.Writer.TryComplete();
+        Stop();
         _lifetimeCts.Cancel();
-        StopPlayback();
 
         try { await _worker; }
         catch (OperationCanceledException) { }
 
         lock (_playbackLock)
         {
-            _playbackCts?.Dispose();
-            _playbackCts = null;
+            _activeRequestCts?.Dispose();
+            _activeRequestCts = null;
         }
         _lifetimeCts.Dispose();
     }

@@ -1,5 +1,5 @@
 SafeSpeak Proprietary Source-Visible License
-Version 1.0 - August 31, 2026
+Version 1.1 - September 2, 2026
 
 Copyright (c) 2026 Alex Mammen. All rights reserved.
 
@@ -22,15 +22,31 @@ other means. All rights not expressly granted below are reserved.
 
 2. Free use of official binary releases
 
-You may download, install, and run an unmodified official SafeSpeak binary
-release obtained from the Microsoft Store or another distribution channel
-authorized by the Owner. This permission is royalty-free and may be used for
-lawful personal, accessibility, livestreaming, or business purposes.
+"Free" means that the Owner charges no purchase price for an official binary
+release. It does not mean that the SafeSpeak Materials are public domain or
+open source, and it does not grant permission to redistribute the application
+or to copy, build, modify, or distribute its source code or original assets.
 
-You may make only the copies of an official binary release that are
-automatically necessary to download, install, and run it, plus one archival
-backup. This limited permission is non-exclusive, non-transferable, and
-non-sublicensable. It does not permit redistribution of the binary release.
+You may download, install, and run an unmodified official SafeSpeak binary
+release obtained from the Microsoft Store, Apple App Store, Google Play,
+official SafeSpeak GitHub Releases, or another distribution channel authorized
+by the Owner. This permission is royalty-free and may be used for lawful
+personal, accessibility, livestreaming, or business purposes.
+
+An official application store may apply its own usage rules and standard or
+custom end-user license agreement to a binary obtained through that store.
+Store-authorized installation, re-download, updates, device use, or sharing
+mechanisms are permitted to the extent required by those terms. If a store term
+conflicts with this license for that store-distributed binary, the store term
+controls only for the binary and only to the extent of that conflict. It does
+not grant rights to SafeSpeak source code, documentation, original artwork, or
+other materials made visible outside the store.
+
+For an official binary obtained directly rather than through an application
+store, you may make only the copies automatically necessary to download,
+install, and run it, plus one archival backup. This limited permission is
+non-exclusive, non-transferable, and non-sublicensable. It does not permit
+redistribution, repackaging, mirroring, or publication of the binary release.
 
 3. Source visibility
 

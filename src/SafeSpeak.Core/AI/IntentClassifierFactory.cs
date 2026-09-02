@@ -24,17 +24,17 @@ public static class IntentClassifierFactory
             return new LocalEndpointIntentClassifier(
                 endpointUrl: settings.LocalLlmEndpointUrl,
                 modelName: settings.LocalLlmModelName,
-                fallback: new LocalOnnxIntentClassifier());
+                fallback: IntentClassifierDefaults.CreateLocal());
         }
 
         if (engineId == GooglePerspectiveId && !string.IsNullOrWhiteSpace(settings.PerspectiveApiKey))
         {
             return new GooglePerspectiveClassifier(
                 settings.PerspectiveApiKey,
-                localFallback: new LocalOnnxIntentClassifier());
+                localFallback: IntentClassifierDefaults.CreateLocal());
         }
 
         // Default fast on-device CPU hybrid
-        return new LocalOnnxIntentClassifier();
+        return IntentClassifierDefaults.CreateLocal();
     }
 }

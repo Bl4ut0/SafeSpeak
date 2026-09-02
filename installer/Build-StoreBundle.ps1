@@ -32,13 +32,13 @@ if (-not (Test-Path -LiteralPath $releaseScript -PathType Leaf)) {
 
 [xml]$versionProps = Get-Content -LiteralPath $versionPropsPath -Raw
 $defaultPackageVersion = [string](
-    $versionProps.Project.PropertyGroup.SafeSpeakVersion | Select-Object -First 1)
+    $versionProps.Project.PropertyGroup.SafeSpeakStoreVersion | Select-Object -First 1)
 if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
     $PackageVersion = $defaultPackageVersion
 }
 
 if ($PackageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
-    throw 'PackageVersion must be a four-part numeric version.'
+    throw 'PackageVersion must be a four-part numeric version. Directory.Build.props must define SafeSpeakStoreVersion when PackageVersion is omitted.'
 }
 
 $versionParts = $PackageVersion.Split('.') | ForEach-Object { [int]$_ }

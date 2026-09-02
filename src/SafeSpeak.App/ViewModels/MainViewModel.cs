@@ -1141,7 +1141,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    public void TestSelectedVoice()
+    public async Task TestSelectedVoice()
     {
         VoiceInfo? voice = Voices.FirstOrDefault(
             candidate => string.Equals(candidate.Id, SelectedVoice, StringComparison.Ordinal));
@@ -1149,7 +1149,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string sample = $"This is {voiceName}. SafeSpeak voice testing is working.";
 
         LiveStatusAnnouncement = $"Testing selected voice on the preview output: {voiceName}";
-        _voicePreviewOutput.Speak(sample, interrupt: true);
+        try
+        {
+            await _voicePreviewOutput.SpeakAsync(sample, interrupt: true);
+            LiveStatusAnnouncement = $"Voice preview completed: {voiceName}";
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer preview or shutdown deliberately superseded this request.
+        }
+        catch (Exception ex)
+        {
+            AnnounceState($"Voice preview failed: {ex.Message}");
+        }
     }
 
     [RelayCommand]

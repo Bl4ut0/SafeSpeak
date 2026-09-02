@@ -27,7 +27,7 @@ public sealed class GooglePerspectiveClassifier : IIntentClassifier
         HttpClient? httpClient = null)
     {
         _apiKey = apiKey;
-        _localFallback = localFallback ?? new LocalOnnxIntentClassifier();
+        _localFallback = localFallback ?? IntentClassifierDefaults.CreateLocal();
         if (httpClient is not null)
         {
             _httpClient = httpClient;

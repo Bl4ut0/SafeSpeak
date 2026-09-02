@@ -8,7 +8,7 @@ SafeSpeak has one release build entry point: `installer/Build-Release.ps1`. It r
 - The .NET SDK selected by `global.json`.
 - Windows 10 or Windows 11 SDK App Packaging tools (`makeappx.exe`) when building MSIX.
 - WiX Toolset SDK 5.0.2, restored automatically from the pinned package reference when building MSI.
-- A trusted code-signing certificate when producing public MSI or sideloadable MSIX downloads. Partner Center identity values and signing credentials are not stored in this repository.
+- A trusted Authenticode code-signing certificate when producing public MSI, portable ZIP, or sideloadable MSIX downloads. Microsoft signs the Store-delivered MSIX after certification, but that Store certificate and private key cannot be exported or reused for GitHub downloads. Signing credentials are never stored in this repository.
 
 The portable ZIP is self-contained. Its users do not need to install .NET separately.
 
@@ -49,7 +49,7 @@ Windows Narrator is already included with Windows and is not redistributed insid
 
 Repair is also SafeSpeak's explicit reset operation. Running **Repair** restores the packaged application files and recursively removes `%LOCALAPPDATA%\SafeSpeak` for the user performing the repair. This permanently removes that user's settings, audit logs, and downloaded optional models so the next launch starts clean. Close SafeSpeak before repair. Ordinary uninstall removes the installed program and shortcut but preserves Local AppData.
 
-The build opens the completed MSI database and verifies product identity, version, payload-file count, Start-menu shortcut, and major-upgrade metadata. `-CertificateThumbprint` signs both MSI and MSIX outputs when they are requested. Without a certificate, the MSI remains installable but Windows identifies it as coming from an unknown publisher.
+The build opens the completed MSI database and verifies product identity, version, payload-file count, Start-menu shortcut, and major-upgrade metadata. `-CertificateThumbprint` signs the portable application's executable before ZIP/MSIX/MSI packaging and signs both MSI and MSIX containers when requested. Without a certificate, the MSI remains installable but Windows identifies it as coming from an unknown publisher.
 
 ## Signed test package
 
@@ -65,22 +65,31 @@ The repository default publisher (`CN=SafeSpeak`) is a development placeholder. 
 
 The script signs through the current user's certificate store and verifies the signature with `signtool`. It does not create, import, or export certificates. An unsigned package can be structurally tested and submitted to a signing pipeline, but Windows will not accept it for ordinary sideload installation.
 
+Tagged GitHub releases import a separate CA-trusted Authenticode PFX from the encrypted repository secrets `WINDOWS_SIGNING_CERTIFICATE_BASE64` and `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`. The temporary PFX is deleted immediately after import and the certificate is removed from the ephemeral runner after packaging. Tagged builds fail closed if the certificate is missing or if the executable, MSI, or MSIX signature does not verify. A ZIP file has no Authenticode container signature; its included `SafeSpeak.App.exe` is signed and the release publishes a SHA-256 checksum for the ZIP.
+
 ## Microsoft Store submission
 
-Before the first Store build:
+The first SafeSpeak submission was published on September 2, 2026. Partner Center assigned these non-secret package values:
 
-1. Reserve the SafeSpeak product name in Partner Center.
-2. Copy the package Identity Name, Publisher, and Publisher display name from Partner Center. These values are assigned by Microsoft and must not be guessed.
-3. Review and approve `installer/Assets/SafeSpeakIconMaster-v1.png`, then run `./installer/Generate-Assets.ps1` to refresh the MSIX tiles and multi-resolution executable icon. Partner Center listing artwork is prepared separately from these package assets.
-4. Finish accessibility testing with Narrator, keyboard-only navigation, Windows High Contrast themes, 200% text scaling, and the complete first-run reader decision flow before making an accessibility conformance claim.
-5. Prepare the Store listing, privacy policy URL, support contact, age rating, screenshots, and a clear justification for the restricted `runFullTrust` capability.
-6. Decide whether the first submission will upload the generated `.msix` directly or add a `.msixupload` wrapper with symbols for improved Store crash analytics. Partner Center accepts both and currently recommends the upload wrapper.
-7. Build a Store candidate. Microsoft Store versions require a non-zero major component and reserve the fourth component as zero:
+- Identity Name: `TheProjectHub.SafeSpeak`
+- Publisher: `CN=E5322575-F870-45EA-BB35-68B0B2DE563E`
+- Publisher display name: `The Project Hub`
+- Store product ID: `9MTFGCPQCQ86`
+- Package family name: `TheProjectHub.SafeSpeak_tq1kt9e4wnq7e`
+
+Before each Store build:
+
+1. Confirm the package Identity Name, Publisher, and Publisher display name still match the assigned Partner Center product identity above.
+2. Review and approve `installer/Assets/SafeSpeakIconMaster-v1.png`, then run `./installer/Generate-Assets.ps1` to refresh the MSIX tiles and multi-resolution executable icon. Partner Center listing artwork is prepared separately from these package assets.
+3. Finish accessibility testing with Narrator, keyboard-only navigation, Windows High Contrast themes, 200% text scaling, and the complete first-run reader decision flow before making an accessibility conformance claim.
+4. Keep the Store listing, privacy policy URL, support contact, age rating, screenshots, and `runFullTrust` justification current.
+5. Decide whether the update will upload the generated `.msix` directly or add a `.msixupload` wrapper with symbols for improved Store crash analytics. Partner Center accepts both and currently recommends the upload wrapper.
+6. Build a Store candidate. Microsoft Store versions require a non-zero major component and reserve the fourth component as zero:
 
 ```powershell
 ./installer/Build-Release.ps1 `
   -Architecture x64 `
-  -PackageVersion 1.0.0.0 `
+  -PackageVersion 1.0.1.0 `
   -Format Msix `
   -StoreSubmission `
   -IdentityName "PARTNER_CENTER_IDENTITY_NAME" `
@@ -96,7 +105,7 @@ The `runFullTrust` capability is required because SafeSpeak is a desktop WPF app
 
 ### GitHub-to-Store publisher track
 
-The first SafeSpeak submission must be created, completed, certified, and made live through Partner Center. Microsoft's current GitHub Actions update path applies only after the product is live and currently supports free products, which matches SafeSpeak's release model.
+SafeSpeak is live, so it satisfies the first-publication prerequisite for Microsoft's GitHub Actions update path. That path currently supports free products, which matches SafeSpeak's release model.
 
 After Partner Center assigns the product values, configure these non-secret GitHub repository variables:
 
@@ -116,15 +125,15 @@ The Entra application represented by those credentials must be associated with P
 
 `installer/Build-StoreBundle.ps1` runs the release entry point for x64 and ARM64, performs the full test pass once, creates a neutral `.msixbundle`, unbundles it for structural verification, and records hashes in a Store bundle report. It rejects placeholder identity values and Store-incompatible versions.
 
-`.github/workflows/store-publisher.yml` is manual-only. Its safe default builds and retains a candidate without contacting Partner Center. `upload_draft` requires approval through the protected environment and uploads with `--noCommit`; `commit_submission` must also be deliberately selected to send that upload to Microsoft certification. Do not enable a push-to-Store trigger or remove the protected reviewer.
+`.github/workflows/store-publisher.yml` runs automatically only after the `Main release build` succeeds for a push to `main`. It checks out that exact successful commit, builds the Store version from `SafeSpeakStoreVersion`, and then waits at the protected environment. After the required reviewer approves, it uses `msstore apps get` to verify access to exactly `STORE_APP_ID`, uploads the verified bundle, and commits the update for Microsoft certification. Manual dispatch remains available: its defaults perform a read-only connection check, while `upload_draft` uploads with `--noCommit` unless `commit_submission` is deliberately selected. Do not remove the protected reviewer.
 
 ## Continuous packaging verification
 
 `.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A pushed `v*` tag publishes those verified files plus `SHA256SUMS.txt` as permanent GitHub Release downloads. Until a code-signing certificate is configured for the workflow, direct MSI/MSIX downloads are unsigned and show an unknown-publisher warning.
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A stable tag such as `v0.1.0.4` publishes a normal release; `v0.1.0.4-rc.1` publishes a prerelease for the same four-part package version. Every tagged build requires the two signing secrets and publishes only after both architecture reports prove valid executable, MSI, and MSIX signatures. `SHA256SUMS.txt` covers every downloadable artifact.
 
-The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. Store packaging and Partner Center access remain in the separate manual-only publisher workflow.
+The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. A successful push build on `main` then triggers the separate protected Store publisher; `develop` cannot reach Partner Center.
 
 ## WinGet publication
 

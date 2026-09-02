@@ -1,6 +1,7 @@
 using KokoroSharp;
 using KokoroSharp.Processing;
 using NAudio.Wave;
+using System.Security.Cryptography;
 
 namespace SafeSpeak.Core.Audio;
 
@@ -13,11 +14,14 @@ public sealed class KokoroModelManager : IDisposable
     public const string VoicePrefix = "kokoro:";
     public const string ModelDownloadUrl =
         "https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx";
+    public const string ModelSha256 =
+        "0CFD5E79AAB70A3D8C1A57DC639835110DDB32C9F5FF4FDD1F4DB202EA43BB05";
 
     private readonly SemaphoreSlim _synthesisLock = new(1, 1);
     private KokoroWavSynthesizer? _synthesizer;
 
     public string ModelDirectory { get; }
+    public string VoiceDirectory { get; }
     public string ModelPath => Path.Combine(ModelDirectory, "kokoro.onnx");
     public bool IsInstalled => File.Exists(ModelPath) && new FileInfo(ModelPath).Length > 100_000_000;
 
@@ -57,6 +61,7 @@ public sealed class KokoroModelManager : IDisposable
         ModelDirectory = modelDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SafeSpeak", "Models", "Kokoro");
+        VoiceDirectory = Path.Combine(AppContext.BaseDirectory, "voices");
         Directory.CreateDirectory(ModelDirectory);
     }
 
@@ -74,23 +79,50 @@ public sealed class KokoroModelManager : IDisposable
         string temporaryPath = ModelPath + ".download";
         try
         {
+            long copied = 0;
             using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
             using var response = await client.GetAsync(ModelDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
             long expected = response.Content.Headers.ContentLength ?? 330_000_000;
-            await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var destination = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, true);
-            byte[] buffer = new byte[1024 * 128];
-            long copied = 0;
-            int read;
-            while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
             {
-                await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                copied += read;
-                progress?.Report(Math.Min(99, copied * 100d / expected));
+                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await using var destination = new FileStream(
+                    temporaryPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    1024 * 128,
+                    true);
+                byte[] buffer = new byte[1024 * 128];
+                int read;
+                while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
+                {
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    copied += read;
+                    progress?.Report(Math.Min(99, copied * 100d / expected));
+                }
+                await destination.FlushAsync(cancellationToken);
             }
-            await destination.FlushAsync(cancellationToken);
+
             if (copied < 100_000_000) throw new InvalidDataException("The Kokoro model download was incomplete.");
+
+            await using (var downloadedModel = new FileStream(
+                temporaryPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                1024 * 128,
+                true))
+            using (var sha256 = SHA256.Create())
+            {
+                string actualHash = Convert.ToHexString(
+                    await sha256.ComputeHashAsync(downloadedModel, cancellationToken));
+                if (!string.Equals(actualHash, ModelSha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException("The downloaded Kokoro model failed integrity verification.");
+                }
+            }
+
             File.Move(temporaryPath, ModelPath, true);
             progress?.Report(100);
         }
@@ -112,6 +144,10 @@ public sealed class KokoroModelManager : IDisposable
         try
         {
             _synthesizer ??= new KokoroWavSynthesizer(ModelPath);
+            // Use the packaged application base explicitly. Relying on the
+            // library's implicit lookup can resolve relative to the launcher
+            // rather than the MSIX payload in an identity-bearing process.
+            KokoroVoiceManager.LoadVoicesFromPath(VoiceDirectory);
             var voice = KokoroVoiceManager.GetVoice(voiceName);
             var config = new KokoroTTSPipelineConfig
             {

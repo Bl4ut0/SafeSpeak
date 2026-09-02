@@ -1,11 +1,13 @@
 # SafeSpeak
 
-SafeSpeak is a Windows-first, accessibility-focused application that turns approved livestream chat into speech. It connects to a local source, filters banned terms and hostile intent before audio, and keeps the everyday experience to four keyboard-friendly areas: Live, Safety, Voice, and Settings.
+SafeSpeak is an accessibility-focused application that turns approved livestream chat into speech. The Windows application remains the first release target; isolated Android and iOS development tracks now provide an early mobile test foundation. SafeSpeak filters banned terms and hostile intent before audio and always starts disarmed.
 
 > [!WARNING]
 > SafeSpeak reduces TTS abuse risk but cannot guarantee that every hostile message will be detected. It always starts disarmed. Disable any independent source-platform TTS and keep the platform's own moderation and trusted moderators active.
 
 ## Main release target
+
+SafeSpeak is now available from the [Microsoft Store](https://apps.microsoft.com/detail/9MTFGCPQCQ86). GitHub release candidates provide separate portable ZIP, MSI, and MSIX downloads after their Authenticode signatures and SHA-256 checksums pass the release workflow.
 
 The redesign below is in progress. Items described as targets are not release claims; the living [implementation and execution plan](docs/implementation-execution-plan.md) records the verified checkpoint and acceptance evidence.
 
@@ -41,22 +43,35 @@ Build self-contained ZIP, MSI, and MSIX candidates:
 Repository work uses two separate CI tracks. Pushes and pull requests targeting
 `develop` run the non-publishing development workflow and retain an unsigned x64
 portable ZIP for seven days. Pushes and pull requests targeting `main` run the
-full x64/ARM64 release packaging workflow. Microsoft Store packaging and upload
-remain manual, protected actions; development CI cannot contact Partner Center.
-Pushing a `v*` tag publishes the verified desktop packages as permanent GitHub
-Release downloads. The MSI supplies Windows-native upgrade, repair, and
+full x64/ARM64 release packaging workflow. After a successful push build on
+`main`, the exact verified commit triggers the Microsoft Store publisher. The
+protected `microsoft-store-production` environment requires reviewer approval
+before CI can verify Partner Center access, upload the Store bundle, and commit
+the update for certification. Development CI cannot contact Partner Center.
+Pushing a stable `v<version>` tag or prerelease `v<version>-rc.N` tag publishes
+the verified desktop packages as permanent GitHub Release downloads. Tagged
+releases fail closed unless the executable, MSI, and MSIX have valid
+Authenticode signatures. The MSI supplies Windows-native upgrade, repair, and
 uninstall; repair also resets the current user's SafeSpeak Local AppData.
 Its setup screens support Windows Narrator and show the **Windows+Ctrl+Enter**
 shortcut needed to start spoken setup.
 See the [development track guide](docs/development-track.md).
+
+Mobile work is planned but dormant. Its isolated branches and workflows remain
+outside the desktop promotion path and are not part of this release.
 
 The current four-part desktop version comes from `Directory.Build.props`. To test, build the self-contained x64 executable, and launch that exact verified build in one command, run `./installer/Build-And-Run.ps1`. The launcher validates the app host, managed code, runtime manifests, and pinned moderation assets before starting. This workflow does not start or stop the TikFinity emulator. The MSIX path requires Windows SDK packaging tools. Store submissions also require the identity assigned by Partner Center. See the [packaging guide](installer/README.md).
 
 ## Repository layout
 
 - `src/SafeSpeak.App` — keyboard-first WPF interface
+- `src/SafeSpeak.Mobile` — shared Android/iOS .NET MAUI test application
 - `src/SafeSpeak.Core` — moderation, speech, normalized events, connectors, accessibility, and audio
 - `tests/SafeSpeak.Core.Tests` — deterministic safety and regression tests
+- `tests/SafeSpeak.Mobile.Foundation.Tests` — portable mobile safety and connector-contract tests
+- `docs/store-submission-readiness.md` — Google Play and App Store account, signing, privacy, and CI handoff
+- `local-deployment/safespeak-web` — ignored, upload-ready privacy/support website created locally when preparing store submissions
+- `tools/website-deploy` — allowlisted, certificate-verified FTPS helper for the dedicated SafeSpeak website account
 - `docs` — product tracks, accessibility gates, connector rules, and voice details
 - `streamdeck` — optional secondary Stream Deck plug-in
 - `installer` — ZIP/MSI/MSIX and WinGet build tooling
@@ -69,7 +84,7 @@ The current four-part desktop version comes from `Directory.Build.props`. To tes
 - TikFinity payloads can change; release versions require privacy-safe compatibility fixtures and parser regression tests.
 - The development Kokoro package is roughly 326 MB and still needs a pinned source, checksum or signature, cancellation, and cleanup verification before it can be a release option.
 - Custom voice-package archive validation exists, but upload/import is not a usable release feature until at least one supported synthesis backend, atomic install and rollback, consent, licensing, progress, cancellation, preview, persistence, and deletion are complete.
-- Narrator, NVDA, JAWS, 200%/400% scaling, physical Stream Deck, clean-install, signing, and Store certification remain human release gates.
+- Narrator, NVDA, JAWS, 200%/400% scaling, physical Stream Deck, clean-install, and direct-download signing remain human release gates. Microsoft Store submission 1 passed certification on September 2, 2026.
 - Closing during active Windows and Kokoro speech is a manual release gate: input must stop immediately and the app must exit at the five-second cleanup deadline without a dialog or focus trap.
 - Built-in SafeSpeak guidance currently uses the Windows default playback device. Streamers who capture desktop audio must ensure that device is not included in the broadcast mix.
 
@@ -78,12 +93,18 @@ See the [moderation model details](docs/moderation-model.md), [product plan](doc
 ## License
 
 SafeSpeak is proprietary source-visible software; it is not open source.
-Official unmodified SafeSpeak binary releases are free to install and use,
-but the source code and original assets may not be copied, modified, built,
-redistributed, sublicensed, sold, or used to create a competing product
-without prior written permission. Public GitHub hosting still permits the
-limited viewing and forking rights supplied directly by GitHub's Terms of
-Service. See the [SafeSpeak Proprietary Source-Visible License](LICENSE).
+Official unmodified SafeSpeak binary releases are free of charge to install
+and use. Free does not mean public domain or open source: outside authorized
+store installation and sharing mechanisms, the binaries may not be repackaged,
+mirrored, or redistributed, and the source code and original assets may not be
+copied, modified, built, redistributed, sublicensed, sold, or used to create a
+competing product without prior written permission. Public GitHub hosting still
+permits the limited viewing and forking rights supplied directly by GitHub's
+Terms of Service. See the [SafeSpeak Proprietary Source-Visible License](LICENSE).
+
+Apple App Store copies use Apple's applicable App Store usage rules and end-user
+license terms for the installed binary. Those store rights do not turn the
+publicly visible SafeSpeak source or original assets into open-source material.
 The new license applies prospectively; SafeSpeak revisions already published
 under MIT remain available under the license that accompanied those revisions.
 

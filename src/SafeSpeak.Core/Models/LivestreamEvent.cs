@@ -11,9 +11,10 @@ public enum LivestreamEventType
     Like
 }
 
-/// <summary>A normalized TikTok LIVE event, independent of TikFinity's JSON shape.</summary>
+/// <summary>A normalized livestream event, independent of any provider's payload shape.</summary>
 public sealed record LivestreamEvent
 {
+    public string Platform { get; init; } = "Unknown";
     public LivestreamEventType Type { get; init; }
     public string Author { get; init; } = string.Empty;
     public string AuthorDisplayName { get; init; } = string.Empty;
@@ -31,6 +32,7 @@ public sealed record LivestreamEvent
         Author = Author,
         AuthorDisplayName = AuthorDisplayName,
         RawText = Text,
+        Platform = Platform,
         IsSubscriber = IsSubscriber,
         IsModerator = IsModerator,
         IsDonor = Type == LivestreamEventType.Gift,

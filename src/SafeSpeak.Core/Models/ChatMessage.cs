@@ -19,7 +19,7 @@ public enum SpokenAttributionStyle
 }
 
 /// <summary>
-/// Represents a normalized incoming chat message received from TikFinity or a test simulator.
+/// Represents a normalized incoming chat message received from any supported source.
 /// </summary>
 public sealed record ChatMessage
 {
@@ -30,7 +30,7 @@ public sealed record ChatMessage
     public SpokenAttributionStyle AttributionStyle { get; init; } = SpokenAttributionStyle.Says;
     public AuthorTier AuthorTier { get; init; } = AuthorTier.Viewer;
     public DateTimeOffset TimestampUtc { get; init; } = DateTimeOffset.UtcNow;
-    public string Platform { get; init; } = "TikTok";
+    public string Platform { get; init; } = "Unknown";
     public bool IsSubscriber { get; init; }
     public bool IsModerator { get; init; }
     public bool IsDonor { get; init; }

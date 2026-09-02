@@ -7,7 +7,7 @@ This is the authoritative, living plan for the SafeSpeak blind-first redesign. I
 | Field | Value |
 | --- | --- |
 | Plan status | Implementation in progress |
-| Last updated | 2026-08-31 |
+| Last updated | 2026-09-02 |
 | Current release baseline | 0.1.0.4 |
 | Working tree | Composite uncommitted work from the user, Gemini, and Codex; never reset wholesale |
 | Current checkpoint | Five-step Reader/Theme onboarding, accessible Settings routing, eight-action Stream Deck surface, pause-bypass queue, donor eligibility, conditional neural-voice installation, and obsolete monitor removal are integrated; 273 Core plus 80 App contracts pass; rendered acceptance remains open |
@@ -449,7 +449,7 @@ Theme resources should be split into Themes/Base.xaml, Themes/Light.xaml, Themes
 | REL-001 | NOT STARTED | Versioned zero-warning Release build and full tests. | Logs recorded. |
 | REL-002 | NOT STARTED | Package pointer/hash/version and clean-machine x64 smoke. | Paths, versions, SHA-256 recorded. |
 | REL-003 | NOT STARTED | Clean install, upgrade from 0.1.0.4, repair, uninstall, migration/preservation/reset. | Checklist complete. |
-| REL-004 | IN PROGRESS | Signing, Store, and WACK only after accessibility sign-off. | Repository-side x64/ARM64 bundle builder and protected manual publisher workflow are verified; Partner Center identity, initial live submission, final WACK, signing, and certification remain. |
+| REL-004 | IN PROGRESS | Separate Store signing from direct-download signing and keep Store updates protected. | Submission 1 is live and the Partner Center identity plus GitHub Store variables/environment secrets are configured. Store connection verification and the external CA-trusted Authenticode certificate for GitHub MSI/ZIP/MSIX releases remain. |
 
 ## P0 acceptance task script
 
@@ -531,6 +531,24 @@ Update this block at the end of every session.
 - Do not do next: do not use the audit bundle for submission; do not commit Partner Center secrets; do not enable push-to-Store publishing; do not commit a Store submission before reviewing its draft; do not run final WACK or submit before the P0 accessibility gates pass.
 
 ## Session log
+
+### 2026-09-02 - Kokoro Store fix and protected main promotion
+
+- Kept mobile work dormant and outside the desktop release path.
+- Reproduced the installed Microsoft Store payload at version 1.0.0.0. The package contained KokoroSharp, ONNX Runtime, and 28 English voice embeddings; it saw the existing 325 MB model, and the exact packaged binary synthesized `af_nova` to a valid WAV and completed playback through the active Realtek endpoint.
+- Fixed the Preview button's silent-failure and cancellation path: preview work is now awaitable, superseded synthesis is cancelled, and synthesis or playback failures are announced. Kokoro now loads voice embeddings from the packaged application base explicitly, and WASAPI playback reports device errors.
+- Added an opt-in installed-model Kokoro smoke test. Focused preview and real-model tests passed 3/3; the full Core suite passed 275/275 in the normal Windows environment.
+- Added a Store-specific `SafeSpeakStoreVersion` and changed the Store publisher to accept only a successful `Main release build` caused by a push to `main`. It checks out that exact commit and waits at the required `microsoft-store-production` reviewer gate before verifying access, uploading, and committing the bundle for certification.
+- Retained manual Store dispatch for read-only connection checks and draft-only uploads. `develop` still has no Store credentials or publishing authority.
+- Direct GitHub releases remain fail-closed until a separate public-trust Authenticode identity is provisioned; Microsoft Store signing cannot sign the GitHub MSI/EXE/MSIX downloads.
+
+### 2026-09-02 - Store publication and direct-release signing boundary
+
+- Partner Center authenticated as the SafeSpeak administrator and showed the product status **In Microsoft Store** with submission 1 live.
+- Captured the assigned non-secret identity: `TheProjectHub.SafeSpeak`, publisher `CN=E5322575-F870-45EA-BB35-68B0B2DE563E`, publisher display name `The Project Hub`, Store ID `9MTFGCPQCQ86`, and PFN `TheProjectHub.SafeSpeak_tq1kt9e4wnq7e`.
+- Verified the matching four GitHub repository variables, the protected `microsoft-store-production` environment, its required reviewer and branch policy, and all four Partner Center environment-secret names. Secret values were not read or printed.
+- Confirmed Microsoft Store signs only the Store-distributed MSIX. A separate CA-trusted Authenticode certificate is required for direct GitHub MSI/EXE/MSIX downloads; the Store signing private key cannot be exported.
+- Added fail-closed tagged-release signing, signed-executable coverage for the portable ZIP, release-candidate tag support, and a read-only `msstore apps get` CI connection check. Final verification and the first signed GitHub prerelease remain pending.
 
 ### 2026-09-01 - isolated development CI track
 
