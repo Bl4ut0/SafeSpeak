@@ -8,8 +8,8 @@ store release claims.
 
 | Platform | Development branch | Release-candidate branch | CI output |
 | --- | --- | --- | --- |
-| Android | `android/develop` | `android/main` | Installable test APK |
-| iOS | `ios/develop` | `ios/main` | Unsigned iOS Simulator `.app` ZIP |
+| Android | `android/develop` | `android/main` | Installable test APK; protected manual signed AAB candidate |
+| iOS | `ios/develop` | `ios/main` | Unsigned iOS Simulator `.app` ZIP; protected manual signed IPA candidate |
 
 The desktop branches remain `develop` and `main`. Mobile workflows have no
 Microsoft Partner Center, Google Play, App Store Connect, release, signing, or
@@ -28,9 +28,10 @@ mobile branches.
 6. Never merge either mobile `main` branch directly into desktop `main`.
 
 `android/main` and `ios/main` are release-candidate gates. They do not publish.
-Signed device distribution is added only after the corresponding store account,
-application identity, protected environment, signing material, and human release
-approval exist.
+Signed device workflows are defined but cannot run until the corresponding store
+account, protected environment, signing material, and human release approval
+exist. They are manual-only, reject the wrong platform branch, and never publish
+to a public production track. See `docs/store-submission-readiness.md`.
 
 ## Current test foundation
 

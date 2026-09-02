@@ -1,0 +1,1 @@
+Initial mobile test foundation for SafeSpeak moderation and device text-to-speech. Speech starts disarmed, messages must be reviewed before playback, and no live platform account is connected.

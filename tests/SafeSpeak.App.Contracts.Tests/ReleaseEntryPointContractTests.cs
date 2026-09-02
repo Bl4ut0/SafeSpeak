@@ -77,9 +77,7 @@ public sealed class ReleaseEntryPointContractTests
     {
         string workflow = Source(".github", "workflows", "desktop-build.yml");
 
-        Assert.Contains(
-            "run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format All",
-            workflow);
+        Assert.Contains("& ./installer/Build-Release.ps1 @arguments", workflow);
         Assert.Equal(1, Count(workflow, "./installer/Build-Release.ps1"));
         Assert.DoesNotContain("dotnet restore", workflow, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("dotnet test", workflow, StringComparison.OrdinalIgnoreCase);
@@ -92,11 +90,19 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("name: Publish tagged GitHub release", workflow);
         Assert.Contains("actions/download-artifact@v7", workflow);
         Assert.Contains("merge-multiple: true", workflow);
-        Assert.Contains("$expectedTag = \"v$($versions[0])\"", workflow);
+        Assert.Contains("$stableTag = \"v$($versions[0])\"", workflow);
+        Assert.Contains("$stableTag-rc.N", workflow);
+        Assert.Contains("--prerelease", workflow);
         Assert.Contains("does not match package version", workflow);
-        Assert.Contains("gh release create", workflow);
+        Assert.Contains("'release', 'create'", workflow);
         Assert.Contains("GH_REPO: ${{ github.repository }}", workflow);
         Assert.Contains("SHA256SUMS.txt", workflow);
+        Assert.Contains("WINDOWS_SIGNING_CERTIFICATE_BASE64", workflow);
+        Assert.Contains("WINDOWS_SIGNING_CERTIFICATE_PASSWORD", workflow);
+        Assert.Contains("Import-PfxCertificate", workflow);
+        Assert.Contains("-CertificateThumbprint", workflow);
+        Assert.Contains("expandedApplication.signatureStatus", workflow);
+        Assert.Contains("Unsigned release packages", workflow);
     }
 
     [Fact]
@@ -195,12 +201,33 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("SafeSpeak Proprietary Source-Visible License", license);
         Assert.Contains("Copyright (c) 2026 Alex Mammen. All rights reserved.", license);
         Assert.Contains("Free use of official binary releases", license);
+        Assert.Contains("Free does not mean", readme);
+        Assert.Contains("Apple App Store", license);
+        Assert.Contains("official SafeSpeak GitHub Releases", license);
+        Assert.Contains("It does not permit", license);
+        Assert.Contains("repackaging, mirroring, or publication", license);
+        Assert.Contains("the store term", license);
+        Assert.Contains("controls only for the binary", license);
         Assert.Contains("Source visibility does not grant permission", license);
         Assert.Contains("previous MIT license", license);
         Assert.Contains("Third-Party Materials remain governed by their respective licenses", license);
         Assert.DoesNotContain("MIT License\n\nCopyright (c) 2026 SafeSpeak contributors", license);
         Assert.Contains("it is not open source", readme);
         Assert.Contains("THIRD-PARTY-NOTICES.md", readme);
+    }
+
+    [Fact]
+    public void StoreMetadata_UsesProprietaryLicenseAndAppleStandardEula()
+    {
+        string winget = Source("installer", "New-WingetManifests.ps1");
+        string storeLicense = Source("docs", "store-listing", "en-US", "licensing.md");
+
+        Assert.Contains("License: Proprietary", winget);
+        Assert.DoesNotContain("License: MIT", winget);
+        Assert.Contains("Price tier: Free", storeLicense);
+        Assert.Contains("Apple Standard EULA", storeLicense);
+        Assert.Contains("not open source", storeLicense);
+        Assert.Contains("not automatically change", storeLicense);
     }
 
     [Fact]
@@ -269,6 +296,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("default: false", workflow);
+        Assert.Contains("default: 1.0.1.0", workflow);
         Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
         Assert.Contains("PACKAGE_VERSION: ${{ inputs.package_version }}", workflow);
         Assert.Contains("-PackageVersion $env:PACKAGE_VERSION", workflow);
@@ -284,6 +312,28 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("$arguments += '--noCommit'", workflow);
         Assert.Contains("PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}", workflow);
         Assert.DoesNotContain("PARTNER_CENTER_CLIENT_SECRET: ${{ vars.", workflow);
+        Assert.Contains("verify_connection:", workflow);
+        Assert.Contains("inputs.verify_connection || inputs.upload_draft", workflow);
+        Assert.Contains("msstore apps get $env:STORE_APP_ID", workflow);
+    }
+
+    [Fact]
+    public void ReleaseSigning_CoversPortableExecutableBeforeAllPackages()
+    {
+        string script = ReleaseScript();
+        int executableSigning = script.IndexOf(
+            "'verify', '/pa', '/v', $executablePath",
+            StringComparison.Ordinal);
+        int zipPackaging = script.IndexOf("Compress-Archive", StringComparison.Ordinal);
+        int msixPackaging = script.IndexOf("'pack', '/d'", StringComparison.Ordinal);
+        int msiPackaging = script.IndexOf("& $msiBuildScript", StringComparison.Ordinal);
+
+        Assert.True(executableSigning >= 0);
+        Assert.True(executableSigning < zipPackaging);
+        Assert.True(executableSigning < msixPackaging);
+        Assert.True(executableSigning < msiPackaging);
+        Assert.Contains("signatureStatus = $executableSignature.Status.ToString()", script);
+        Assert.Contains("signerSubject = if ($executableSignature.SignerCertificate)", script);
     }
 
     private static void AssertSolutionProject(string solution, string name, string path)

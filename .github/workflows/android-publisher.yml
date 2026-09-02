@@ -1,0 +1,197 @@
+name: Google Play release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      display_version:
+        description: Public version in three-part form, such as 0.1.0
+        required: true
+        default: 0.1.0
+        type: string
+      build_number:
+        description: Increasing Google Play version code
+        required: true
+        default: '4'
+        type: string
+      upload_to_play:
+        description: Upload the signed bundle to the Google Play internal track
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safespeak-google-play-production
+  cancel-in-progress: false
+
+jobs:
+  signed-android-release:
+    name: Build signed Android App Bundle
+    runs-on: windows-latest
+    timeout-minutes: 60
+    environment:
+      name: google-play-production
+    env:
+      DISPLAY_VERSION: ${{ inputs.display_version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+
+    steps:
+      - name: Require the Android release branch and valid version
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          if ($env:GITHUB_REF_NAME -ne 'android/main') {
+            throw 'Google Play candidates must run from android/main.'
+          }
+          if ($env:DISPLAY_VERSION -notmatch '^\d+\.\d+\.\d+$') {
+            throw 'display_version must contain three numeric parts.'
+          }
+          $parsedBuild = 0
+          if (-not [int]::TryParse($env:BUILD_NUMBER, [ref]$parsedBuild) -or $parsedBuild -lt 1) {
+            throw 'build_number must be a positive integer.'
+          }
+
+          $required = @(
+            'ANDROID_KEYSTORE_BASE64',
+            'ANDROID_KEY_ALIAS',
+            'ANDROID_KEY_PASSWORD',
+            'ANDROID_STORE_PASSWORD'
+          )
+          $missing = @($required | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+            throw "Missing protected Android signing configuration: $($missing -join ', ')"
+          }
+
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install mobile .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: mobile/global.json
+
+      - name: Install supported Java development kit
+        uses: actions/setup-java@v5
+        with:
+          distribution: microsoft
+          java-version: '17'
+
+      - name: Install Android workload
+        working-directory: mobile
+        shell: pwsh
+        run: dotnet workload install maui-android
+
+      - name: Install required Android SDK components
+        working-directory: mobile
+        shell: pwsh
+        run: >-
+          dotnet build ../src/SafeSpeak.Mobile/SafeSpeak.Mobile.csproj
+          -t:InstallAndroidDependencies
+          -f net10.0-android
+          -p:SafeSpeakMobileTargetFrameworks=net10.0-android
+          -p:AndroidSdkDirectory="$env:ANDROID_HOME"
+          -p:JavaSdkDirectory="$env:JAVA_HOME"
+          -p:AcceptAndroidSdkLicenses=true
+
+      - name: Test portable mobile foundation
+        working-directory: mobile
+        shell: pwsh
+        run: dotnet test ../tests/SafeSpeak.Mobile.Foundation.Tests/SafeSpeak.Mobile.Foundation.Tests.csproj -c Release
+
+      - name: Restore protected Android signing files
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          $keystorePath = Join-Path $env:RUNNER_TEMP 'safespeak-upload.keystore'
+          $keyPasswordPath = Join-Path $env:RUNNER_TEMP 'safespeak-key-password.txt'
+          $storePasswordPath = Join-Path $env:RUNNER_TEMP 'safespeak-store-password.txt'
+          [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+          [IO.File]::WriteAllText($keyPasswordPath, $env:ANDROID_KEY_PASSWORD)
+          [IO.File]::WriteAllText($storePasswordPath, $env:ANDROID_STORE_PASSWORD)
+
+      - name: Build signed Google Play bundle
+        working-directory: mobile
+        shell: pwsh
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          $keystorePath = Join-Path $env:RUNNER_TEMP 'safespeak-upload.keystore'
+          $keyPasswordPath = Join-Path $env:RUNNER_TEMP 'safespeak-key-password.txt'
+          $storePasswordPath = Join-Path $env:RUNNER_TEMP 'safespeak-store-password.txt'
+          $arguments = @(
+            'publish', '../src/SafeSpeak.Mobile/SafeSpeak.Mobile.csproj',
+            '-c', 'Release',
+            '-f', 'net10.0-android',
+            '-p:SafeSpeakMobileTargetFrameworks=net10.0-android',
+            '-p:AndroidPackageFormats=aab',
+            '-p:AndroidKeyStore=true',
+            "-p:AndroidSigningKeyStore=$keystorePath",
+            "-p:AndroidSigningKeyAlias=$env:ANDROID_KEY_ALIAS",
+            "-p:AndroidSigningKeyPass=file:$keyPasswordPath",
+            "-p:AndroidSigningStorePass=file:$storePasswordPath",
+            "-p:ApplicationDisplayVersion=$env:DISPLAY_VERSION",
+            "-p:ApplicationVersion=$env:BUILD_NUMBER",
+            "-p:AndroidSdkDirectory=$env:ANDROID_HOME",
+            "-p:JavaSdkDirectory=$env:JAVA_HOME"
+          )
+          & dotnet @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "Android publish failed with exit code $LASTEXITCODE."
+          }
+
+          $signedBundles = @(Get-ChildItem '../src/SafeSpeak.Mobile/bin/Release/net10.0-android' -Recurse -Filter '*-signed.aab' -File)
+          if ($signedBundles.Count -ne 1) {
+            throw "Expected exactly one signed AAB and found $($signedBundles.Count)."
+          }
+          New-Item -ItemType Directory -Path '../artifacts/android-release' -Force | Out-Null
+          Copy-Item -LiteralPath $signedBundles[0].FullName -Destination "../artifacts/android-release/SafeSpeak-$env:DISPLAY_VERSION-$env:BUILD_NUMBER-signed.aab"
+
+      - name: Upload signed release candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: SafeSpeak-Android-${{ inputs.display_version }}-${{ inputs.build_number }}-signed
+          path: artifacts/android-release/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Validate Google Play upload credentials
+        if: inputs.upload_to_play
+        shell: pwsh
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_PLAY_SERVICE_ACCOUNT_JSON)) {
+            throw 'GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is required when upload_to_play is enabled.'
+          }
+
+      - name: Upload to Google Play internal track
+        if: inputs.upload_to_play
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.theprojecthub.safespeak.mobile
+          releaseFiles: artifacts/android-release/*.aab
+          tracks: internal
+          status: draft
+          changesNotSentForReview: true
+
+      - name: Remove protected signing files
+        if: always()
+        shell: pwsh
+        run: |
+          @(
+            (Join-Path $env:RUNNER_TEMP 'safespeak-upload.keystore'),
+            (Join-Path $env:RUNNER_TEMP 'safespeak-key-password.txt'),
+            (Join-Path $env:RUNNER_TEMP 'safespeak-store-password.txt')
+          ) | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }

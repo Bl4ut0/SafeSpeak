@@ -41,7 +41,7 @@ PublisherUrl: https://github.com/Bl4ut0/SafeSpeak
 PublisherSupportUrl: https://github.com/Bl4ut0/SafeSpeak/issues
 PackageName: SafeSpeak
 PackageUrl: https://github.com/Bl4ut0/SafeSpeak
-License: MIT
+License: Proprietary
 LicenseUrl: https://github.com/Bl4ut0/SafeSpeak/blob/main/LICENSE
 ShortDescription: Accessible TTS moderation and playback for livestreamers.
 Description: SafeSpeak connects to a local livestream event source, moderates messages, and provides controllable text-to-speech playback for blind, low-vision, and sighted streamers.

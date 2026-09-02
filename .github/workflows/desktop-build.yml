@@ -33,9 +33,74 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Import release code-signing certificate
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD)) {
+            throw 'Tagged releases require WINDOWS_SIGNING_CERTIFICATE_BASE64 and WINDOWS_SIGNING_CERTIFICATE_PASSWORD.'
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'safespeak-code-signing.pfx'
+          try {
+            [IO.File]::WriteAllBytes(
+              $certificatePath,
+              [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
+            $password = ConvertTo-SecureString `
+              $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD -AsPlainText -Force
+            $importedCertificates = @(
+              Import-PfxCertificate `
+                -FilePath $certificatePath `
+                -CertStoreLocation Cert:\CurrentUser\My `
+                -Password $password `
+                -Exportable:$false
+            )
+          }
+          finally {
+            Remove-Item -LiteralPath $certificatePath -Force -ErrorAction SilentlyContinue
+          }
+
+          $certificate = @($importedCertificates | Where-Object {
+            $_.HasPrivateKey -and
+            $_.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3'
+          }) | Select-Object -First 1
+          if (-not $certificate) {
+            throw 'The imported certificate must contain a private key and the Code Signing EKU.'
+          }
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$($certificate.Thumbprint)" >> $env:GITHUB_ENV
+          "WINDOWS_CERTIFICATE_SUBJECT=$($certificate.Subject)" >> $env:GITHUB_ENV
+          "WINDOWS_IMPORTED_CERTIFICATE_THUMBPRINTS=$($importedCertificates.Thumbprint -join ';')" >> $env:GITHUB_ENV
+
       - name: Build, test, and package desktop application
         shell: pwsh
-        run: ./installer/Build-Release.ps1 -Architecture ${{ matrix.architecture }} -Format All
+        run: |
+          $arguments = @(
+            '-Architecture', '${{ matrix.architecture }}',
+            '-Format', 'All'
+          )
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_THUMBPRINT)) {
+            $arguments += @(
+              '-CertificateThumbprint', $env:WINDOWS_CERTIFICATE_THUMBPRINT,
+              '-Publisher', $env:WINDOWS_CERTIFICATE_SUBJECT
+            )
+          }
+          & ./installer/Build-Release.ps1 @arguments
+
+      - name: Remove imported release certificate
+        if: always() && startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_IMPORTED_CERTIFICATE_THUMBPRINTS)) {
+            foreach ($thumbprint in $env:WINDOWS_IMPORTED_CERTIFICATE_THUMBPRINTS.Split(';')) {
+              Remove-Item `
+                -LiteralPath "Cert:\CurrentUser\My\$thumbprint" `
+                -Force -ErrorAction SilentlyContinue
+            }
+          }
 
       - name: Validate and package Stream Deck plug-in
         if: matrix.architecture == 'x64'
@@ -82,9 +147,29 @@ jobs:
           if ($reports.Count -ne 2 -or $versions.Count -ne 1) {
             throw 'The x64 and ARM64 release reports do not contain one shared package version.'
           }
-          $expectedTag = "v$($versions[0])"
-          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
-            throw "Release tag '$env:GITHUB_REF_NAME' does not match package version '$($versions[0])'. Expected '$expectedTag'."
+
+          $stableTag = "v$($versions[0])"
+          $releaseArguments = @()
+          if ($env:GITHUB_REF_NAME -eq $stableTag) {
+            "SAFESPEAK_RELEASE_PRERELEASE=false" >> $env:GITHUB_ENV
+          }
+          elseif ($env:GITHUB_REF_NAME -match "^$([regex]::Escape($stableTag))-rc\.[1-9][0-9]*$") {
+            "SAFESPEAK_RELEASE_PRERELEASE=true" >> $env:GITHUB_ENV
+          }
+          else {
+            throw "Release tag '$env:GITHUB_REF_NAME' does not match package version '$($versions[0])'. Expected '$stableTag' or '$stableTag-rc.N'."
+          }
+
+          foreach ($report in $reports) {
+            if ($report.expandedApplication.signatureStatus -ne 'Valid') {
+              throw "The $($report.runtimeIdentifier) application executable is not Authenticode signed."
+            }
+            $unsignedPackages = @($report.artifacts | Where-Object {
+              $_.file -match '\.(msi|msix)$' -and $_.signatureStatus -ne 'Valid'
+            })
+            if ($unsignedPackages.Count -gt 0) {
+              throw "Unsigned release packages: $($unsignedPackages.file -join ', ')"
+            }
           }
 
           $assets = @(Get-ChildItem -LiteralPath 'release-assets' -File |
@@ -108,7 +193,14 @@ jobs:
           $assets = @(Get-ChildItem -LiteralPath 'release-assets' -File |
             Sort-Object Name |
             Select-Object -ExpandProperty FullName)
-          gh release create $env:GITHUB_REF_NAME @assets `
-            --verify-tag `
-            --generate-notes `
-            --title "SafeSpeak $env:GITHUB_REF_NAME"
+          $arguments = @(
+            'release', 'create', $env:GITHUB_REF_NAME
+          ) + $assets + @(
+            '--verify-tag',
+            '--generate-notes',
+            '--title', "SafeSpeak $env:GITHUB_REF_NAME"
+          )
+          if ($env:SAFESPEAK_RELEASE_PRERELEASE -eq 'true') {
+            $arguments += '--prerelease'
+          }
+          & gh @arguments

@@ -13,7 +13,38 @@ node_modules/
 dist/
 coverage/
 secrets.json
+
+# Environment files and transfer-client configuration can contain credentials.
+# Keep safe templates so a clean checkout still documents required settings.
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/.ftpconfig
+*.ftpconfig
+**/.sftp-config.json
+*.sftp-config.json
+**/ftp-config.json
+**/sftp-config.json
+**/.lftp/
+*.key
+*.ppk
+*.p12
 *.pfx
 *.snk
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
 installer/winget/*.yaml
 installer/winget/*.yml
+
+# SafeSpeak website transfer credentials are local-only. The example remains
+# tracked so every field and safety default is documented.
+tools/website-deploy/.env
+tools/website-deploy/.deploy-state.json
+tools/website-deploy/.transfer-cache/
+
+# Local, upload-ready legal/support website. This intentionally stays outside
+# the application repository so deployment details can be managed separately.
+local-deployment/

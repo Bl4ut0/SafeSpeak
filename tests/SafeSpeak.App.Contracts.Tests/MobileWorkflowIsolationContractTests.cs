@@ -45,6 +45,58 @@ public sealed class MobileWorkflowIsolationContractTests
         Assert.DoesNotContain("ios/", development, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void AndroidPublisher_IsManualProtectedAndInternalOnly()
+    {
+        string workflow = Source(".github", "workflows", "android-publisher.yml");
+
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.DoesNotContain("pull_request:", workflow);
+        Assert.DoesNotContain("push:", workflow);
+        Assert.Contains("google-play-production", workflow);
+        Assert.Contains("android/main", workflow);
+        Assert.Contains("AndroidPackageFormats=aab", workflow);
+        Assert.Contains("AndroidKeyStore=true", workflow);
+        Assert.Contains("tracks: internal", workflow);
+        Assert.Contains("status: draft", workflow);
+        Assert.DoesNotContain("tracks: production", workflow);
+        Assert.Contains("upload_to_play", workflow);
+    }
+
+    [Fact]
+    public void IosPublisher_IsManualProtectedAndTestFlightOnly()
+    {
+        string workflow = Source(".github", "workflows", "ios-publisher.yml");
+
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.DoesNotContain("pull_request:", workflow);
+        Assert.DoesNotContain("push:", workflow);
+        Assert.Contains("apple-app-store-production", workflow);
+        Assert.Contains("ios/main", workflow);
+        Assert.Contains("ArchiveOnBuild=true", workflow);
+        Assert.Contains("RuntimeIdentifier=ios-arm64", workflow);
+        Assert.Contains("upload-testflight-build", workflow);
+        Assert.Contains("upload_to_testflight", workflow);
+        Assert.DoesNotContain("App Store release", workflow, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void IosProject_IncludesRequiredPrivacyManifestFoundation()
+    {
+        string project = Source("src", "SafeSpeak.Mobile", "SafeSpeak.Mobile.csproj");
+        string manifest = Source("src", "SafeSpeak.Mobile", "Platforms", "iOS", "PrivacyInfo.xcprivacy");
+
+        Assert.Contains("PrivacyInfo.xcprivacy", project);
+        Assert.Contains("NSPrivacyAccessedAPICategoryFileTimestamp", manifest);
+        Assert.Contains("C617.1", manifest);
+        Assert.Contains("NSPrivacyAccessedAPICategorySystemBootTime", manifest);
+        Assert.Contains("35F9.1", manifest);
+        Assert.Contains("NSPrivacyAccessedAPICategoryDiskSpace", manifest);
+        Assert.Contains("E174.1", manifest);
+        Assert.Contains("NSPrivacyTracking", manifest);
+        Assert.Contains("<false/>", manifest);
+    }
+
     private static void AssertNonPublishing(string workflow)
     {
         Assert.DoesNotContain("secrets.", workflow, StringComparison.OrdinalIgnoreCase);
