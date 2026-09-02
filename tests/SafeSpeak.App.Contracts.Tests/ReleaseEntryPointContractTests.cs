@@ -77,7 +77,10 @@ public sealed class ReleaseEntryPointContractTests
     {
         string workflow = Source(".github", "workflows", "desktop-build.yml");
 
-        Assert.Contains("& ./installer/Build-Release.ps1 @arguments", workflow);
+        Assert.Contains("& ./installer/Build-Release.ps1 @buildParameters", workflow);
+        Assert.Contains("$buildParameters = @{", workflow);
+        Assert.Contains("Architecture = '${{ matrix.architecture }}'", workflow);
+        Assert.DoesNotContain("& ./installer/Build-Release.ps1 @arguments", workflow);
         Assert.Equal(1, Count(workflow, "./installer/Build-Release.ps1"));
         Assert.DoesNotContain("dotnet restore", workflow, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("dotnet test", workflow, StringComparison.OrdinalIgnoreCase);
@@ -100,7 +103,8 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("WINDOWS_SIGNING_CERTIFICATE_BASE64", workflow);
         Assert.Contains("WINDOWS_SIGNING_CERTIFICATE_PASSWORD", workflow);
         Assert.Contains("Import-PfxCertificate", workflow);
-        Assert.Contains("-CertificateThumbprint", workflow);
+        Assert.Contains("$buildParameters.CertificateThumbprint", workflow);
+        Assert.Contains("$buildParameters.Publisher", workflow);
         Assert.Contains("expandedApplication.signatureStatus", workflow);
         Assert.Contains("Unsigned release packages", workflow);
     }

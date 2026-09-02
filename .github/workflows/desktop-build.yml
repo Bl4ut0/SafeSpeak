@@ -78,17 +78,15 @@ jobs:
       - name: Build, test, and package desktop application
         shell: pwsh
         run: |
-          $arguments = @(
-            '-Architecture', '${{ matrix.architecture }}',
-            '-Format', 'All'
-          )
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_THUMBPRINT)) {
-            $arguments += @(
-              '-CertificateThumbprint', $env:WINDOWS_CERTIFICATE_THUMBPRINT,
-              '-Publisher', $env:WINDOWS_CERTIFICATE_SUBJECT
-            )
+          $buildParameters = @{
+            Architecture = '${{ matrix.architecture }}'
+            Format = 'All'
           }
-          & ./installer/Build-Release.ps1 @arguments
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_THUMBPRINT)) {
+            $buildParameters.CertificateThumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT
+            $buildParameters.Publisher = $env:WINDOWS_CERTIFICATE_SUBJECT
+          }
+          & ./installer/Build-Release.ps1 @buildParameters
 
       - name: Remove imported release certificate
         if: always() && startsWith(github.ref, 'refs/tags/v')
