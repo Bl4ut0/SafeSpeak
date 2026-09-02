@@ -125,7 +125,7 @@ The Entra application represented by those credentials must be associated with P
 
 `installer/Build-StoreBundle.ps1` runs the release entry point for x64 and ARM64, performs the full test pass once, creates a neutral `.msixbundle`, unbundles it for structural verification, and records hashes in a Store bundle report. It rejects placeholder identity values and Store-incompatible versions.
 
-`.github/workflows/store-publisher.yml` is manual-only. Its safe default builds and retains a candidate, authenticates through the protected environment, and uses `msstore apps get` to verify access to exactly `STORE_APP_ID` without changing the live submission. `upload_draft` requires approval and uploads with `--noCommit`; `commit_submission` must also be deliberately selected to send that upload to Microsoft certification. Do not enable a push-to-Store trigger or remove the protected reviewer.
+`.github/workflows/store-publisher.yml` runs automatically only after the `Main release build` succeeds for a push to `main`. It checks out that exact successful commit, builds the Store version from `SafeSpeakStoreVersion`, and then waits at the protected environment. After the required reviewer approves, it uses `msstore apps get` to verify access to exactly `STORE_APP_ID`, uploads the verified bundle, and commits the update for Microsoft certification. Manual dispatch remains available: its defaults perform a read-only connection check, while `upload_draft` uploads with `--noCommit` unless `commit_submission` is deliberately selected. Do not remove the protected reviewer.
 
 ## Continuous packaging verification
 
@@ -133,7 +133,7 @@ The Entra application represented by those credentials must be associated with P
 
 `.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A stable tag such as `v0.1.0.4` publishes a normal release; `v0.1.0.4-rc.1` publishes a prerelease for the same four-part package version. Every tagged build requires the two signing secrets and publishes only after both architecture reports prove valid executable, MSI, and MSIX signatures. `SHA256SUMS.txt` covers every downloadable artifact.
 
-The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. Store packaging and Partner Center access remain in the separate manual-only publisher workflow.
+The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. A successful push build on `main` then triggers the separate protected Store publisher; `develop` cannot reach Partner Center.
 
 ## WinGet publication
 

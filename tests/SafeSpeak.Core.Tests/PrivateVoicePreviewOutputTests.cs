@@ -17,14 +17,28 @@ public sealed class PrivateVoicePreviewOutputTests
             Volume = 72
         };
 
-        output.Speak("Private voice test", interrupt: true);
-        await router.PlaybackStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await output.SpeakAsync("Private voice test", interrupt: true)
+            .WaitAsync(TimeSpan.FromSeconds(3));
 
         Assert.Equal("Private voice test", engine.Text);
         Assert.Equal("kokoro:af_heart", engine.VoiceId);
         Assert.Equal(3, engine.Rate);
         Assert.Equal(100, engine.Volume);
         Assert.Equal(0.72f, router.Volume, precision: 2);
+    }
+
+    [Fact]
+    public async Task SpeakAsync_ReportsSynthesisFailuresToTheCaller()
+    {
+        var expected = new InvalidOperationException("Kokoro runtime failed.");
+        await using var output = new PrivateVoicePreviewOutput(
+            new FailingTtsEngine(expected),
+            new RecordingAudioRouter());
+
+        InvalidOperationException actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => output.SpeakAsync("Failure test", interrupt: true));
+
+        Assert.Same(expected, actual);
     }
 
     private sealed class RecordingTtsEngine : ITtsEngine
@@ -82,6 +96,29 @@ public sealed class PrivateVoicePreviewOutputTests
             PlaybackStarted.TrySetResult();
             return Task.CompletedTask;
         }
+
+        public void Stop() { }
+        public void Dispose() { }
+    }
+
+    private sealed class FailingTtsEngine(Exception exception) : ITtsEngine
+    {
+        public IReadOnlyList<VoiceInfo> GetAvailableVoices() => Array.Empty<VoiceInfo>();
+
+        public Task SynthesizeToWaveStreamAsync(
+            string text,
+            Stream outputStream,
+            string? voiceId = null,
+            int rate = 0,
+            int volume = 100,
+            CancellationToken cancellationToken = default) => Task.FromException(exception);
+
+        public Task SpeakDirectAsync(
+            string text,
+            string? voiceId = null,
+            int rate = 0,
+            int volume = 100,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Stop() { }
         public void Dispose() { }

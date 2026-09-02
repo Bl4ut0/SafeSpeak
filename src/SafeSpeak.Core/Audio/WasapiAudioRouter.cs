@@ -83,7 +83,14 @@ public sealed class WasapiAudioRouter : IAudioRouter
                     void OnPlaybackStopped(object? sender, StoppedEventArgs e)
                     {
                         if (_wasapiOut != null) _wasapiOut.PlaybackStopped -= OnPlaybackStopped;
-                        tcs.TrySetResult(true);
+                        if (e.Exception is not null)
+                        {
+                            tcs.TrySetException(e.Exception);
+                        }
+                        else
+                        {
+                            tcs.TrySetResult(true);
+                        }
                     }
 
                     _wasapiOut.PlaybackStopped += OnPlaybackStopped;

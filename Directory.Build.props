@@ -2,6 +2,8 @@
   <PropertyGroup>
     <!-- Single source of truth for the current SafeSpeak desktop/package version. -->
     <SafeSpeakVersion>0.1.0.4</SafeSpeakVersion>
+    <!-- Partner Center requires a non-zero major version and reserves revision zero. -->
+    <SafeSpeakStoreVersion>1.0.1.0</SafeSpeakStoreVersion>
     <!-- Mobile stores require a three-part display version plus an integer build. -->
     <SafeSpeakMobileVersion>0.1.0</SafeSpeakMobileVersion>
     <SafeSpeakMobileBuild>4</SafeSpeakMobileBuild>

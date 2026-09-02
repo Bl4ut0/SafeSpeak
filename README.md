@@ -43,8 +43,11 @@ Build self-contained ZIP, MSI, and MSIX candidates:
 Repository work uses two separate CI tracks. Pushes and pull requests targeting
 `develop` run the non-publishing development workflow and retain an unsigned x64
 portable ZIP for seven days. Pushes and pull requests targeting `main` run the
-full x64/ARM64 release packaging workflow. Microsoft Store packaging and upload
-remain manual, protected actions; development CI cannot contact Partner Center.
+full x64/ARM64 release packaging workflow. After a successful push build on
+`main`, the exact verified commit triggers the Microsoft Store publisher. The
+protected `microsoft-store-production` environment requires reviewer approval
+before CI can verify Partner Center access, upload the Store bundle, and commit
+the update for certification. Development CI cannot contact Partner Center.
 Pushing a stable `v<version>` tag or prerelease `v<version>-rc.N` tag publishes
 the verified desktop packages as permanent GitHub Release downloads. Tagged
 releases fail closed unless the executable, MSI, and MSIX have valid
@@ -54,10 +57,8 @@ Its setup screens support Windows Narrator and show the **Windows+Ctrl+Enter**
 shortcut needed to start spoken setup.
 See the [development track guide](docs/development-track.md).
 
-Mobile work is isolated on `android/develop`, `android/main`, `ios/develop`, and
-`ios/main`. Android CI produces a test APK, while iOS CI produces an unsigned
-Simulator build. Neither mobile workflow publishes or contains store signing
-authority. See the [mobile development tracks](docs/mobile-development-tracks.md).
+Mobile work is planned but dormant. Its isolated branches and workflows remain
+outside the desktop promotion path and are not part of this release.
 
 The current four-part desktop version comes from `Directory.Build.props`. To test, build the self-contained x64 executable, and launch that exact verified build in one command, run `./installer/Build-And-Run.ps1`. The launcher validates the app host, managed code, runtime manifests, and pinned moderation assets before starting. This workflow does not start or stop the TikFinity emulator. The MSIX path requires Windows SDK packaging tools. Store submissions also require the identity assigned by Partner Center. See the [packaging guide](installer/README.md).
 

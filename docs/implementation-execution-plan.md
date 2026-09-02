@@ -532,6 +532,16 @@ Update this block at the end of every session.
 
 ## Session log
 
+### 2026-09-02 - Kokoro Store fix and protected main promotion
+
+- Kept mobile work dormant and outside the desktop release path.
+- Reproduced the installed Microsoft Store payload at version 1.0.0.0. The package contained KokoroSharp, ONNX Runtime, and 28 English voice embeddings; it saw the existing 325 MB model, and the exact packaged binary synthesized `af_nova` to a valid WAV and completed playback through the active Realtek endpoint.
+- Fixed the Preview button's silent-failure and cancellation path: preview work is now awaitable, superseded synthesis is cancelled, and synthesis or playback failures are announced. Kokoro now loads voice embeddings from the packaged application base explicitly, and WASAPI playback reports device errors.
+- Added an opt-in installed-model Kokoro smoke test. Focused preview and real-model tests passed 3/3; the full Core suite passed 275/275 in the normal Windows environment.
+- Added a Store-specific `SafeSpeakStoreVersion` and changed the Store publisher to accept only a successful `Main release build` caused by a push to `main`. It checks out that exact commit and waits at the required `microsoft-store-production` reviewer gate before verifying access, uploading, and committing the bundle for certification.
+- Retained manual Store dispatch for read-only connection checks and draft-only uploads. `develop` still has no Store credentials or publishing authority.
+- Direct GitHub releases remain fail-closed until a separate public-trust Authenticode identity is provisioned; Microsoft Store signing cannot sign the GitHub MSI/EXE/MSIX downloads.
+
 ### 2026-09-02 - Store publication and direct-release signing boundary
 
 - Partner Center authenticated as the SafeSpeak administrator and showed the product status **In Microsoft Store** with submission 1 live.
