@@ -279,7 +279,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("'unbundle', '/p'", script);
         Assert.Contains("Microsoft Store reserves the fourth package version component", script);
         Assert.Contains("SafeSpeakStoreVersion", script);
-        Assert.Contains("<SafeSpeakStoreVersion>1.0.1.0</SafeSpeakStoreVersion>", properties);
+        Assert.Contains("<SafeSpeakStoreVersion>1.0.2.0</SafeSpeakStoreVersion>", properties);
         Assert.Contains("requires the assigned Partner Center identity and publisher", script);
         Assert.DoesNotContain("Start-Process", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TikFinityEmulator", script, StringComparison.OrdinalIgnoreCase);
@@ -309,7 +309,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("default: false", workflow);
-        Assert.Contains("default: 1.0.1.0", workflow);
+        Assert.Contains("default: 1.0.2.0", workflow);
         Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
         Assert.Contains("SafeSpeakStoreVersion", workflow);
         Assert.Contains("steps.store-version.outputs.version", workflow);

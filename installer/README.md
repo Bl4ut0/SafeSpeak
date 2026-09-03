@@ -89,7 +89,7 @@ Before each Store build:
 ```powershell
 ./installer/Build-Release.ps1 `
   -Architecture x64 `
-  -PackageVersion 1.0.1.0 `
+  -PackageVersion 1.0.2.0 `
   -Format Msix `
   -StoreSubmission `
   -IdentityName "PARTNER_CENTER_IDENTITY_NAME" `
@@ -131,7 +131,7 @@ The Entra application represented by those credentials must be associated with P
 
 `.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A stable tag such as `v0.1.0.4` publishes a normal release; `v0.1.0.4-rc.1` publishes a prerelease for the same four-part package version. Every tagged build requires the two signing secrets and publishes only after both architecture reports prove valid executable, MSI, and MSIX signatures. `SHA256SUMS.txt` covers every downloadable artifact.
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A stable tag such as `v1.0.2.0` publishes a normal release; `v1.0.2.0-rc.1` publishes a prerelease for the same four-part package version. Every tagged build requires the two signing secrets and publishes only after both architecture reports prove valid executable, MSI, and MSIX signatures. `SHA256SUMS.txt` covers every downloadable artifact.
 
 The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. A successful push build on `main` then triggers the separate protected Store publisher; `develop` cannot reach Partner Center.
 

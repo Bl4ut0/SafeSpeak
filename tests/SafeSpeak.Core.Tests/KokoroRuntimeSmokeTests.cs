@@ -6,6 +6,52 @@ namespace SafeSpeak.Core.Tests;
 public sealed class KokoroRuntimeSmokeTests
 {
     [Fact]
+    public void PackagedVoiceAssets_AreStagedInWritableApplicationData()
+    {
+        string testRoot = Path.Combine(Path.GetTempPath(), "SafeSpeak.Tests", Guid.NewGuid().ToString("N"));
+        string modelDirectory = Path.Combine(testRoot, "model");
+        string sourceDirectory = Path.Combine(testRoot, "package", "voices");
+        Directory.CreateDirectory(sourceDirectory);
+
+        try
+        {
+            foreach (VoiceInfo voice in KokoroModelManager.EnglishVoices)
+            {
+                string voiceName = voice.Id[KokoroModelManager.VoicePrefix.Length..];
+                string sourcePath = Path.Combine(sourceDirectory, voiceName + ".npy");
+                File.WriteAllBytes(sourcePath, [1, 2, 3, 4]);
+                File.SetAttributes(sourcePath, File.GetAttributes(sourcePath) | FileAttributes.ReadOnly);
+            }
+
+            using var manager = new KokoroModelManager(modelDirectory, sourceDirectory);
+            manager.EnsureVoiceAssetsAreAccessible();
+
+            Assert.Equal(Path.Combine(modelDirectory, "voices"), manager.VoiceDirectory);
+            Assert.NotEqual(sourceDirectory, manager.VoiceDirectory);
+            foreach (VoiceInfo voice in KokoroModelManager.EnglishVoices)
+            {
+                string voiceName = voice.Id[KokoroModelManager.VoicePrefix.Length..];
+                string stagedPath = Path.Combine(manager.VoiceDirectory, voiceName + ".npy");
+                Assert.True(File.Exists(stagedPath));
+                Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(stagedPath));
+                Assert.False((File.GetAttributes(stagedPath) & FileAttributes.ReadOnly) != 0);
+            }
+        }
+        finally
+        {
+            try
+            {
+                foreach (string file in Directory.EnumerateFiles(testRoot, "*", SearchOption.AllDirectories))
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                }
+                Directory.Delete(testRoot, recursive: true);
+            }
+            catch { }
+        }
+    }
+
+    [Fact]
     public async Task InstalledModel_SynthesizesAValidWave_WhenSmokeModelIsProvided()
     {
         string? modelPath = Environment.GetEnvironmentVariable("SAFESPEAK_KOKORO_MODEL_PATH");
