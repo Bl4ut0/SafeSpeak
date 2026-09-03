@@ -83,7 +83,7 @@ without deleting approved behavior from the same files.
 | --- | --- | --- | --- |
 | M | .github/workflows/desktop-build.yml | KEEP | Valid multi-architecture CI using the hardened release script and central version. |
 | M | README.md | REVISE | Replace obsolete accessibility profiles, Default theme, and incomplete playback/onboarding copy. |
-| ?? | Directory.Build.props | KEEP | Required version 0.1.0.4 source of truth. |
+| ?? | Directory.Build.props | KEEP | Required version 1.0.2.0 source of truth. |
 | M | docs/product-plan.md | REVISE | Reconcile obsolete completion, Skip/profile, and voice assumptions with the living plan. |
 | M | docs/ui-accessibility-roadmap.md | REVISE | Replace obsolete controls/profile names and add selector narration plus expanded workflow. |
 | M | docs/voice-engines.md | REVISE | Align with the approved validated, runnable custom voice-pack path. |

@@ -18,7 +18,9 @@ public sealed class KokoroModelManager : IDisposable
         "0CFD5E79AAB70A3D8C1A57DC639835110DDB32C9F5FF4FDD1F4DB202EA43BB05";
 
     private readonly SemaphoreSlim _synthesisLock = new(1, 1);
+    private readonly string _voiceSourceDirectory;
     private KokoroWavSynthesizer? _synthesizer;
+    private bool _voiceAssetsPrepared;
 
     public string ModelDirectory { get; }
     public string VoiceDirectory { get; }
@@ -56,12 +58,13 @@ public sealed class KokoroModelManager : IDisposable
         Voice("bm_lewis", "Lewis", "en-GB", "Male", "Measured British voice")
     ];
 
-    public KokoroModelManager(string? modelDirectory = null)
+    public KokoroModelManager(string? modelDirectory = null, string? voiceSourceDirectory = null)
     {
         ModelDirectory = modelDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SafeSpeak", "Models", "Kokoro");
-        VoiceDirectory = Path.Combine(AppContext.BaseDirectory, "voices");
+        _voiceSourceDirectory = voiceSourceDirectory ?? Path.Combine(AppContext.BaseDirectory, "voices");
+        VoiceDirectory = Path.Combine(ModelDirectory, "voices");
         Directory.CreateDirectory(ModelDirectory);
     }
 
@@ -144,9 +147,11 @@ public sealed class KokoroModelManager : IDisposable
         try
         {
             _synthesizer ??= new KokoroWavSynthesizer(ModelPath);
-            // Use the packaged application base explicitly. Relying on the
-            // library's implicit lookup can resolve relative to the launcher
-            // rather than the MSIX payload in an identity-bearing process.
+            // KokoroSharp opens voice embeddings in a way that is incompatible
+            // with the Store-protected WindowsApps payload. Stage the trusted
+            // packaged assets in Local AppData and load only from that writable
+            // application-owned location.
+            EnsureVoiceAssetsAreAccessible();
             KokoroVoiceManager.LoadVoicesFromPath(VoiceDirectory);
             var voice = KokoroVoiceManager.GetVoice(voiceName);
             var config = new KokoroTTSPipelineConfig
@@ -161,6 +166,55 @@ public sealed class KokoroModelManager : IDisposable
         finally
         {
             _synthesisLock.Release();
+        }
+    }
+
+    internal void EnsureVoiceAssetsAreAccessible()
+    {
+        if (_voiceAssetsPrepared)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(VoiceDirectory);
+
+        foreach (VoiceInfo voice in EnglishVoices)
+        {
+            string voiceName = voice.Id[VoicePrefix.Length..];
+            string fileName = voiceName + ".npy";
+            string sourcePath = Path.Combine(_voiceSourceDirectory, fileName);
+            string destinationPath = Path.Combine(VoiceDirectory, fileName);
+
+            if (!File.Exists(sourcePath))
+            {
+                throw new FileNotFoundException(
+                    $"The packaged Kokoro voice asset is missing: {fileName}",
+                    sourcePath);
+            }
+
+            string temporaryPath = destinationPath + ".copying";
+            try
+            {
+                File.Copy(sourcePath, temporaryPath, overwrite: true);
+                EnsureWritable(temporaryPath);
+                File.Move(temporaryPath, destinationPath, overwrite: true);
+                EnsureWritable(destinationPath);
+            }
+            finally
+            {
+                try { File.Delete(temporaryPath); } catch { }
+            }
+        }
+
+        _voiceAssetsPrepared = true;
+    }
+
+    private static void EnsureWritable(string path)
+    {
+        FileAttributes attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.ReadOnly) != 0)
+        {
+            File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
         }
     }
 
