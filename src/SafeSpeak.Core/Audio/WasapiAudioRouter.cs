@@ -90,7 +90,9 @@ public sealed class WasapiAudioRouter : IAudioRouter
 
                     targetDevice ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
 
-                    var output = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 80);
+                    // A short shared-mode buffer keeps sequential chat messages
+                    // responsive while retaining enough headroom for stable playback.
+                    var output = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 30);
                     _wasapiOut = output;
                     output.Init(_currentVolumeProvider);
 

@@ -99,7 +99,37 @@ public sealed class ModerationPipeline : IDisposable
             };
         }
 
-        // 3. User Cooldown Rule
+        // 3. Adjustable per-viewer and whole-stream sliding rate limits.
+        if (Config.MessageRateLimitEnabled)
+        {
+            int windowSeconds = Config.MessageRateWindow == MessageRateWindow.OneSecond ? 1 : 10;
+            RuleEngine.MessageRateResult rateResult = _ruleEngine.TryAcceptMessageRate(
+                message.Author,
+                windowSeconds,
+                Math.Clamp(Config.PerUserMessageLimit, 1, 100),
+                Math.Clamp(Config.StreamMessageLimit, 10, 5000),
+                DateTimeOffset.UtcNow);
+            if (rateResult != RuleEngine.MessageRateResult.Allowed)
+            {
+                bool perUser = rateResult == RuleEngine.MessageRateResult.UserLimitExceeded;
+                return new ModerationDecision
+                {
+                    Message = message,
+                    Disposition = ModerationDisposition.Rejected,
+                    ReasonCode = perUser
+                        ? ModerationReasonCode.UserCooldown
+                        : ModerationReasonCode.SpamPattern,
+                    ReasonDescription = perUser
+                        ? $"Sender exceeded {Config.PerUserMessageLimit} messages per {windowSeconds} seconds"
+                        : $"Stream exceeded {Config.StreamMessageLimit} messages per {windowSeconds} seconds",
+                    SpokenText = string.Empty,
+                    NormalizedText = message.RawText
+                };
+            }
+        }
+
+        // 4. Legacy user cooldown rule retained for API compatibility. The app
+        // uses the adjustable sliding rate limit above instead.
         if (_ruleEngine.IsUserInCooldown(message.Author, Config.UserCooldownSeconds, DateTimeOffset.UtcNow))
         {
             return new ModerationDecision
@@ -113,7 +143,7 @@ public sealed class ModerationPipeline : IDisposable
             };
         }
 
-        // 4. Script & Language Validation
+        // 5. Script & Language Validation
         if (Config.RejectMixedScripts && ScriptValidator.ContainsMixedScriptWords(message.RawText))
         {
             return new ModerationDecision

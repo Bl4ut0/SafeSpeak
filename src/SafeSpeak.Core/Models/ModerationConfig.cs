@@ -21,6 +21,12 @@ public enum ModerationStrictness
     Maximum = 2
 }
 
+public enum MessageRateWindow
+{
+    OneSecond = 1,
+    TenSeconds = 10
+}
+
 /// <summary>
 /// Configuration for the SafeSpeak moderation pipeline.
 /// </summary>
@@ -30,6 +36,10 @@ public sealed class ModerationConfig
     public ModerationStrictness Strictness { get; set; } = ModerationStrictness.High;
     public int MaxMessageLength { get; set; } = 200;
     public int UserCooldownSeconds { get; set; } = 5;
+    public bool MessageRateLimitEnabled { get; set; }
+    public MessageRateWindow MessageRateWindow { get; set; } = MessageRateWindow.TenSeconds;
+    public int PerUserMessageLimit { get; set; } = 3;
+    public int StreamMessageLimit { get; set; } = 500;
     public bool EnglishOnly { get; set; } = true;
     public bool RejectMixedScripts { get; set; } = true;
     public bool StripUrls { get; set; } = true;

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.Core.Audio;
@@ -40,9 +41,20 @@ public sealed class TtsQueue : IAsyncDisposable
     private int _queuedCount;
     private TtsPlaybackMode _mode = TtsPlaybackMode.Disarmed;
     private bool _isSpeaking;
+    private bool _isPlayingAudio;
     private bool _disposed;
     private CancellationTokenSource? _activePlaybackCts;
+    private PrefetchOperation? _prefetch;
+    private long _lastAutomaticPlaybackFinishedTimestamp;
     private readonly Task _playbackLoopTask;
+
+    private sealed record SynthesisSettings(string? VoiceId, int Rate, int Volume);
+
+    private sealed record PrefetchOperation(
+        ModerationDecision Decision,
+        SynthesisSettings Settings,
+        CancellationTokenSource Cancellation,
+        Task<byte[]> SynthesisTask);
 
     public TtsPlaybackMode Mode
     {
@@ -81,6 +93,8 @@ public sealed class TtsQueue : IAsyncDisposable
     public int SpeechRate { get; set; }
     public int SpeechVolume { get; set; } = 100;
     public bool BroadcastOutputEnabled { get; set; } = true;
+    public int InterMessageGapMilliseconds { get; set; }
+    public bool AdaptiveInterMessageGap { get; set; } = true;
 
     public TtsQueue(
         ITtsEngine ttsEngine,
@@ -148,6 +162,9 @@ public sealed class TtsQueue : IAsyncDisposable
         }
 
         ReleaseSignal();
+        StartPrefetch(
+            bypassPause ? _pauseBypassQueue : _queue,
+            bypassPause ? null : Mode);
         NotifyStateChanged();
         return true;
     }
@@ -392,6 +409,11 @@ public sealed class TtsQueue : IAsyncDisposable
 
         try
         {
+            if (requiredMode != TtsPlaybackMode.Manual)
+            {
+                await WaitForInterMessageGapAsync(sourceQueue, cancellationToken);
+            }
+
             lock (_stateLock)
             {
                 if (_disposed ||
@@ -414,7 +436,11 @@ public sealed class TtsQueue : IAsyncDisposable
 
             NotifyStateChanged();
             RaisePlaybackEvent(PlaybackStarted, decision);
-            await SynthesizeAndPlayAsync(decision, playbackCts.Token);
+            await SynthesizeAndPlayAsync(
+                decision,
+                sourceQueue,
+                requiredMode,
+                playbackCts.Token);
             return true;
         }
         catch (OperationCanceledException)
@@ -440,6 +466,12 @@ public sealed class TtsQueue : IAsyncDisposable
                 }
 
                 playbackCts?.Dispose();
+                if (requiredMode != TtsPlaybackMode.Manual)
+                {
+                    Volatile.Write(
+                        ref _lastAutomaticPlaybackFinishedTimestamp,
+                        Stopwatch.GetTimestamp());
+                }
                 NotifyStateChanged();
                 RaisePlaybackEvent(PlaybackFinished, decision);
             }
@@ -450,26 +482,233 @@ public sealed class TtsQueue : IAsyncDisposable
         }
     }
 
+    private async Task WaitForInterMessageGapAsync(
+        ConcurrentQueue<ModerationDecision> sourceQueue,
+        CancellationToken cancellationToken)
+    {
+        long lastFinished = Volatile.Read(ref _lastAutomaticPlaybackFinishedTimestamp);
+        if (lastFinished == 0 || sourceQueue.IsEmpty)
+        {
+            return;
+        }
+
+        int maximumGap = Math.Clamp(InterMessageGapMilliseconds, 0, 5000);
+        int effectiveGap = CalculateEffectiveInterMessageGap(
+            maximumGap,
+            AdaptiveInterMessageGap,
+            sourceQueue.Count);
+        if (effectiveGap <= 0)
+        {
+            return;
+        }
+
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(lastFinished);
+        TimeSpan remaining = TimeSpan.FromMilliseconds(effectiveGap) - elapsed;
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining, cancellationToken);
+        }
+    }
+
+    internal static int CalculateEffectiveInterMessageGap(
+        int maximumGapMilliseconds,
+        bool adaptive,
+        int pendingMessageCount)
+    {
+        int gap = Math.Clamp(maximumGapMilliseconds, 0, 5000);
+        if (!adaptive || pendingMessageCount <= 1)
+        {
+            return gap;
+        }
+
+        return pendingMessageCount switch
+        {
+            >= 10 => 0,
+            >= 5 => gap / 4,
+            _ => gap / 2
+        };
+    }
+
     private async Task SynthesizeAndPlayAsync(
         ModerationDecision decision,
+        ConcurrentQueue<ModerationDecision> sourceQueue,
+        TtsPlaybackMode? requiredMode,
+        CancellationToken cancellationToken)
+    {
+        var settings = new SynthesisSettings(
+            SelectedVoice,
+            SpeechRate,
+            SpeechVolume);
+        byte[] waveBytes = await GetOrSynthesizeWaveAsync(
+            decision,
+            settings,
+            cancellationToken);
+
+        if (BroadcastOutputEnabled)
+        {
+            lock (_stateLock)
+            {
+                _isPlayingAudio = true;
+            }
+
+            try
+            {
+                // Prepare one queued message while the current message is
+                // audibly playing. This removes per-message synthesis from the
+                // gap without overlapping playback or buffering the full queue.
+                StartPrefetch(sourceQueue, requiredMode);
+                await _audioRouter.PlayWaveStreamAsync(
+                    new MemoryStream(waveBytes, writable: false),
+                    settings.Volume / 100.0f,
+                    cancellationToken);
+            }
+            finally
+            {
+                lock (_stateLock)
+                {
+                    _isPlayingAudio = false;
+                }
+            }
+        }
+    }
+
+    private async Task<byte[]> GetOrSynthesizeWaveAsync(
+        ModerationDecision decision,
+        SynthesisSettings settings,
+        CancellationToken cancellationToken)
+    {
+        PrefetchOperation? matching = null;
+        PrefetchOperation? stale = null;
+
+        lock (_stateLock)
+        {
+            if (_prefetch is not null &&
+                ReferenceEquals(_prefetch.Decision, decision) &&
+                _prefetch.Settings == settings)
+            {
+                matching = _prefetch;
+                _prefetch = null;
+            }
+            else if (_prefetch is not null)
+            {
+                stale = _prefetch;
+                _prefetch = null;
+            }
+        }
+
+        CancelAndDisposeWhenComplete(stale);
+
+        if (matching is not null)
+        {
+            bool disposeDirectly = true;
+            try
+            {
+                return await matching.SynthesisTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                CancelAndDisposeWhenComplete(matching);
+                disposeDirectly = false;
+                throw;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // A stop operation can cancel an in-flight preview. If this
+                // item is still eligible, synthesize it again as current work.
+            }
+            catch when (!cancellationToken.IsCancellationRequested)
+            {
+                // A speculative failure must not discard an approved message;
+                // the normal synthesis path gets one authoritative attempt.
+            }
+            finally
+            {
+                if (disposeDirectly)
+                {
+                    matching.Cancellation.Dispose();
+                }
+            }
+        }
+
+        return await SynthesizeWaveAsync(decision, settings, cancellationToken);
+    }
+
+    private async Task<byte[]> SynthesizeWaveAsync(
+        ModerationDecision decision,
+        SynthesisSettings settings,
         CancellationToken cancellationToken)
     {
         using var waveStream = new MemoryStream();
         await _ttsEngine.SynthesizeToWaveStreamAsync(
             decision.SpokenText,
             waveStream,
-            SelectedVoice,
-            SpeechRate,
-            SpeechVolume,
+            settings.VoiceId,
+            settings.Rate,
+            settings.Volume,
             cancellationToken);
+        return waveStream.ToArray();
+    }
 
-        if (BroadcastOutputEnabled)
+    private void StartPrefetch(
+        ConcurrentQueue<ModerationDecision> sourceQueue,
+        TtsPlaybackMode? requiredMode)
+    {
+        PrefetchOperation? stale = null;
+
+        lock (_stateLock)
         {
-            await _audioRouter.PlayWaveStreamAsync(
-                new MemoryStream(waveStream.ToArray(), writable: false),
-                SpeechVolume / 100.0f,
-                cancellationToken);
+            if (_disposed ||
+                !_isPlayingAudio ||
+                _mode == TtsPlaybackMode.Disarmed ||
+                requiredMode == TtsPlaybackMode.Manual ||
+                (requiredMode.HasValue && _mode != requiredMode.Value) ||
+                !sourceQueue.TryPeek(out ModerationDecision? next) ||
+                next is null)
+            {
+                return;
+            }
+
+            var settings = new SynthesisSettings(
+                SelectedVoice,
+                SpeechRate,
+                SpeechVolume);
+            if (_prefetch is not null &&
+                ReferenceEquals(_prefetch.Decision, next) &&
+                _prefetch.Settings == settings)
+            {
+                return;
+            }
+
+            stale = _prefetch;
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                _queueLoopCts.Token);
+            _prefetch = new PrefetchOperation(
+                next,
+                settings,
+                cancellation,
+                SynthesizeWaveAsync(next, settings, cancellation.Token));
         }
+
+        CancelAndDisposeWhenComplete(stale);
+    }
+
+    private static void CancelAndDisposeWhenComplete(PrefetchOperation? operation)
+    {
+        if (operation is null)
+        {
+            return;
+        }
+
+        try { operation.Cancellation.Cancel(); } catch (ObjectDisposedException) { }
+        _ = operation.SynthesisTask.ContinueWith(
+            completed =>
+            {
+                _ = completed.Exception;
+                operation.Cancellation.Dispose();
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private void ClearQueueLocked()
@@ -477,6 +716,9 @@ public sealed class TtsQueue : IAsyncDisposable
         _queue.Clear();
         _pauseBypassQueue.Clear();
         _queuedCount = 0;
+        PrefetchOperation? prefetch = _prefetch;
+        _prefetch = null;
+        CancelAndDisposeWhenComplete(prefetch);
     }
 
     private void WakePlaybackLoopIfReady()

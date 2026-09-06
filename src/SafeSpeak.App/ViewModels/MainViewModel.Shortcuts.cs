@@ -103,7 +103,7 @@ public sealed partial class MainViewModel
         "Page 1, theme. The Theme selector is one keyboard stop. Use Left or Right Arrow to choose Light, Dark, or High Contrast. The selected theme is announced immediately; Tab continues without changing it.",
         "Page 2, built-in guidance. Choose whether SafeSpeak speaks focused controls, its private output device, volume from zero to one hundred fifty percent, speech speed, detailed or short descriptions, and typed-character echo. Test guidance and Shut up affect only SafeSpeak guidance, never livestream text to speech.",
         "Page 3, keyboard shortcuts. Global shortcuts work outside SafeSpeak while it is running. Choose an action, enable it, record the desired key combination, and apply it. The only fixed application shortcuts are Control plus 1, 2, 3, or 4 to open the four main pages.",
-        "Page 4, approved-message queue. The queue limit sets how many approved messages may wait. Lowering the limit never deletes messages already waiting.",
+        "Page 4, queue and spam limits. The queue limit sets how many approved messages may wait. Optional rolling spam limits separately control messages from one viewer and messages across the whole stream, counted per one second or per ten seconds. Their saved values remain adjustable while the limits are off.",
         "Page 5, language and audience. These controls decide which writing systems and viewer groups are eligible before a message can enter speech. Moderation still applies to every eligible message.",
         "Page 6, stream announcements and pause behavior. Choose which event types may speak and which events may continue when chat speech is paused. Emergency Stop always stops and clears all livestream speech.",
         "Page 7, local audit logs. Logging is optional and off until enabled. Logs may contain usernames, raw chat, gifts, and moderation decisions. The Open logs folder button shows where those files are stored.",
@@ -114,11 +114,11 @@ public sealed partial class MainViewModel
         "Settings guide. " + string.Join(" ", SettingsGuidePages);
     public bool AreSettingsGuideControlsAtEnd => !AreSettingsGuideControlsAtTop;
     public string SettingsGuideVisibilityButtonText =>
-        AreSettingsGuideControlsAtTop ? "Hide guide" : "Show guide";
+        AreSettingsGuideControlsAtTop ? "Move controls to bottom" : "Move controls to top";
     public string SettingsGuideVisibilityButtonAutomationName =>
         AreSettingsGuideControlsAtTop
-            ? "Move the Settings guide buttons to the end of the page"
-            : "Move the Settings guide buttons back to the top of the page";
+            ? "Move the Settings guide controls to the bottom of the page"
+            : "Move the Settings guide controls to the top of the page";
 
     [RelayCommand]
     public void ReadSettingsGuide() =>
@@ -156,8 +156,8 @@ public sealed partial class MainViewModel
     {
         AreSettingsGuideControlsAtTop = !AreSettingsGuideControlsAtTop;
         AnnounceState(AreSettingsGuideControlsAtTop
-            ? "Settings guide buttons moved to the top of the page."
-            : "Settings guide buttons moved to the end of the page. The visible guide text remains on screen.");
+            ? "Settings guide controls moved to the top of the page. The button you pressed moved with them and is now labeled Move controls to bottom. Navigate to the top of the Settings page to find it again."
+            : "Settings guide controls moved to the bottom of the page. The button you pressed moved with them and is now labeled Move controls to top. Navigate to the bottom of the Settings page to find it again. The guide text remains visible.");
     }
 
     partial void OnAreSettingsGuideControlsAtTopChanged(bool value)

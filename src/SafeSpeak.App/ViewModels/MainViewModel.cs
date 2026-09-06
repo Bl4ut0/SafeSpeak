@@ -98,6 +98,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _queueLimit = 50;
 
     [ObservableProperty]
+    private int _interMessageGapTenths;
+
+    [ObservableProperty]
+    private bool _adaptiveInterMessageGap = true;
+
+    [ObservableProperty]
+    private bool _messageRateLimitEnabled = true;
+
+    [ObservableProperty]
+    private MessageRateWindow _selectedMessageRateWindow = MessageRateWindow.TenSeconds;
+
+    [ObservableProperty]
+    private int _perUserMessageLimit = 3;
+
+    [ObservableProperty]
+    private int _streamMessageLimit = 500;
+
+    [ObservableProperty]
     private string _customBlockedInput = "";
 
     [ObservableProperty]
@@ -220,6 +238,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         new(AudienceMode.SubscribersOnly, "Subscribers", 3),
         new(AudienceMode.ModeratorsOnly, "Moderators", 4)
     ];
+    public IReadOnlyList<MessageRateWindowChoice> MessageRateWindowChoices { get; } =
+    [
+        new(MessageRateWindow.OneSecond, "Per 1 second", 1),
+        new(MessageRateWindow.TenSeconds, "Per 10 seconds", 2)
+    ];
     public bool IsKokoroInstalled => _kokoroManager.IsInstalled;
     public bool ShowKokoroInstallAction => !IsKokoroInstalled;
     public string KokoroInstallationStatus => IsKokoroInstalled
@@ -235,6 +258,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         : $"{CustomAllowedTerms.Count} custom allowed terms";
     public string QueueLimitAccessibleText =>
         $"Approved message queue limit: {Math.Clamp(QueueLimit, 1, 500)} pending items.";
+    public string InterMessageGapAccessibleText =>
+        $"Maximum time between queued voices: {Math.Clamp(InterMessageGapTenths, 0, 50) / 10.0:0.0} seconds. " +
+        (AdaptiveInterMessageGap
+            ? "Adaptive spacing is on and shortens this delay as the queue fills."
+            : "Adaptive spacing is off and this delay stays fixed.");
+    public string InterMessageGapDisplay =>
+        $"{Math.Clamp(InterMessageGapTenths, 0, 50) / 10.0:0.0} s";
+    public string MessageRateWindowAccessibleText =>
+        $"Spam limit time window: {(SelectedMessageRateWindow == MessageRateWindow.OneSecond ? "1 second" : "10 seconds")}.";
+    public string PerUserMessageLimitAccessibleText =>
+        $"Per-viewer spam limit: {Math.Clamp(PerUserMessageLimit, 1, 100)} messages {MessageRateWindowPhrase}.";
+    public string StreamMessageLimitAccessibleText =>
+        $"Whole-stream spam limit: {Math.Clamp(StreamMessageLimit, 10, 5000)} messages {MessageRateWindowPhrase}.";
+    private string MessageRateWindowPhrase =>
+        SelectedMessageRateWindow == MessageRateWindow.OneSecond
+            ? "per second"
+            : "per 10 seconds";
     public int RetainedLiveFeedCount => _heldLiveFeedDecisions.Count;
     public int DroppedHeldLiveFeedCount => Math.Max(0, HeldLiveFeedCount - RetainedLiveFeedCount);
     public string LiveFeedReviewStatus => IsLiveFeedReviewPaused
@@ -387,7 +427,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         "Built-in severe-abuse phrases and your custom banned words or phrases.",
         "Explicit sexual exploitation, sexualization, or solicitation involving a child or underage person.",
         "Unicode, spacing, and character-substitution normalization before blocked-term checks.",
-        "Message length, audience eligibility, and per-user message cooldown.",
+        "Message length and audience eligibility before contextual classification.",
         "Mixed-writing-system protection and English-only filtering when their switches are enabled.",
         "Fail-closed protection: a message is blocked if contextual classification is unavailable."
     ];
@@ -420,11 +460,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         ]));
     public bool AreSafetyGuideControlsAtEnd => !AreSafetyGuideControlsAtTop;
     public string SafetyGuideVisibilityButtonText =>
-        AreSafetyGuideControlsAtTop ? "Hide guide" : "Show guide";
+        AreSafetyGuideControlsAtTop ? "Move controls to bottom" : "Move controls to top";
     public string SafetyGuideVisibilityButtonAutomationName =>
         AreSafetyGuideControlsAtTop
-            ? "Move the Safety guide buttons to the end of the page"
-            : "Move the Safety guide buttons back to the top of the page";
+            ? "Move the Safety guide controls to the bottom of the page"
+            : "Move the Safety guide controls to the top of the page";
 
     [RelayCommand]
     public void ReadModerationGuide()
@@ -465,8 +505,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         AreSafetyGuideControlsAtTop = !AreSafetyGuideControlsAtTop;
         AnnounceState(AreSafetyGuideControlsAtTop
-            ? "Safety guide buttons moved to the top of the page."
-            : "Safety guide buttons moved to the end of the page. The visible guide text remains on screen.");
+            ? "Safety guide controls moved to the top of the page. The button you pressed moved with them and is now labeled Move controls to bottom. Navigate to the top of the Safety page to find it again."
+            : "Safety guide controls moved to the bottom of the page. The button you pressed moved with them and is now labeled Move controls to top. Navigate to the bottom of the Safety page to find it again. The guide text remains visible.");
     }
 
     partial void OnAreSafetyGuideControlsAtTopChanged(bool value)
@@ -544,6 +584,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string DisplayName,
         int Position);
 
+    public sealed record MessageRateWindowChoice(
+        MessageRateWindow Value,
+        string DisplayName,
+        int Position);
+
     private readonly KokoroModelManager _kokoroManager;
 
     public MainViewModel()
@@ -584,6 +629,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         NarrateTypedCharacters = _settings.NarrateTypedCharacters;
         InterfaceTextScalePercent = Math.Clamp(_settings.InterfaceTextScalePercent, 100, 200);
         QueueLimit = Math.Clamp(_settings.QueueLimit, 1, 500);
+        InterMessageGapTenths = Math.Clamp(
+            (int)Math.Round(_settings.InterMessageGapMilliseconds / 100.0),
+            0,
+            50);
+        AdaptiveInterMessageGap = _settings.AdaptiveInterMessageGap;
+        MessageRateLimitEnabled = Config.MessageRateLimitEnabled;
+        SelectedMessageRateWindow = Enum.IsDefined(Config.MessageRateWindow)
+            ? Config.MessageRateWindow
+            : MessageRateWindow.TenSeconds;
+        PerUserMessageLimit = Math.Clamp(Config.PerUserMessageLimit, 1, 100);
+        StreamMessageLimit = Math.Clamp(Config.StreamMessageLimit, 10, 5000);
         BroadcastOutputEnabled = _settings.BroadcastOutputEnabled;
         AnnounceChatMessages = _settings.AnnounceChatMessages;
         AnnounceGifts = _settings.AnnounceGifts;
@@ -989,6 +1045,103 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.QueueLimit = normalized;
         SaveSettingsOrReport();
         AnnounceState($"Approved message queue limit changed to {normalized}.");
+    }
+
+    partial void OnInterMessageGapTenthsChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 0, 50);
+        if (value != normalized)
+        {
+            InterMessageGapTenths = normalized;
+            return;
+        }
+
+        if (_ttsQueue is not null) _ttsQueue.InterMessageGapMilliseconds = normalized * 100;
+        OnPropertyChanged(nameof(InterMessageGapAccessibleText));
+        OnPropertyChanged(nameof(InterMessageGapDisplay));
+        if (_isInitializing) return;
+        _settings.InterMessageGapMilliseconds = normalized * 100;
+        SaveSettingsOrReport();
+    }
+
+    partial void OnAdaptiveInterMessageGapChanged(bool value)
+    {
+        if (_ttsQueue is not null) _ttsQueue.AdaptiveInterMessageGap = value;
+        OnPropertyChanged(nameof(InterMessageGapAccessibleText));
+        if (_isInitializing) return;
+        _settings.AdaptiveInterMessageGap = value;
+        SaveSettingsOrReport();
+        AnnounceState(value
+            ? "Adaptive queued-voice spacing enabled. The delay shortens as the queue fills."
+            : "Adaptive queued-voice spacing disabled. The selected delay stays fixed.");
+    }
+
+    partial void OnMessageRateLimitEnabledChanged(bool value)
+    {
+        Config.MessageRateLimitEnabled = value;
+        _pipeline?.Rules.ResetCooldowns();
+        if (_isInitializing) return;
+        PersistModerationSettings();
+        AnnounceState(value
+            ? "Message spam limits enabled."
+            : "Message spam limits disabled. Saved limit values remain available.");
+    }
+
+    partial void OnSelectedMessageRateWindowChanged(MessageRateWindow value)
+    {
+        MessageRateWindow normalized = Enum.IsDefined(value)
+            ? value
+            : MessageRateWindow.TenSeconds;
+        if (value != normalized)
+        {
+            SelectedMessageRateWindow = normalized;
+            return;
+        }
+
+        Config.MessageRateWindow = normalized;
+        _pipeline?.Rules.ResetCooldowns();
+        OnPropertyChanged(nameof(MessageRateWindowAccessibleText));
+        OnPropertyChanged(nameof(PerUserMessageLimitAccessibleText));
+        OnPropertyChanged(nameof(StreamMessageLimitAccessibleText));
+        if (_isInitializing) return;
+        PersistModerationSettings();
+        AnnounceOptionSelection(
+            "Spam limit time window",
+            MessageRateWindowChoices.First(choice => choice.Value == normalized).DisplayName,
+            normalized == MessageRateWindow.OneSecond ? 0 : 1,
+            MessageRateWindowChoices.Count);
+    }
+
+    partial void OnPerUserMessageLimitChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 1, 100);
+        if (value != normalized)
+        {
+            PerUserMessageLimit = normalized;
+            return;
+        }
+
+        Config.PerUserMessageLimit = normalized;
+        _pipeline?.Rules.ResetCooldowns();
+        OnPropertyChanged(nameof(PerUserMessageLimitAccessibleText));
+        if (_isInitializing) return;
+        PersistModerationSettings();
+    }
+
+    partial void OnStreamMessageLimitChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 10, 5000);
+        if (value != normalized)
+        {
+            StreamMessageLimit = normalized;
+            return;
+        }
+
+        Config.StreamMessageLimit = normalized;
+        _pipeline?.Rules.ResetCooldowns();
+        OnPropertyChanged(nameof(StreamMessageLimitAccessibleText));
+        if (_isInitializing) return;
+        PersistModerationSettings();
     }
 
     partial void OnIsLiveFeedReviewPausedChanged(bool value) =>
@@ -1943,6 +2096,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.SpeechVolume = Math.Clamp(SpeechVolume, 0, 150);
         _settings.ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
         _settings.QueueLimit = Math.Clamp(QueueLimit, 1, 500);
+        _settings.InterMessageGapMilliseconds = Math.Clamp(InterMessageGapTenths, 0, 50) * 100;
+        _settings.AdaptiveInterMessageGap = AdaptiveInterMessageGap;
         SaveSettingsOrReport();
     }
 
