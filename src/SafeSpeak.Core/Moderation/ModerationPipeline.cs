@@ -175,6 +175,11 @@ public sealed class ModerationPipeline : IDisposable
             {
                 throw new InvalidDataException("The contextual safety layer returned invalid scores.");
             }
+
+            intentResult = ContextualTargetingPolicy.Apply(
+                message.RawText,
+                normalizedForInspection,
+                intentResult);
         }
         catch (OperationCanceledException)
         {

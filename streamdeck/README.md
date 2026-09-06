@@ -7,13 +7,14 @@ This separately installed Windows plug-in exposes SafeSpeak controls in Elgato's
 The plug-in deliberately exposes only the controls needed during a live session:
 
 1. Hear Status
-2. Arm or Disarm
-3. Emergency Stop
-4. Automatic or Manual Playback Mode
-5. Pause or Resume TTS
-6. Speak Next
-7. Stop Current
-8. Clear Queue
+2. Stop Guidance (the “Shut Up” control stops only SafeSpeak's built-in narrator)
+3. Arm or Disarm
+4. Emergency Stop
+5. Automatic or Manual Playback Mode
+6. Pause or Resume TTS
+7. Speak Next
+8. Stop Current (stops only the current stream TTS item)
+9. Clear Queue
 
 Safety rules, announcement types, source connections, audio routing, usernames,
 language filtering, moderation strength, and themes are configured inside

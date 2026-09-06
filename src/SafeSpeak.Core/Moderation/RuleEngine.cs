@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.Core.Moderation;
@@ -110,10 +109,33 @@ public sealed class RuleEngine
     private static bool ContainsTerm(string normalizedText, string term)
     {
         if (string.IsNullOrWhiteSpace(term)) return false;
-        return Regex.IsMatch(
-            normalizedText,
-            $@"(?<![\p{{L}}\p{{N}}]){Regex.Escape(term)}(?![\p{{L}}\p{{N}}])",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        int searchStart = 0;
+        while (searchStart <= normalizedText.Length - term.Length)
+        {
+            int match = normalizedText.IndexOf(
+                term,
+                searchStart,
+                StringComparison.OrdinalIgnoreCase);
+            if (match < 0)
+            {
+                return false;
+            }
+
+            int after = match + term.Length;
+            bool startsAtBoundary = match == 0 ||
+                !char.IsLetterOrDigit(normalizedText[match - 1]);
+            bool endsAtBoundary = after == normalizedText.Length ||
+                !char.IsLetterOrDigit(normalizedText[after]);
+            if (startsAtBoundary && endsAtBoundary)
+            {
+                return true;
+            }
+
+            searchStart = match + 1;
+        }
+
+        return false;
     }
 
     /// <summary>

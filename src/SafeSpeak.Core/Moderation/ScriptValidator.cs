@@ -21,6 +21,11 @@ public enum ScriptType
 /// </summary>
 public static class ScriptValidator
 {
+    private static readonly char[] WordDelimiters =
+    [
+        ' ', '\t', '\r', '\n', '-', '_', '.', ',', ';', ':', '/', '\\',
+        '!', '?', '(', ')', '[', ']', '{', '}', '"', '\''
+    ];
     public static ScriptType GetScriptType(char c)
     {
         if (char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsDigit(c) || char.IsSeparator(c) || char.IsSymbol(c))
@@ -130,7 +135,7 @@ public static class ScriptValidator
     {
         if (string.IsNullOrWhiteSpace(text)) return false;
 
-        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var words = text.Split(WordDelimiters, StringSplitOptions.RemoveEmptyEntries);
         foreach (var word in words)
         {
             if (HasMixedScriptsInWord(word))

@@ -5,7 +5,6 @@ public enum SoundCueType
     Armed,
     Disarmed,
     MessageApproved,
-    MessageBlocked,
     TikFinityConnected,
     TikFinityDisconnected,
     EmergencyStop,

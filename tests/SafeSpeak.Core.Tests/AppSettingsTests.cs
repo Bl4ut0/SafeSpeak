@@ -6,6 +6,15 @@ namespace SafeSpeak.Core.Tests;
 public sealed class AppSettingsTests
 {
     [Fact]
+    public void VolumeDefaultsUseOneHundredPercent()
+    {
+        var settings = new AppSettings();
+
+        Assert.Equal(100, settings.SpeechVolume);
+        Assert.Equal(100, settings.ReaderSpeechVolume);
+    }
+
+    [Fact]
     public void CreateModerationConfig_CopiesSavedValuesWithoutSharingTheTermList()
     {
         var settings = new AppSettings
@@ -20,11 +29,13 @@ public sealed class AppSettingsTests
             AiClassificationEnabled = true,
             AiToxicityThreshold = 0.8,
             IntentModerationLevel = 4,
-            CustomBlockedTerms = ["blocked phrase"]
+            CustomBlockedTerms = ["blocked phrase"],
+            CustomAllowedTerms = ["allowed phrase"]
         };
 
         ModerationConfig config = settings.CreateModerationConfig();
         config.CustomBlockedTerms.Add("second phrase");
+        config.CustomAllowedTerms.Add("second allowed phrase");
 
         Assert.Equal(AudienceMode.SubscribersOnly, config.AudienceMode);
         Assert.Equal(ModerationStrictness.Maximum, config.Strictness);
@@ -37,6 +48,7 @@ public sealed class AppSettingsTests
         Assert.Equal(0.8, config.AiToxicityThreshold);
         Assert.Equal(4, config.IntentModerationLevel);
         Assert.Single(settings.CustomBlockedTerms);
+        Assert.Single(settings.CustomAllowedTerms);
     }
 
     [Fact]
@@ -51,11 +63,13 @@ public sealed class AppSettingsTests
             AllowDonorsToSpeak = false,
             AiToxicityThreshold = 2.0,
             IntentModerationLevel = 9,
-            CustomBlockedTerms = ["custom"]
+            CustomBlockedTerms = ["custom"],
+            CustomAllowedTerms = ["allowed"]
         };
 
         settings.CaptureModerationConfig(config);
         config.CustomBlockedTerms.Clear();
+        config.CustomAllowedTerms.Clear();
 
         Assert.Equal(AudienceMode.ModeratorsOnly, settings.AudienceMode);
         Assert.Equal(ModerationStrictness.Standard, settings.Strictness);
@@ -64,6 +78,7 @@ public sealed class AppSettingsTests
         Assert.Equal(0.95, settings.AiToxicityThreshold);
         Assert.Equal(4, settings.IntentModerationLevel);
         Assert.Equal(["custom"], settings.CustomBlockedTerms);
+        Assert.Equal(["allowed"], settings.CustomAllowedTerms);
     }
 
     [Fact]

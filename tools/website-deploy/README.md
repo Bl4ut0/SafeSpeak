@@ -1,6 +1,6 @@
 # SafeSpeak website deployment
 
-This helper uploads only the eight public SafeSpeak website files from
+This helper uploads only the ten public SafeSpeak website files from
 `local-deployment/safespeak-web`. It never uploads the local README, ZIP archive,
 credentials, application repository, or any file outside its explicit allowlist.
 It does not delete remote files.

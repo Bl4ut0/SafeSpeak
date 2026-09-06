@@ -17,6 +17,21 @@
       "UUID": "com.safespeak.streamdeck.status"
     },
     {
+      "Icon": "assets/actions/guidance",
+      "Name": "Stop Guidance",
+      "States": [
+        {
+          "Image": "assets/states/guidance",
+          "Title": "Shut Up",
+          "TitleAlignment": "middle",
+          "TitleColor": "#00E7F9"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Stop only SafeSpeak built-in spoken guidance; stream TTS continues",
+      "UUID": "com.safespeak.streamdeck.guidance"
+    },
+    {
       "Icon": "assets/actions/arm",
       "Name": "Arm / Disarm",
       "States": [

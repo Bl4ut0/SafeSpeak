@@ -7,6 +7,7 @@ public sealed class StreamDeckPluginContractTests
     private static readonly string[] EssentialActions =
     [
         "Hear Status",
+        "Stop Guidance",
         "Arm / Disarm",
         "Emergency Stop",
         "Playback Mode",
@@ -41,6 +42,7 @@ public sealed class StreamDeckPluginContractTests
         foreach (string command in new[]
         {
             "status",
+            "stop_guidance",
             "toggle_arm",
             "emergency_stop",
             "toggle_autoplay",
@@ -52,6 +54,13 @@ public sealed class StreamDeckPluginContractTests
         {
             Assert.Contains($"sendSafeSpeakCommand(\"{command}\")", script);
         }
+
+        string manifest = Source("streamdeck", "manifest.json");
+        Assert.Contains(
+            "Stop only SafeSpeak built-in spoken guidance; stream TTS continues",
+            manifest);
+        Assert.Contains("sendSafeSpeakCommand(\"stop_current\")", script);
+        Assert.Contains("sendSafeSpeakCommand(\"stop_guidance\")", script);
 
         foreach (string obsoleteAction in new[]
         {
@@ -120,6 +129,21 @@ public sealed class StreamDeckPluginContractTests
         Assert.Contains("Binding AllowShareAnnouncementsWhilePaused", window);
         Assert.Contains("Binding AllowSubscriptionAnnouncementsWhilePaused", window);
         Assert.Contains("Emergency Stop always stops", window);
+    }
+
+    [Fact]
+    public void StopGuidanceAndStopCurrentRemainSeparateAppCommands()
+    {
+        string main = Source("src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs");
+        string shortcuts = Source(
+            "src", "SafeSpeak.App", "ViewModels", "MainViewModel.Shortcuts.cs");
+
+        Assert.Contains("case \"stop_guidance\"", main);
+        Assert.Contains("return \"BuiltInGuidanceStopped\"", main);
+        Assert.Contains("case \"stop_current\"", main);
+        Assert.Contains("return \"CurrentSpeechStopped\"", main);
+        Assert.Contains("_announcer.StopSpeaking();", shortcuts);
+        Assert.Contains("Livestream text to speech continues", shortcuts);
     }
 
     private static string Source(params string[] segments) =>

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
-     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="SafeSpeak"
            Manufacturer="The Project Hub"
            Version="$(var.PackageVersion)"
@@ -20,8 +19,7 @@
     <Property Id="ARPHELPLINK" Value="https://github.com/Bl4ut0/SafeSpeak/issues" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/Bl4ut0/SafeSpeak" />
     <Property Id="ARPCOMMENTS"
-              Value="Repair restores SafeSpeak and resets its Local AppData. Uninstall preserves user data." />
-    <Property Id="SAFESPEAKAPPDATA" Value="%LOCALAPPDATA%\SafeSpeak" Secure="yes" />
+              Value="Repair restores SafeSpeak program files. Repair and uninstall preserve user data." />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="ManufacturerFolder" Name="The Project Hub">
@@ -31,6 +29,22 @@
 
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="ApplicationProgramsFolder" Name="SafeSpeak" />
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcutComponent" Guid="*">
+        <Shortcut Id="SafeSpeakDesktopShortcut"
+                  Name="SafeSpeak"
+                  Description="Accessible livestream text-to-speech and moderation"
+                  Target="[INSTALLFOLDER]SafeSpeak.App.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="SafeSpeakIcon" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\The Project Hub\SafeSpeak"
+                       Name="DesktopShortcutVersion"
+                       Type="string"
+                       Value="$(var.PackageVersion)"
+                       KeyPath="yes" />
+      </Component>
     </StandardDirectory>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
@@ -51,28 +65,10 @@
       </Component>
     </DirectoryRef>
 
-    <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="RepairResetComponent"
-                 Guid="*"
-                 Transitive="yes"
-                 Condition="REINSTALL AND NOT REMOVE=&quot;ALL&quot;">
-        <util:RemoveFolderEx Id="ResetSafeSpeakLocalAppData"
-                             Property="SAFESPEAKAPPDATA"
-                             On="install"
-                             Condition="REINSTALL AND NOT REMOVE=&quot;ALL&quot;" />
-        <RegistryValue Root="HKLM"
-                       Key="Software\The Project Hub\SafeSpeak"
-                       Name="RepairResetEnabled"
-                       Type="integer"
-                       Value="1"
-                       KeyPath="yes" />
-      </Component>
-    </DirectoryRef>
-
     <Feature Id="SafeSpeakFeature" Title="SafeSpeak" Level="1">
       <Files Include="$(var.PayloadDirectory)\**" Directory="INSTALLFOLDER" />
       <ComponentRef Id="ApplicationShortcutComponent" />
-      <ComponentRef Id="RepairResetComponent" />
+      <ComponentRef Id="DesktopShortcutComponent" />
     </Feature>
 
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtfPath)" />

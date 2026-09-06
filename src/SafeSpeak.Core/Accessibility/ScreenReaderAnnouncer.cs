@@ -1,4 +1,4 @@
-using System.Speech.Synthesis;
+using SafeSpeak.Core.Audio;
 
 namespace SafeSpeak.Core.Accessibility;
 
@@ -8,7 +8,12 @@ namespace SafeSpeak.Core.Accessibility;
 /// </summary>
 public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 {
-    private SpeechSynthesizer? _privateSynth;
+    private readonly SystemSpeechTtsEngine? _speechEngine;
+    private readonly IAudioRouter? _guidanceAudioRouter;
+    private CancellationTokenSource _speechCancellation = new();
+    private Task _speechTask = Task.CompletedTask;
+    private int _speechRate = 2;
+    private int _speechVolume = 100;
     private readonly object _lock = new();
 
     public bool IsEnhancedAccessibilityEnabled { get; set; } = true;
@@ -17,7 +22,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         get
         {
-            lock (_lock) return _privateSynth is not null;
+            lock (_lock) return _speechEngine is not null && _guidanceAudioRouter is not null;
         }
     }
 
@@ -27,30 +32,50 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         get
         {
-            lock (_lock) return _privateSynth?.Rate ?? 2;
+            lock (_lock) return _speechRate;
         }
         set
         {
             lock (_lock)
             {
-                if (_privateSynth is not null) _privateSynth.Rate = Math.Clamp(value, -10, 10);
+                _speechRate = Math.Clamp(value, -10, 10);
             }
         }
     }
+
+    public int SpeechVolume
+    {
+        get
+        {
+            lock (_lock) return _speechVolume;
+        }
+        set
+        {
+            lock (_lock) _speechVolume = Math.Clamp(value, 0, 150);
+        }
+    }
+
+    public string? SelectedAudioEndpointId => _guidanceAudioRouter?.SelectedEndpointId;
 
     public ScreenReaderAnnouncer()
     {
         try
         {
-            _privateSynth = new SpeechSynthesizer();
-            _privateSynth.Rate = 2; // Slightly faster for screen reader announcements
-            _privateSynth.SetOutputToDefaultAudioDevice();
+            _speechEngine = new SystemSpeechTtsEngine();
+            _guidanceAudioRouter = new WasapiAudioRouter();
         }
         catch
         {
-            _privateSynth = null;
+            _speechEngine = null;
+            _guidanceAudioRouter = null;
         }
     }
+
+    public IReadOnlyList<AudioEndpointInfo> GetOutputEndpoints() =>
+        _guidanceAudioRouter?.GetOutputEndpoints() ?? [];
+
+    public void SelectAudioEndpoint(string? endpointId) =>
+        _guidanceAudioRouter?.SelectEndpoint(endpointId);
 
     public void Announce(string text, bool interrupt = false)
     {
@@ -85,24 +110,66 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
 
     private void SpeakWithSystemVoice(string text, bool interrupt)
     {
-        if (_privateSynth == null) return;
+        if (_speechEngine is null || _guidanceAudioRouter is null) return;
 
+        if (interrupt)
+        {
+            CancelSpeechUnsafe();
+            _speechCancellation.Dispose();
+            _speechCancellation = new CancellationTokenSource();
+            _speechTask = Task.CompletedTask;
+        }
+
+        Task preceding = _speechTask;
+        CancellationToken token = _speechCancellation.Token;
+        int rate = _speechRate;
+        int volume = _speechVolume;
+        _speechTask = SpeakAfterAsync(preceding, text, rate, volume, token);
+    }
+
+    private async Task SpeakAfterAsync(
+        Task preceding,
+        string text,
+        int rate,
+        int volume,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            if (interrupt)
-            {
-                _privateSynth.SpeakAsyncCancelAll();
-            }
+            try { await preceding.ConfigureAwait(false); }
+            catch { }
+            cancellationToken.ThrowIfCancellationRequested();
+            using var waveStream = new MemoryStream();
+            await _speechEngine!.SynthesizeToWaveStreamAsync(
+                text,
+                waveStream,
+                rate: rate,
+                volume: 100,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await _guidanceAudioRouter!.PlayWaveStreamAsync(
+                waveStream,
+                volume / 100f,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+        catch (IOException) { }
+    }
 
-            _privateSynth.SpeakAsync(text);
-        }
-        catch (ObjectDisposedException)
+    /// <summary>
+    /// Stops only SafeSpeak's built-in interface guidance. Livestream text to
+    /// speech is owned by TtsQueue and is deliberately unaffected.
+    /// </summary>
+    public void StopSpeaking()
+    {
+        lock (_lock)
         {
-            // The application is closing; no announcement is required.
-        }
-        catch (InvalidOperationException)
-        {
-            // The Windows speech service is temporarily unavailable.
+            CancelSpeechUnsafe();
+            _speechCancellation.Dispose();
+            _speechCancellation = new CancellationTokenSource();
+            _speechTask = Task.CompletedTask;
         }
     }
 
@@ -110,16 +177,55 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         if (IsEnhancedAccessibilityEnabled)
         {
-            SoundCuePlayer.PlayCue(cueType);
+            lock (_lock)
+            {
+                if (_guidanceAudioRouter is null) return;
+                Task preceding = _speechTask;
+                CancellationToken token = _speechCancellation.Token;
+                float volume = _speechVolume / 100f;
+                _speechTask = PlayCueAfterAsync(preceding, cueType, volume, token);
+            }
         }
+    }
+
+    private async Task PlayCueAfterAsync(
+        Task preceding,
+        SoundCueType cueType,
+        float volume,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            try { await preceding.ConfigureAwait(false); }
+            catch { }
+            cancellationToken.ThrowIfCancellationRequested();
+            await SoundCuePlayer.PlayCueAsync(
+                cueType,
+                _guidanceAudioRouter!,
+                volume,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+        catch (IOException) { }
+    }
+
+    private void CancelSpeechUnsafe()
+    {
+        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException) { }
+        try { _speechEngine?.Stop(); } catch (ObjectDisposedException) { }
+        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException) { }
     }
 
     public void Dispose()
     {
         lock (_lock)
         {
-            _privateSynth?.Dispose();
-            _privateSynth = null;
+            CancelSpeechUnsafe();
+            _speechCancellation.Dispose();
+            _speechEngine?.Dispose();
+            _guidanceAudioRouter?.Dispose();
         }
     }
 }

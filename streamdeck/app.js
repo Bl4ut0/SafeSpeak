@@ -102,6 +102,10 @@ async function handleKeyDown(action, context) {
             await sendSafeSpeakCommand("status");
             break;
 
+        case "com.safespeak.streamdeck.guidance":
+            if (await sendSafeSpeakCommand("stop_guidance")) showSuccess(context);
+            break;
+
         case "com.safespeak.streamdeck.arm": {
             const result = await sendSafeSpeakCommand("toggle_arm");
             if (result) setState(context, result.trim().toLowerCase() === "armed" ? 1 : 0);

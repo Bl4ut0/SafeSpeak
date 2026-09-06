@@ -135,7 +135,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         "SafeSpeak has not checked the bundled language model yet.";
 
     [ObservableProperty]
-    private string _primaryButtonText = "_Continue";
+    private string _primaryButtonText = "Continue";
 
     [ObservableProperty]
     private string _primaryButtonAutomationName = "Continue to the next setup step";
@@ -427,20 +427,20 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 PromptText = "Choose your streaming connection";
                 StatusText =
                     "TikFinity is the supported TikTok connection in this release. SafeSpeak can check for it locally only after you select the consent checkbox.";
-                PrimaryButtonText = "_Continue";
+                PrimaryButtonText = "Continue (Y)";
                 PrimaryButtonAutomationName = "Save streaming connection and continue";
                 KeyboardHelpText =
-                    "Keyboard: Tab through the platform and detection checkboxes. Space changes a checkbox.";
+                    "Keyboard: Tab through the platform and detection checkboxes. Space changes a checkbox. Press Y to save and continue.";
                 break;
             case AccessibilitySetupPage.Filtering:
                 StepProgress = "Step 4 of 5";
-                PromptText = "Enhanced language filtering";
+                PromptText = "Learn how enhanced language filtering works";
                 StatusText =
-                    "SafeSpeak automatically uses its bundled on-device language model with deterministic rules and banned terms. It does not send chat to a cloud moderation service.";
-                PrimaryButtonText = "_Continue";
-                PrimaryButtonAutomationName = "Accept automatic enhanced filtering and continue";
+                    "This step is educational; there is no choice to make. SafeSpeak automatically uses its bundled on-device language model with deterministic rules and banned terms. It does not send chat to a cloud moderation service.";
+                PrimaryButtonText = "Continue (Y)";
+                PrimaryButtonAutomationName = "Continue after learning how enhanced filtering works";
                 KeyboardHelpText =
-                    "Keyboard: Tab to Continue. The model status is also exposed as a polite screen-reader announcement.";
+                    "Keyboard: read the explanation, then press Y or Tab to Continue. The model status is also exposed as a polite screen-reader announcement.";
                 if (!_modelChecked) _ = EnsureModelStatusAsync();
                 break;
             case AccessibilitySetupPage.Review:
@@ -448,10 +448,10 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 PromptText = "Review your SafeSpeak setup";
                 StatusText =
                     "Use the arrow keys in the review list to hear each saved choice. Finish Setup saves the result and opens SafeSpeak.";
-                PrimaryButtonText = "_Finish setup";
+                PrimaryButtonText = "Finish setup (Y)";
                 PrimaryButtonAutomationName = "Save setup and open SafeSpeak";
                 KeyboardHelpText =
-                    "Keyboard: use arrow keys in the review list, then Tab to Finish Setup.";
+                    "Keyboard: use arrow keys in the review list, then press Y or Tab to Finish Setup.";
                 if (_modelChecked)
                     BuildReviewItems();
                 else
@@ -468,11 +468,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                     $"{AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingSpokenGuidance)} and {AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingTheme)} are saved.";
                 StatusText =
                     "Close SafeSpeak, reopen it, then answer Step 1 Reader and Step 2 Theme the same way. Choose the same combination to confirm it. A different combination becomes a new first choice. After confirmation, setup continues with your streaming platform.";
-                PrimaryButtonText = "_Close SafeSpeak";
+                PrimaryButtonText = "Close SafeSpeak (Y)";
                 PrimaryButtonAutomationName =
                     "Close SafeSpeak so accessibility choices can be confirmed after reopening";
                 KeyboardHelpText =
-                    "Keyboard: press Tab to reach Close SafeSpeak, then reopen the app.";
+                    "Keyboard: press Y, or Tab to reach Close SafeSpeak, then reopen the app.";
                 break;
         }
 
@@ -497,7 +497,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             StatusText =
                 "Choose Yes to hear SafeSpeak describe focused controls, or No to continue without SafeSpeak speech. External screen readers remain supported either way.";
 
-        PrimaryButtonText = "_Continue";
+        PrimaryButtonText = "Continue";
         PrimaryButtonAutomationName = "Continue from the screen reader question";
         KeyboardHelpText =
             "Keyboard: press Y for Yes or N for No. Enter activates the focused answer. Either answer continues to Theme.";
@@ -521,10 +521,10 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             StatusText =
                 "Choose Light, Dark, or High Contrast. Reader and Theme are confirmed together across two launches to protect against an accidental first choice.";
 
-        PrimaryButtonText = "_Save and continue";
+        PrimaryButtonText = "Save and continue (Y)";
         PrimaryButtonAutomationName = "Save Reader and Theme choices and continue";
         KeyboardHelpText =
-            "Keyboard: use Up and Down Arrow to hear Light, Dark, and High Contrast. Tab moves to Back and Save and continue.";
+            "Keyboard: Tab once to the Theme selector without changing the selection. Use Arrow keys to hear and choose Light, Dark, or High Contrast. Press Y to save and continue.";
     }
 
     private Task EnsureModelStatusAsync()

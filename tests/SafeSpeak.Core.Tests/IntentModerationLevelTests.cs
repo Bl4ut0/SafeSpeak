@@ -177,4 +177,192 @@ public sealed class IntentModerationLevelTests
             Assert.NotEmpty(decision.SpokenText);
         }
     }
+
+    [Theory]
+    [InlineData("I hate this game.")]
+    [InlineData("This game is trash.")]
+    [InlineData("This boss is stupid.")]
+    [InlineData("This update is awful.")]
+    [InlineData("I hate losing this round.")]
+    public async Task NonHumanGameFrustrationPassesAtEveryModerationLevel(string text)
+    {
+        for (int level = 1; level <= 4; level++)
+        {
+            using var pipeline = new ModerationPipeline(new ModerationConfig
+            {
+                IntentModerationLevel = level,
+                UserCooldownSeconds = 0
+            });
+
+            ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+            {
+                Author = "frustrated_viewer",
+                RawText = text
+            });
+
+            Assert.True(
+                decision.Passed,
+                $"Expected non-human frustration '{text}' to pass at level {level}, " +
+                $"but it scored {decision.ToxicityScore:F4}: {decision.ReasonDescription}");
+        }
+    }
+
+    [Theory]
+    [InlineData("I hate you.")]
+    [InlineData("I hate this stream.")]
+    [InlineData("I hate this streamer.")]
+    [InlineData("I hate @alex.")]
+    [InlineData("I hate everyone.")]
+    [InlineData("This streamer is trash.")]
+    [InlineData("Everyone in this chat is trash.")]
+    public async Task PersonStreamAndGroupDirectedHostilityFollowsPermissiveToBalancedBoundary(string text)
+    {
+        for (int level = 1; level <= 4; level++)
+        {
+            using var pipeline = new ModerationPipeline(new ModerationConfig
+            {
+                IntentModerationLevel = level,
+                UserCooldownSeconds = 0
+            });
+
+            ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+            {
+                Author = "hostile_viewer",
+                RawText = text
+            });
+
+            bool shouldPass = level == 1;
+            Assert.True(
+                decision.Passed == shouldPass,
+                $"Expected directed hostility '{text}' pass={shouldPass} at level {level}. " +
+                $"Actual score: {decision.ToxicityScore:F4}.");
+            if (!shouldPass)
+            {
+                Assert.Equal(ModerationReasonCode.ThreatOrHarassment, decision.ReasonCode);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("I want to have sex with my underage niece.")]
+    [InlineData("I plan to do sexual things with a child.")]
+    [InlineData("That underage girl is sexy.")]
+    [InlineData("I can't wait until my niece is legal.")]
+    public async Task ExplicitMinorSexualIntentIsBlockedAtEveryLevel(string text)
+    {
+        for (int level = 1; level <= 4; level++)
+        {
+            using var pipeline = new ModerationPipeline(new ModerationConfig
+            {
+                IntentModerationLevel = level,
+                UserCooldownSeconds = 0
+            });
+
+            ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+            {
+                Author = "viewer",
+                RawText = text
+            });
+
+            Assert.False(decision.Passed, $"Expected explicit minor-safety case to be blocked at level {level}.");
+            Assert.Empty(decision.SpokenText);
+        }
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    [InlineData(4, false)]
+    public async Task AmbiguousFamilyEuphemismUsesSliderBoundary(int level, bool shouldPass)
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            IntentModerationLevel = level,
+            UserCooldownSeconds = 0
+        });
+
+        ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+        {
+            Author = "viewer",
+            RawText = "I'm excited to do things with my niece."
+        });
+
+        Assert.Equal(shouldPass, decision.Passed);
+        Assert.Equal(0.70, decision.ToxicityScore, precision: 2);
+        if (!shouldPass)
+        {
+            Assert.Empty(decision.SpokenText);
+        }
+    }
+
+    [Theory]
+    [InlineData("I'm excited to play video games with my niece.")]
+    [InlineData("Sexual abuse of children is wrong.")]
+    [InlineData("Protect children from sexual exploitation.")]
+    [InlineData("I reported suspected child abuse to the authorities.")]
+    public async Task BenignAndProtectiveChildSafetyContextPassesEveryLevel(string text)
+    {
+        for (int level = 1; level <= 4; level++)
+        {
+            using var pipeline = new ModerationPipeline(new ModerationConfig
+            {
+                IntentModerationLevel = level,
+                UserCooldownSeconds = 0
+            });
+
+            ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+            {
+                Author = "viewer",
+                RawText = text
+            });
+
+            Assert.True(
+                decision.Passed,
+                $"Expected protective or benign context '{text}' to pass at level {level}: {decision.ReasonDescription}");
+        }
+    }
+
+    [Theory]
+    [InlineData("Sexual abuse of children is wrong, but I want to have sex with an underage person.")]
+    [InlineData("Protect children from exploitation, and send me nude pictures, little girl.")]
+    public async Task ProtectiveWordingCannotHideAppendedMinorSexualIntent(string text)
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            IntentModerationLevel = 1,
+            UserCooldownSeconds = 0
+        });
+
+        ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+        {
+            Author = "viewer",
+            RawText = text
+        });
+
+        Assert.False(decision.Passed);
+        Assert.Empty(decision.SpokenText);
+    }
+
+    [Theory]
+    [InlineData("I hate this game, and I know where you live.")]
+    [InlineData("I hate this game and everyone in this chat is trash.")]
+    [InlineData("I hate this game. Kill yourself.")]
+    public async Task NonHumanFrustrationPolicyNeverOverridesAdditionalDirectedAbuse(string text)
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            IntentModerationLevel = 4,
+            UserCooldownSeconds = 0
+        });
+
+        ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+        {
+            Author = "hostile_viewer",
+            RawText = text
+        });
+
+        Assert.False(decision.Passed);
+        Assert.Empty(decision.SpokenText);
+    }
 }

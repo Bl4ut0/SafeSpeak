@@ -68,7 +68,7 @@ $dark = [System.Drawing.Color]::FromArgb(255, 18, 18, 20)
 $actionGlyphs = [ordered]@{
     arm = 'A'; autoplay = 'P'; pause = 'II'; english = 'E'; usernames = 'U';
     context = 'C'; audience = 'F'; strictness = 'S'; panic = '!'; skip = '>>';
-    next = '>'; status = 'i'; clear = 'X'
+    next = '>'; status = 'i'; guidance = 'SH'; clear = 'X'
 }
 
 foreach ($entry in $actionGlyphs.GetEnumerator()) {
@@ -95,6 +95,7 @@ $states = @(
     @{ Name = 'skip'; Glyph = '>>'; Color = $white },
     @{ Name = 'next'; Glyph = '>'; Color = $green },
     @{ Name = 'status'; Glyph = 'i'; Color = $cyan },
+    @{ Name = 'guidance'; Glyph = 'SH'; Color = $cyan },
     @{ Name = 'clear'; Glyph = 'X'; Color = $amber }
 )
 

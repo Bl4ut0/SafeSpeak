@@ -487,6 +487,29 @@ public class TtsQueueTests
     }
 
     [Fact]
+    public async Task SetCapacity_ChangesLimitWithoutDiscardingExistingItems()
+    {
+        var mockTts = new MockTtsEngine();
+        var mockRouter = new MockAudioRouter();
+        await using var queue = new TtsQueue(mockTts, mockRouter, capacity: 3);
+        queue.ArmAutomatic();
+        queue.UseManualAdvance();
+
+        Assert.True(queue.Enqueue(Approved("First")));
+        Assert.True(queue.Enqueue(Approved("Second")));
+        queue.SetCapacity(1);
+
+        Assert.Equal(1, queue.Capacity);
+        Assert.Equal(2, queue.Count);
+        Assert.False(queue.Enqueue(Approved("Blocked until below the limit")));
+        Assert.True(await queue.PlayNextManualAsync());
+        Assert.Equal(1, queue.Count);
+        Assert.False(queue.Enqueue(Approved("Still at the limit")));
+        Assert.True(await queue.PlayNextManualAsync());
+        Assert.True(queue.Enqueue(Approved("Accepted below the limit")));
+    }
+
+    [Fact]
     public async Task ManualPlaybackWhileDisarmed_DoesNotSpeak()
     {
         var mockTts = new MockTtsEngine();
@@ -515,6 +538,26 @@ public class TtsQueueTests
         Assert.True(queue.IsArmed);
         Assert.Equal(TtsPlaybackMode.Manual, queue.Mode);
         Assert.Equal(0, queue.Count);
+    }
+
+    [Fact]
+    public async Task ClearQueue_RemovesMaximumBacklogInOneOperation()
+    {
+        var mockTts = new MockTtsEngine();
+        var mockRouter = new MockAudioRouter();
+        await using var queue = new TtsQueue(mockTts, mockRouter, capacity: 500);
+        queue.ArmAutomatic();
+        queue.UseManualAdvance();
+        for (int index = 0; index < 500; index++)
+        {
+            Assert.True(queue.Enqueue(Approved($"Message {index}")));
+        }
+
+        queue.ClearQueue();
+
+        Assert.Equal(0, queue.Count);
+        Assert.True(queue.IsArmed);
+        Assert.Equal(TtsPlaybackMode.Manual, queue.Mode);
     }
 
     [Fact]

@@ -158,7 +158,21 @@ public sealed class KokoroModelManager : IDisposable
             {
                 Speed = Math.Clamp(1f + (Math.Clamp(rate, -5, 5) * 0.06f), 0.7f, 1.3f)
             };
-            byte[] pcm = await _synthesizer.SynthesizeAsync(text, voice, config).WaitAsync(cancellationToken);
+            Task<byte[]> synthesisTask = _synthesizer.SynthesizeAsync(text, voice, config);
+            byte[] pcm;
+            try
+            {
+                pcm = await synthesisTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // KokoroSharp cannot cancel native ONNX inference. Keep the
+                // serialization lock until that exact inference really ends so
+                // a replacement request can never re-enter the shared session.
+                try { await synthesisTask.ConfigureAwait(false); }
+                catch { /* Observe the abandoned inference failure. */ }
+                throw;
+            }
             using var writer = new WaveFileWriter(new NonClosingStream(outputStream), new WaveFormat(24_000, 16, 1));
             await writer.WriteAsync(pcm, cancellationToken);
             await writer.FlushAsync(cancellationToken);

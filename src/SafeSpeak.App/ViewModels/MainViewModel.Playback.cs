@@ -38,7 +38,7 @@ public sealed partial class MainViewModel
         _ => "Disarmed"
     };
 
-    public string PauseButtonText => IsPaused ? "_Resume TTS" : "_Pause TTS";
+    public string PauseButtonText => IsPaused ? "Resume TTS" : "Pause TTS";
 
     public string PauseButtonAutomationName => IsPaused
         ? "Resume automatic text to speech button"
@@ -90,6 +90,10 @@ public sealed partial class MainViewModel
             IsPaused = e.IsPaused;
             IsSpeaking = e.IsSpeaking;
             QueueCount = e.QueueCount;
+            if (e.QueueCount < _ttsQueue.Capacity)
+            {
+                Interlocked.Exchange(ref _queueSaturationAnnounced, 0);
+            }
         });
     }
 

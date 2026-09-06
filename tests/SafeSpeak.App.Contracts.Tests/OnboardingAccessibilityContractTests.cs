@@ -84,9 +84,9 @@ public sealed class OnboardingAccessibilityContractTests
 
         Assert.Equal("{Binding ChooseSpokenGuidanceYesCommand}", yes.Attribute("Command")?.Value);
         Assert.Equal("{Binding ChooseSpokenGuidanceNoCommand}", no.Attribute("Command")?.Value);
-        Assert.Contains("_Yes", yes.Attribute("Content")?.Value);
+        Assert.StartsWith("Yes", yes.Attribute("Content")?.Value);
         Assert.Contains("(Y)", yes.Attribute("Content")?.Value);
-        Assert.Contains("_No", no.Attribute("Content")?.Value);
+        Assert.StartsWith("No", no.Attribute("Content")?.Value);
         Assert.Contains("(N)", no.Attribute("Content")?.Value);
         Assert.Contains("Do you want to use the SafeSpeak built-in screen reader?", viewModel);
         Assert.Contains("AccessibilitySetupPage.Reader", viewModel);
@@ -99,6 +99,8 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Contains("Step 2 of 5", viewModel);
         Assert.Contains("e.Key == Key.Y", codeBehind);
         Assert.Contains("e.Key == Key.N", codeBehind);
+        Assert.Contains("_viewModel.ContinueCommand.CanExecute(null)", codeBehind);
+        Assert.Contains("Keyboard.FocusedElement is not TextBox", codeBehind);
         Assert.DoesNotContain("GuidanceCheckBox", codeBehind);
     }
 
@@ -160,12 +162,67 @@ public sealed class OnboardingAccessibilityContractTests
                 "SafeSpeak.App",
                 "ViewModels",
                 "AccessibilitySetupViewModel.cs"));
+        string codeBehind = File.ReadAllText(
+            RepositoryFile(
+                "src",
+                "SafeSpeak.App",
+                "Views",
+                "AccessibilitySetupDialog.xaml.cs"));
+        XElement itemStyle = themeList.Descendants(Presentation + "Style").Single();
 
         Assert.Contains("Up and Down Arrow", help);
+        Assert.Equal("True", themeList.Attribute("Focusable")?.Value);
+        Assert.Equal("True", themeList.Attribute("IsTabStop")?.Value);
+        Assert.Equal("Once", Attribute(themeList, "KeyboardNavigation.TabNavigation"));
+        Assert.Equal("ThemeList_PreviewKeyDown", themeList.Attribute("PreviewKeyDown")?.Value);
+        Assert.Contains(itemStyle.Descendants(Presentation + "Setter"), setter =>
+            setter.Attribute("Property")?.Value == "Focusable" &&
+            setter.Attribute("Value")?.Value == "False");
+        Assert.Contains(itemStyle.Descendants(Presentation + "Setter"), setter =>
+            setter.Attribute("Property")?.Value == "IsTabStop" &&
+            setter.Attribute("Value")?.Value == "False");
+        Assert.Contains("Key.Left or Key.Up", codeBehind);
+        Assert.Contains("Key.Right or Key.Down", codeBehind);
         Assert.Contains("\"Light theme, option 1 of 3\"", viewModel);
         Assert.Contains("\"Dark theme, option 2 of 3\"", viewModel);
         Assert.Contains("\"High Contrast theme, option 3 of 3\"", viewModel);
         Assert.DoesNotContain("Default theme", viewModel);
+    }
+
+    [Fact]
+    public void Wizard_KeepsThemeAndNavigationOnOneNonScrollingPage()
+    {
+        XDocument document = LoadWizard();
+        XElement themeList = document
+            .Descendants(Presentation + "ListBox")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "ThemeList");
+        XElement itemsPanel = themeList
+            .Descendants(Presentation + "UniformGrid")
+            .Single();
+        XElement primaryButton = document
+            .Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "PrimaryButton");
+        XElement navigation = primaryButton.Ancestors(Presentation + "Grid").First();
+
+        Assert.Empty(document.Descendants(Presentation + "ScrollViewer"));
+        Assert.Equal("1", itemsPanel.Attribute("Rows")?.Value);
+        Assert.Equal("3", itemsPanel.Attribute("Columns")?.Value);
+        Assert.Equal("2", navigation.Attribute("Grid.Row")?.Value);
+        Assert.Contains("Press Y from anywhere", Attribute(primaryButton, "AutomationProperties.HelpText"));
+    }
+
+    [Fact]
+    public void Wizard_FilteringStepIsClearlyEducational()
+    {
+        string viewModel = File.ReadAllText(
+            RepositoryFile(
+                "src",
+                "SafeSpeak.App",
+                "ViewModels",
+                "AccessibilitySetupViewModel.cs"));
+
+        Assert.Contains("This step is educational; there is no choice to make", viewModel);
+        Assert.Contains("Continue after learning how enhanced filtering works", viewModel);
     }
 
     [Fact]

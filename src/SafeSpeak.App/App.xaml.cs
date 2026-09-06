@@ -34,6 +34,7 @@ public partial class App : Application
         {
             var settings = AppSettings.Load();
             ThemeManager.Apply(settings.EffectiveTheme);
+            ThemeManager.ApplyTextScale(settings.InterfaceTextScalePercent);
             SystemParameters.StaticPropertyChanged += (_, args) =>
             {
                 if (args.PropertyName == nameof(SystemParameters.HighContrast))
@@ -43,6 +44,9 @@ public partial class App : Application
             if (!settings.HasCompletedOnboarding)
             {
                 var tempAnnouncer = new ScreenReaderAnnouncer();
+                tempAnnouncer.SpeechRate = settings.ReaderSpeechRate;
+                tempAnnouncer.SpeechVolume = settings.ReaderSpeechVolume;
+                tempAnnouncer.SelectAudioEndpoint(settings.SelectedGuidanceAudioEndpointId);
                 AccessibilitySetupDialog? wizard = null;
 
                 var setupVm = new AccessibilitySetupViewModel(

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SafeSpeak.Core.Accessibility;
 
 namespace SafeSpeak.Core.Models;
 
@@ -38,7 +39,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 5;
+    public const int CurrentSettingsSchemaVersion = 7;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -143,12 +144,22 @@ public sealed class AppSettings
 
     public string? SelectedAudioEndpointId { get; set; }
     public string? SelectedBroadcastEndpointId { get; set; }
+    public string? SelectedGuidanceAudioEndpointId { get; set; }
     public string? SelectedVoiceName { get; set; }
     public int SpeechRate { get; set; } = 0;
     public int SpeechVolume { get; set; } = 100;
     public int ReaderSpeechRate { get; set; } = 3;
+    public int ReaderSpeechVolume { get; set; } = 100;
+    public bool NarrateDetailedHelp { get; set; } = true;
+    public bool NarrateTypedCharacters { get; set; }
+    public int InterfaceTextScalePercent { get; set; } = 100;
+    public int QueueLimit { get; set; } = 50;
+
+    public List<GlobalShortcutBinding> GlobalShortcuts { get; set; } =
+        GlobalShortcutCatalog.CreateDefaults();
 
     public List<string> CustomBlockedTerms { get; set; } = new();
+    public List<string> CustomAllowedTerms { get; set; } = new();
 
     private static readonly string SettingsFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -183,6 +194,7 @@ public sealed class AppSettings
         MigrateLegacyAccessibilitySettings(root, this);
         MigrateAndValidateOnboardingStage(root, this);
         MigrateAuditLoggingConsent(root, this);
+        MigrateGlobalShortcuts(root, this);
     }
 
     internal void NormalizeForPersistence()
@@ -231,8 +243,12 @@ public sealed class AppSettings
         AiToxicityThreshold = Math.Clamp(AiToxicityThreshold, 0.3, 0.95);
         IntentModerationLevel = Math.Clamp(IntentModerationLevel, 1, 4);
         SpeechRate = Math.Clamp(SpeechRate, -5, 5);
-        SpeechVolume = Math.Clamp(SpeechVolume, 0, 100);
+        SpeechVolume = Math.Clamp(SpeechVolume, 0, 150);
         ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
+        ReaderSpeechVolume = Math.Clamp(ReaderSpeechVolume, 0, 150);
+        InterfaceTextScalePercent = Math.Clamp(InterfaceTextScalePercent, 100, 200);
+        QueueLimit = Math.Clamp(QueueLimit, 1, 500);
+        GlobalShortcuts = GlobalShortcutCatalog.NormalizeBindings(GlobalShortcuts);
         SpeakUsernames = true;
         AiClassificationEnabled = true;
 
@@ -245,6 +261,13 @@ public sealed class AppSettings
         NormalizeLocalConnectorDetection();
 
         CustomBlockedTerms = (CustomBlockedTerms ?? [])
+            .Where(term => !string.IsNullOrWhiteSpace(term))
+            .Select(term => term.Trim())
+            .Where(term => term.Length <= 256)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(500)
+            .ToList();
+        CustomAllowedTerms = (CustomAllowedTerms ?? [])
             .Where(term => !string.IsNullOrWhiteSpace(term))
             .Select(term => term.Trim())
             .Where(term => term.Length <= 256)
@@ -338,6 +361,16 @@ public sealed class AppSettings
         if (schemaVersion < 5)
         {
             settings.HasConsentedToLocalAuditLogging = false;
+        }
+    }
+
+    private static void MigrateGlobalShortcuts(
+        JsonElement root,
+        AppSettings settings)
+    {
+        if (!root.TryGetProperty(nameof(GlobalShortcuts), out _))
+        {
+            settings.GlobalShortcuts = GlobalShortcutCatalog.CreateDefaults();
         }
     }
 
@@ -533,7 +566,8 @@ public sealed class AppSettings
         AiClassificationEnabled = true,
         AiToxicityThreshold = Math.Clamp(AiToxicityThreshold, 0.3, 0.95),
         IntentModerationLevel = Math.Clamp(IntentModerationLevel, 1, 4),
-        CustomBlockedTerms = new List<string>(CustomBlockedTerms)
+        CustomBlockedTerms = new List<string>(CustomBlockedTerms),
+        CustomAllowedTerms = new List<string>(CustomAllowedTerms)
     };
 
     public void CaptureModerationConfig(ModerationConfig config)
@@ -550,6 +584,7 @@ public sealed class AppSettings
         AiToxicityThreshold = Math.Clamp(config.AiToxicityThreshold, 0.3, 0.95);
         IntentModerationLevel = Math.Clamp(config.IntentModerationLevel, 1, 4);
         CustomBlockedTerms = new List<string>(config.CustomBlockedTerms);
+        CustomAllowedTerms = new List<string>(config.CustomAllowedTerms);
     }
 
     public bool TrySave(out string? error)

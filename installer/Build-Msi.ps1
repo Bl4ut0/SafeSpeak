@@ -240,14 +240,10 @@ try {
         $fileCount = Get-MsiRowCount -Database $database -Query 'SELECT `File` FROM `File`'
         $shortcutCount = Get-MsiRowCount -Database $database `
             -Query 'SELECT `Shortcut` FROM `Shortcut`'
+        $desktopShortcutCount = Get-MsiRowCount -Database $database `
+            -Query "SELECT ``Shortcut`` FROM ``Shortcut`` WHERE ``Shortcut``='SafeSpeakDesktopShortcut'"
         $upgradeCount = Get-MsiRowCount -Database $database `
             -Query 'SELECT `UpgradeCode` FROM `Upgrade`'
-        $repairResetCount = Get-MsiRowCount -Database $database `
-            -Query 'SELECT `RemoveFolderEx` FROM `Wix4RemoveFolderEx`'
-        $repairCondition = Get-MsiScalar -Database $database `
-            -Query "SELECT ``Condition`` FROM ``Component`` WHERE ``Component``='RepairResetComponent'"
-        $appDataProperty = Get-MsiScalar -Database $database `
-            -Query "SELECT ``Value`` FROM ``Property`` WHERE ``Property``='SAFESPEAKAPPDATA'"
     }
     finally {
         if ($database) {
@@ -274,22 +270,12 @@ try {
     if ($fileCount -lt 5) {
         throw "MSI verification found only $fileCount payload files."
     }
-    if ($shortcutCount -lt 1) {
-        throw 'MSI verification did not find the SafeSpeak Start-menu shortcut.'
+    if ($shortcutCount -lt 2 -or $desktopShortcutCount -ne 1) {
+        throw 'MSI verification did not find both the SafeSpeak Start-menu and required desktop shortcuts.'
     }
     if ($upgradeCount -lt 1) {
         throw 'MSI verification did not find major-upgrade metadata.'
     }
-    if ($repairResetCount -lt 1) {
-        throw 'MSI verification did not find the Local AppData repair-reset action.'
-    }
-    if ($repairCondition -ne 'REINSTALL AND NOT REMOVE="ALL"') {
-        throw "MSI verification found an unexpected repair-reset condition '$repairCondition'."
-    }
-    if ($appDataProperty -ne '%LOCALAPPDATA%\SafeSpeak') {
-        throw "MSI verification found an unexpected Local AppData target '$appDataProperty'."
-    }
-
     if ($CertificateThumbprint) {
         $signTool = Find-WindowsSdkTool -ToolName 'signtool.exe'
         Invoke-CheckedCommand -FilePath $signTool -ArgumentList @(
@@ -306,7 +292,8 @@ try {
     $msiInfo = Get-Item -LiteralPath $msiPath
     Write-Host "Created MSI package: $msiPath"
     Write-Host "MSI payload files: $fileCount"
-    Write-Host 'MSI repair reset: %LOCALAPPDATA%\SafeSpeak'
+    Write-Host 'MSI shortcuts: Start menu and desktop'
+    Write-Host 'MSI repair: program files restored; user profile data preserved'
     Write-Host "MSI SHA-256: $((Get-FileHash -LiteralPath $msiPath -Algorithm SHA256).Hash)"
     Write-Output $msiInfo
 }

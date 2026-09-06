@@ -8,7 +8,7 @@ This is the authoritative, living plan for the SafeSpeak blind-first redesign. I
 | --- | --- |
 | Plan status | Implementation in progress |
 | Last updated | 2026-09-02 |
-| Current release baseline | 1.0.2.0 |
+| Current release baseline | 1.0.3.0 |
 | Working tree | Composite uncommitted work from the user, Gemini, and Codex; never reset wholesale |
 | Current checkpoint | Five-step Reader/Theme onboarding, accessible Settings routing, eight-action Stream Deck surface, pause-bypass queue, donor eligibility, conditional neural-voice installation, and obsolete monitor removal are integrated; 273 Core plus 80 App contracts pass; rendered acceptance remains open |
 | Next implementation step | Launch the current Release build against the emulator and manually validate Reader Y/N, Settings traversal, pause-all versus event bypass, and donor eligibility; then return to the LIVE-002 post-moderation disarm race |
@@ -544,7 +544,7 @@ Update this block at the end of every session.
 - Reproduced the certified Store failure: KokoroSharp was denied access when opening packaged `.npy` voice embeddings directly under the protected `WindowsApps` install directory.
 - SafeSpeak now stages the 27 packaged English embeddings into its writable Local App Data Kokoro model directory and loads voices only from that application-owned copy. The packaged files remain the trusted source; the existing downloaded ONNX model remains local and is not downloaded again.
 - Added a regression test covering read-only packaged voice assets. The focused staging tests and a real synthesis run against the installed 310 MB Kokoro model pass.
-- Standardized the desktop, GitHub, and Microsoft Store package version on 1.0.2.0 for the replacement submission; the dormant mobile test track retains its independent pre-release version.
+- Standardized the desktop, GitHub, and Microsoft Store package version on 1.0.3.0 for the replacement submission; the dormant mobile test track retains its independent pre-release version.
 - Added a Store-specific `SafeSpeakStoreVersion` and changed the Store publisher to accept only a successful `Main release build` caused by a push to `main`. It checks out that exact commit and waits at the required `microsoft-store-production` reviewer gate before verifying access, uploading, and committing the bundle for certification.
 - Retained manual Store dispatch for read-only connection checks and draft-only uploads. `develop` still has no Store credentials or publishing authority.
 - Direct GitHub releases remain fail-closed until a separate public-trust Authenticode identity is provisioned; Microsoft Store signing cannot sign the GitHub MSI/EXE/MSIX downloads.

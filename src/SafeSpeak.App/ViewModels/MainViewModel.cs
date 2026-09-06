@@ -46,13 +46,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly CancellationTokenSource _incomingEventCts = new();
     private readonly ConcurrentDictionary<string, byte> _sessionDonors =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ModerationDecision> _heldLiveFeedDecisions = new();
+    private int _moderationGuideSectionIndex;
     private Task _incomingEventPumpTask = Task.CompletedTask;
     private int _droppedIncomingEventCount;
+    private int _queueSaturationAnnounced;
     private int _monitoringGeneration;
     private Task _autoConnectTask = Task.CompletedTask;
     private readonly object _disposeLock = new();
     private Task? _disposeTask;
     private bool _isInitializing = true;
+    private string? _pendingGuidanceDeviceNotice;
 
     [ObservableProperty]
     private string _connectionStatusText = "Disconnected";
@@ -62,6 +66,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private string _selectedAudioEndpoint = "";
+
+    [ObservableProperty]
+    private string _selectedGuidanceAudioEndpoint = "";
 
     [ObservableProperty]
     private string _selectedVoice = "";
@@ -76,7 +83,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _readerSpeechRate = 3;
 
     [ObservableProperty]
+    private int _readerSpeechVolume = 100;
+
+    [ObservableProperty]
+    private bool _narrateDetailedHelp = true;
+
+    [ObservableProperty]
+    private bool _narrateTypedCharacters;
+
+    [ObservableProperty]
+    private int _interfaceTextScalePercent = 100;
+
+    [ObservableProperty]
+    private int _queueLimit = 50;
+
+    [ObservableProperty]
     private string _customBlockedInput = "";
+
+    [ObservableProperty]
+    private string _customAllowedInput = "";
 
     [ObservableProperty]
     private string _liveStatusAnnouncement = "";
@@ -154,6 +179,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string? _selectedCustomBlockedTerm;
 
     [ObservableProperty]
+    private string? _selectedCustomAllowedTerm;
+
+    [ObservableProperty]
     private string _filterTestInput = string.Empty;
 
     [ObservableProperty]
@@ -165,10 +193,20 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private bool _hasFilterTestResult;
 
+    [ObservableProperty]
+    private bool _areSafetyGuideControlsAtTop = true;
+
+    [ObservableProperty]
+    private bool _isLiveFeedReviewPaused;
+
+    [ObservableProperty]
+    private int _heldLiveFeedCount;
+
     public ObservableCollection<ModerationDecision> LiveFeed { get; } = new();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
     public ObservableCollection<string> CustomBlockedTerms { get; } = new();
+    public ObservableCollection<string> CustomAllowedTerms { get; } = new();
     public IReadOnlyList<ThemeChoice> ThemeChoices { get; } =
     [
         new(ThemePreference.Light, "Light", 1),
@@ -192,13 +230,36 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public string AuditLogsDirectoryDisplay => _auditLogger.LogsDirectory;
     public string BannedRulesSummary =>
         $"{_pipeline.Rules.DefaultRules.Count + CustomBlockedTerms.Count} active terms";
+    public string AllowedRulesSummary => CustomAllowedTerms.Count == 1
+        ? "1 custom allowed term"
+        : $"{CustomAllowedTerms.Count} custom allowed terms";
+    public string QueueLimitAccessibleText =>
+        $"Approved message queue limit: {Math.Clamp(QueueLimit, 1, 500)} pending items.";
+    public int RetainedLiveFeedCount => _heldLiveFeedDecisions.Count;
+    public int DroppedHeldLiveFeedCount => Math.Max(0, HeldLiveFeedCount - RetainedLiveFeedCount);
+    public string LiveFeedReviewStatus => IsLiveFeedReviewPaused
+        ? HeldLiveFeedCount == 0
+            ? "Live activity is paused for review. No new messages are being held."
+            : DroppedHeldLiveFeedCount == 0
+                ? $"Live activity is paused for review. {HeldLiveFeedCount} new " +
+                  $"{(HeldLiveFeedCount == 1 ? "message is" : "messages are")} being held."
+                : $"Live activity is paused for review. {HeldLiveFeedCount} new messages were received; " +
+                  $"the newest {RetainedLiveFeedCount} are held and {DroppedHeldLiveFeedCount} older " +
+                  $"{(DroppedHeldLiveFeedCount == 1 ? "entry was" : "entries were")} not retained."
+        : "Live activity is updating. Move keyboard focus into the list to pause visual updates while reviewing it.";
     public string EvasionRulesSummary => "Unicode and spacing protection active";
     public ScreenReaderAnnouncer Announcer => _announcer;
     public string SpokenGuidanceStatus => !SpokenGuidanceEnabled
         ? "SafeSpeak spoken guidance is disabled; Windows Narrator and other UI Automation readers remain supported"
         : _announcer.IsSpeechAvailable
-            ? "SafeSpeak spoken guidance is enabled and Windows speech is ready"
+            ? $"SafeSpeak spoken guidance is enabled on {GuidanceAudioEndpointName}"
             : "SafeSpeak spoken guidance is enabled, but Windows speech is unavailable; Windows Narrator and other UI Automation readers remain supported";
+    public string GuidanceAudioEndpointName =>
+        AudioEndpointFormatter.GetFriendlyName(AudioEndpoints, SelectedGuidanceAudioEndpoint);
+    public string GuidanceAudioEndpointAccessibleText =>
+        $"Built-in guidance audio device: {GuidanceAudioEndpointName}.";
+    public string InterfaceTextScaleAccessibleText =>
+        $"Interface text size: {Math.Clamp(InterfaceTextScalePercent, 100, 200)} percent.";
     public string ThemeStatus => $"{GetThemeDisplayName(SelectedTheme)} theme selected";
     public string ThemeSelectionAccessibleText
     {
@@ -267,16 +328,211 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     };
     public string ModerationLevelDescription => Math.Clamp(ModerationLevel, 1, 4) switch
     {
-        1 => "Blocks banned terms and clear threats; allows more uncertain language.",
-        2 => "Also blocks strong harassment while allowing isolated low-confidence language.",
-        3 => "Blocks directed insults and harassment. Recommended for most streams.",
-        4 => "Blocks lower-confidence hostile phrasing as well as all stronger signals.",
-        _ => "Blocks directed insults and harassment. Recommended for most streams."
+        1 => "Contextual wording is blocked only when its hostility score is 90% or higher.",
+        2 => "Contextual wording is blocked when its hostility score is 75% or higher.",
+        3 => "Contextual wording is blocked when its hostility score is 60% or higher. Recommended for most streams.",
+        4 => "Contextual wording is blocked when its hostility score is 45% or higher, increasing false-positive risk.",
+        _ => "Contextual wording is blocked when its hostility score is 60% or higher. Recommended for most streams."
     };
     public string ModerationLevelAccessibleText =>
         $"Moderation strength selector: {ModerationLevelName}, level {Math.Clamp(ModerationLevel, 1, 4)} of 4. {ModerationLevelDescription}";
     public string ModerationStrengthSummary =>
         $"{ModerationLevelName} ({Math.Clamp(ModerationLevel, 1, 4)} of 4)";
+    public string ModerationLevelThresholdSummary =>
+        $"Current contextual cutoff: {Config.IntentToxicityThreshold:P0}. Scores at or above this value are blocked.";
+    public IReadOnlyList<string> ModerationLevelGuide { get; } =
+    [
+        "Level 1, Relaxed — 90% cutoff. Permits most rude or unhinged language; stops only the most severe model findings and always-on safety rules.",
+        "Level 2, Balanced — 75% cutoff. Also blocks clear directed hate, severe harassment, hostile profanity, and malicious harm wishes.",
+        "Level 3, Strong — 60% cutoff. Also blocks directed insults, aggressive degradation, and concerning ambiguous safety language.",
+        "Level 4, Maximum — 45% cutoff. Also blocks mild insults, hostile dismissal, and most borderline aggressive language."
+    ];
+    public IReadOnlyList<string> ContextualIntentSignals { get; } =
+    [
+        "Who or what the negative wording targets: a person, group, streamer, stream, or a non-human game object.",
+        "What the speaker is doing: endorsing or requesting harm versus condemning, preventing, or reporting it.",
+        "How severe and certain the signal is: threats, intimidation, malicious wishes, degradation, profanity, or ambiguous euphemisms.",
+        "Identity-based hostility, severe toxicity, and obscene abuse detected after anti-evasion normalization."
+    ];
+    public IReadOnlyList<string> AcceptedHostilityExamples { get; } =
+    [
+        "“I hate this game.” — frustration is aimed at a game.",
+        "“This boss is stupid.” — a rude word describes an in-game object.",
+        "“This update is awful.” — criticism is aimed at software.",
+        "“I hate losing this round.” — frustration describes an activity and outcome."
+    ];
+    public IReadOnlyList<string> RejectedHostilityExamples { get; } =
+    [
+        "Level 2 and above: “I hate you.” — hate is aimed directly at a person.",
+        "Level 2 and above: “I hate this stream.” — hostility targets the broadcaster's space.",
+        "Level 2 and above: “Everyone in this chat is trash.” — hostility targets a group.",
+        "Level 3 and above: “I'm excited to do things with my niece.” — a vague family euphemism receives a 70% concern score.",
+        "Every level: explicit sexual intent involving a child or underage person."
+    ];
+    public IReadOnlyList<string> SliderDependentHostilityExamples { get; } =
+    [
+        "Relaxed is deliberately permissive. Directed hate is anchored below its 90% cutoff, but credible threats and the hard safety floor can still be blocked.",
+        "Balanced adds clear directed hate and severe harassment; Strong adds directed insults and ambiguous high-risk wording; Maximum adds mild hostility.",
+        "Non-human game frustration and complete protective statements remain below even the Maximum cutoff."
+    ];
+    public IReadOnlyList<string> SensitiveContextExamples { get; } =
+    [
+        "Allowed: “I'm excited to play video games with my niece.” A family term plus a specific harmless activity is not evidence of abuse.",
+        "Allowed: “Sexual abuse of children is wrong.” The speech act clearly condemns harm.",
+        "Levels 3-4 block: “I'm excited to do things with my niece.” One message cannot establish age or intent, so the app identifies concern without labeling the speaker.",
+        "Every level blocks: explicit sexual intent, sexualization, or solicitation involving a child or underage person."
+    ];
+    public IReadOnlyList<string> AlwaysOnModerationLayers { get; } =
+    [
+        "Built-in severe-abuse phrases and your custom banned words or phrases.",
+        "Explicit sexual exploitation, sexualization, or solicitation involving a child or underage person.",
+        "Unicode, spacing, and character-substitution normalization before blocked-term checks.",
+        "Message length, audience eligibility, and per-user message cooldown.",
+        "Mixed-writing-system protection and English-only filtering when their switches are enabled.",
+        "Fail-closed protection: a message is blocked if contextual classification is unavailable."
+    ];
+    public string ModerationGuideNarration => string.Join(
+        " ",
+        new[]
+        {
+            "Moderation guide.",
+            ModerationLevelAccessibleText,
+            "The slider changes the minimum contextual-hostility score required to block a message. Always-on safety layers remain active.",
+            "All four cutoffs."
+        }
+        .Concat(ModerationLevelGuide)
+        .Concat(["Contextual wording signals."])
+        .Concat(ContextualIntentSignals)
+        .Concat(["Examples accepted at every level."])
+        .Concat(AcceptedHostilityExamples)
+        .Concat(["Examples blocked as strictness increases."])
+        .Concat(RejectedHostilityExamples)
+        .Concat(["How the slider changes filtering."])
+        .Concat(SliderDependentHostilityExamples)
+        .Concat(["Sensitive child-safety context."])
+        .Concat(SensitiveContextExamples)
+        .Concat(["Always checked at every slider level."])
+        .Concat(AlwaysOnModerationLayers)
+        .Concat([
+            "Intent means a local model scores one message for hostile or harmful meaning. " +
+            "It does not see earlier messages or know relationships, tone of voice, sarcasm, or shared jokes. " +
+            "The result answers whether a message is safe to speak; it is not a judgment of the sender's motive."
+        ]));
+    public bool AreSafetyGuideControlsAtEnd => !AreSafetyGuideControlsAtTop;
+    public string SafetyGuideVisibilityButtonText =>
+        AreSafetyGuideControlsAtTop ? "Hide guide" : "Show guide";
+    public string SafetyGuideVisibilityButtonAutomationName =>
+        AreSafetyGuideControlsAtTop
+            ? "Move the Safety guide buttons to the end of the page"
+            : "Move the Safety guide buttons back to the top of the page";
+
+    [RelayCommand]
+    public void ReadModerationGuide()
+    {
+        AnnounceNarration(
+            ModerationGuideNarration,
+            "Reading the full moderation guide. Use Shut up built-in guidance to stop it.",
+            interrupt: true);
+    }
+
+    [RelayCommand]
+    public void ReadNextModerationGuideSection()
+    {
+        IReadOnlyList<(string Title, string Text)> sections = GetModerationGuideSections();
+        if (_moderationGuideSectionIndex >= sections.Count)
+        {
+            _moderationGuideSectionIndex = 0;
+        }
+
+        (string title, string text) = sections[_moderationGuideSectionIndex];
+        int spokenPosition = _moderationGuideSectionIndex + 1;
+        _moderationGuideSectionIndex++;
+        AnnounceNarration(
+            $"{title}. {text}",
+            $"Playing Safety guide page {spokenPosition} of {sections.Count}: {title}.",
+            interrupt: true);
+    }
+
+    [RelayCommand]
+    public void RestartModerationGuide()
+    {
+        _moderationGuideSectionIndex = 0;
+        AnnounceState("Safety guide reset to page 1. Choose Play guide page when ready.");
+    }
+
+    [RelayCommand]
+    public void ToggleSafetyGuideVisibility()
+    {
+        AreSafetyGuideControlsAtTop = !AreSafetyGuideControlsAtTop;
+        AnnounceState(AreSafetyGuideControlsAtTop
+            ? "Safety guide buttons moved to the top of the page."
+            : "Safety guide buttons moved to the end of the page. The visible guide text remains on screen.");
+    }
+
+    partial void OnAreSafetyGuideControlsAtTopChanged(bool value)
+    {
+        OnPropertyChanged(nameof(AreSafetyGuideControlsAtEnd));
+        OnPropertyChanged(nameof(SafetyGuideVisibilityButtonText));
+        OnPropertyChanged(nameof(SafetyGuideVisibilityButtonAutomationName));
+    }
+
+    private IReadOnlyList<(string Title, string Text)> GetModerationGuideSections() =>
+    [
+        ("Current moderation strength", $"{ModerationLevelAccessibleText} The slider changes the minimum contextual-hostility score required to block a message. Always-on safety layers remain active."),
+        ("All four cutoffs", string.Join(" ", ModerationLevelGuide)),
+        ("Contextual wording signals", string.Join(" ", ContextualIntentSignals)),
+        ("Examples accepted at every level", string.Join(" ", AcceptedHostilityExamples)),
+        ("Examples blocked as strictness increases", string.Join(" ", RejectedHostilityExamples)),
+        ("How the slider changes filtering", string.Join(" ", SliderDependentHostilityExamples)),
+        ("Sensitive child-safety context", string.Join(" ", SensitiveContextExamples)),
+        ("Always checked at every slider level", string.Join(" ", AlwaysOnModerationLayers)),
+        ("Limits of intent scoring", "Intent means a local model scores one message for hostile or harmful meaning. It does not see earlier messages or know relationships, tone of voice, sarcasm, or shared jokes. The result answers whether a message is safe to speak; it is not a judgment of the sender's motive.")
+    ];
+
+    public void PauseLiveFeedReview()
+    {
+        if (IsLiveFeedReviewPaused)
+        {
+            return;
+        }
+
+        IsLiveFeedReviewPaused = true;
+        AnnounceState("Live activity paused for review. New visual entries will be held while moderation and speech continue.");
+    }
+
+    public void ResumeLiveFeedReview()
+    {
+        if (!IsLiveFeedReviewPaused)
+        {
+            return;
+        }
+
+        int receivedCount = HeldLiveFeedCount;
+        int retainedCount = _heldLiveFeedDecisions.Count;
+        int droppedCount = Math.Max(0, receivedCount - retainedCount);
+        foreach (ModerationDecision decision in _heldLiveFeedDecisions)
+        {
+            AddDecisionToLiveFeed(decision);
+        }
+
+        _heldLiveFeedDecisions.Clear();
+        HeldLiveFeedCount = 0;
+        IsLiveFeedReviewPaused = false;
+        AnnounceState(receivedCount == 0
+            ? "Live activity review ended. The feed is updating again."
+            : droppedCount == 0
+                ? $"Live activity review ended. {retainedCount} held " +
+                  $"{(retainedCount == 1 ? "message is" : "messages are")} now available, and the feed is updating again."
+                : $"Live activity review ended. The newest {retainedCount} of {receivedCount} received messages are now available. " +
+                  $"{droppedCount} older {(droppedCount == 1 ? "entry was" : "entries were")} not retained.");
+    }
+
+    [RelayCommand]
+    public void AnnounceLiveFeedReviewStatus() =>
+        AnnounceNarration(
+            LiveFeedReviewStatus,
+            "Live activity review status spoken.",
+            interrupt: true);
 
     public sealed record ThemeChoice(
         ThemePreference Value,
@@ -309,16 +565,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ttsEngine = new ModularTtsEngine(_kokoroManager);
         _audioRouter = new WasapiAudioRouter();
         _voicePreviewAudioRouter = new WasapiAudioRouter();
-        _ttsQueue = new TtsQueue(_ttsEngine, _audioRouter);
+        _ttsQueue = new TtsQueue(
+            _ttsEngine,
+            _audioRouter,
+            Math.Clamp(_settings.QueueLimit, 1, 500));
         _voicePreviewOutput = new PrivateVoicePreviewOutput(_ttsEngine, _voicePreviewAudioRouter);
         _auditLogger = new StreamAuditLogger();
         _auditLogger.IsEnabled = _settings.EnableStreamAuditLogging;
         EnableStreamAuditLogging = _settings.EnableStreamAuditLogging;
         SelectedAudioEndpoint = _settings.SelectedBroadcastEndpointId ?? _settings.SelectedAudioEndpointId ?? string.Empty;
+        SelectedGuidanceAudioEndpoint = _settings.SelectedGuidanceAudioEndpointId ?? string.Empty;
         SelectedVoice = _settings.SelectedVoiceName ?? string.Empty;
         SpeechRate = Math.Clamp(_settings.SpeechRate, -5, 5);
-        SpeechVolume = Math.Clamp(_settings.SpeechVolume, 0, 100);
+        SpeechVolume = Math.Clamp(_settings.SpeechVolume, 0, 150);
         ReaderSpeechRate = Math.Clamp(_settings.ReaderSpeechRate, -5, 5);
+        ReaderSpeechVolume = Math.Clamp(_settings.ReaderSpeechVolume, 0, 150);
+        NarrateDetailedHelp = _settings.NarrateDetailedHelp;
+        NarrateTypedCharacters = _settings.NarrateTypedCharacters;
+        InterfaceTextScalePercent = Math.Clamp(_settings.InterfaceTextScalePercent, 100, 200);
+        QueueLimit = Math.Clamp(_settings.QueueLimit, 1, 500);
         BroadcastOutputEnabled = _settings.BroadcastOutputEnabled;
         AnnounceChatMessages = _settings.AnnounceChatMessages;
         AnnounceGifts = _settings.AnnounceGifts;
@@ -344,9 +609,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             CustomBlockedTerms.Add(term);
         }
+        foreach (string term in Config.CustomAllowedTerms
+                     .Where(term => !string.IsNullOrWhiteSpace(term))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(term => term, StringComparer.CurrentCultureIgnoreCase))
+        {
+            CustomAllowedTerms.Add(term);
+        }
         _announcer = new ScreenReaderAnnouncer();
         RefreshAccessibilitySettingsFromStore();
         _announcer.SpeechRate = ReaderSpeechRate;
+        _announcer.SpeechVolume = ReaderSpeechVolume;
+        InitializeGlobalShortcuts();
 
         _ipcServer = new StreamDeckIpcServer(
             stateProvider: GetIpcState,
@@ -359,6 +633,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         _ipcServer.Start();
         _isInitializing = false;
+        if (!string.IsNullOrWhiteSpace(_pendingGuidanceDeviceNotice))
+        {
+            _announcer.Announce(_pendingGuidanceDeviceNotice);
+        }
         _autoConnectTask = AutoConnectSourceAsync();
     }
 
@@ -479,6 +757,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void LoadSystemAudioAndVoices()
     {
+        string requestedGuidanceEndpoint = SelectedGuidanceAudioEndpoint;
         AudioEndpoints.Clear();
         foreach (var endpoint in _audioRouter.GetOutputEndpoints())
         {
@@ -492,6 +771,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 ?? string.Empty;
         }
         _audioRouter.SelectEndpoint(string.IsNullOrEmpty(SelectedAudioEndpoint) ? null : SelectedAudioEndpoint);
+        if (string.IsNullOrEmpty(SelectedGuidanceAudioEndpoint) ||
+            !AudioEndpoints.Any(e => e.Id == SelectedGuidanceAudioEndpoint))
+        {
+            SelectedGuidanceAudioEndpoint = AudioEndpoints.FirstOrDefault(e => e.IsDefault)?.Id
+                ?? AudioEndpoints.FirstOrDefault()?.Id
+                ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(requestedGuidanceEndpoint))
+            {
+                _pendingGuidanceDeviceNotice =
+                    $"The saved guidance audio device is unavailable. Using {GuidanceAudioEndpointName}.";
+                LiveStatusAnnouncement = _pendingGuidanceDeviceNotice;
+            }
+        }
+        _announcer.SelectAudioEndpoint(
+            string.IsNullOrEmpty(SelectedGuidanceAudioEndpoint)
+                ? null
+                : SelectedGuidanceAudioEndpoint);
         Voices.Clear();
         foreach (var voice in _ttsEngine.GetAvailableVoices())
         {
@@ -526,6 +822,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             candidate => string.Equals(candidate.Id, value, StringComparison.Ordinal));
         AnnounceOptionSelection(
             "Broadcast audio device",
+            endpoint?.Name,
+            endpoint is null ? -1 : AudioEndpoints.IndexOf(endpoint),
+            AudioEndpoints.Count);
+    }
+
+    partial void OnSelectedGuidanceAudioEndpointChanged(string value)
+    {
+        _announcer?.SelectAudioEndpoint(string.IsNullOrEmpty(value) ? null : value);
+        OnPropertyChanged(nameof(GuidanceAudioEndpointName));
+        OnPropertyChanged(nameof(GuidanceAudioEndpointAccessibleText));
+        OnPropertyChanged(nameof(SpokenGuidanceStatus));
+        if (_isInitializing) return;
+        _settings.SelectedGuidanceAudioEndpointId = string.IsNullOrEmpty(value) ? null : value;
+        SaveSettingsOrReport();
+        AudioEndpointInfo? endpoint = AudioEndpoints.FirstOrDefault(
+            candidate => string.Equals(candidate.Id, value, StringComparison.Ordinal));
+        AnnounceOptionSelection(
+            "Built-in guidance audio device",
             endpoint?.Name,
             endpoint is null ? -1 : AudioEndpoints.IndexOf(endpoint),
             AudioEndpoints.Count);
@@ -566,7 +880,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string position = zeroBasedIndex >= 0 && optionCount > 0
             ? $", {zeroBasedIndex + 1} of {optionCount}"
             : string.Empty;
-        _announcer.Announce($"{category}: {optionName}{position}.");
+        _announcer.AnnounceFocus($"{category}: {optionName}{position}.");
     }
 
     partial void OnEnableStreamAuditLoggingChanged(bool value)
@@ -596,10 +910,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     partial void OnSpeechVolumeChanged(int value)
     {
-        if (_ttsQueue is not null) _ttsQueue.SpeechVolume = Math.Clamp(value, 0, 100);
+        if (_ttsQueue is not null) _ttsQueue.SpeechVolume = Math.Clamp(value, 0, 150);
         UpdateVoicePreviewSettings();
         if (_isInitializing) return;
-        _settings.SpeechVolume = Math.Clamp(value, 0, 100);
+        _settings.SpeechVolume = Math.Clamp(value, 0, 150);
         SaveSettingsOrReport();
     }
 
@@ -609,6 +923,82 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (_isInitializing) return;
         _settings.ReaderSpeechRate = Math.Clamp(value, -5, 5);
         SaveSettingsOrReport();
+    }
+
+    partial void OnReaderSpeechVolumeChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 0, 150);
+        if (value != normalized)
+        {
+            ReaderSpeechVolume = normalized;
+            return;
+        }
+
+        if (_announcer is not null) _announcer.SpeechVolume = normalized;
+        if (_isInitializing) return;
+        _settings.ReaderSpeechVolume = normalized;
+        SaveSettingsOrReport();
+    }
+
+    partial void OnNarrateDetailedHelpChanged(bool value)
+    {
+        if (_isInitializing) return;
+        _settings.NarrateDetailedHelp = value;
+        SaveSettingsOrReport();
+        AnnounceState(value
+            ? "Detailed control instructions will be read when focus moves."
+            : "Detailed control instructions on focus are off. Focused controls will use short names, values, and states.");
+    }
+
+    partial void OnNarrateTypedCharactersChanged(bool value)
+    {
+        if (_isInitializing) return;
+        _settings.NarrateTypedCharacters = value;
+        SaveSettingsOrReport();
+        AnnounceState(value ? "Typing echo enabled." : "Typing echo disabled.");
+    }
+
+    partial void OnInterfaceTextScalePercentChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 100, 200);
+        if (value != normalized)
+        {
+            InterfaceTextScalePercent = normalized;
+            return;
+        }
+
+        ThemeManager.ApplyTextScale(normalized);
+        OnPropertyChanged(nameof(InterfaceTextScaleAccessibleText));
+        if (_isInitializing) return;
+        _settings.InterfaceTextScalePercent = normalized;
+        SaveSettingsOrReport();
+    }
+
+    partial void OnQueueLimitChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 1, 500);
+        if (value != normalized)
+        {
+            QueueLimit = normalized;
+            return;
+        }
+
+        _ttsQueue?.SetCapacity(normalized);
+        OnPropertyChanged(nameof(QueueLimitAccessibleText));
+        if (_isInitializing) return;
+        _settings.QueueLimit = normalized;
+        SaveSettingsOrReport();
+        AnnounceState($"Approved message queue limit changed to {normalized}.");
+    }
+
+    partial void OnIsLiveFeedReviewPausedChanged(bool value) =>
+        OnPropertyChanged(nameof(LiveFeedReviewStatus));
+
+    partial void OnHeldLiveFeedCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(RetainedLiveFeedCount));
+        OnPropertyChanged(nameof(DroppedHeldLiveFeedCount));
+        OnPropertyChanged(nameof(LiveFeedReviewStatus));
     }
 
     partial void OnBroadcastOutputEnabledChanged(bool value) => SaveOutputSettings();
@@ -726,6 +1116,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SelectedTheme = NormalizeTheme(_settings.EffectiveTheme);
         SpokenGuidanceEnabled = _settings.IsSpokenGuidanceEnabled;
         ThemeManager.Apply(SelectedTheme);
+        ThemeManager.ApplyTextScale(InterfaceTextScalePercent);
         _announcer.IsEnhancedAccessibilityEnabled = SpokenGuidanceEnabled;
         OnPropertyChanged(nameof(SelectedTheme));
         OnPropertyChanged(nameof(ThemeStatus));
@@ -757,9 +1148,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ModerationLevelDescription));
         OnPropertyChanged(nameof(ModerationLevelAccessibleText));
         OnPropertyChanged(nameof(ModerationStrengthSummary));
+        OnPropertyChanged(nameof(ModerationLevelThresholdSummary));
         if (_isInitializing) return;
+        HasFilterTestResult = false;
         PersistModerationSettings();
-        AnnounceState($"Moderation strength changed to {ModerationLevelName}, level {Config.IntentModerationLevel} of 4.");
+        AnnounceState(
+            $"Moderation strength changed to {ModerationLevelName}, " +
+            $"level {Config.IntentModerationLevel} of 4. " +
+            ModerationLevelThresholdSummary);
     }
 
     private void SaveOutputSettings()
@@ -776,7 +1172,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (_voicePreviewOutput is null) return;
         _voicePreviewOutput.VoiceId = string.IsNullOrWhiteSpace(SelectedVoice) ? null : SelectedVoice;
         _voicePreviewOutput.Rate = Math.Clamp(SpeechRate, -5, 5);
-        _voicePreviewOutput.Volume = Math.Clamp(SpeechVolume, 0, 100);
+        _voicePreviewOutput.Volume = Math.Clamp(SpeechVolume, 0, 150);
     }
 
     private void UpdateVoicePreviewAudioEndpoint()
@@ -921,27 +1317,55 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             _auditLogger.LogDecision(message, decision);
         }
 
-        Application.Current?.Dispatcher.Invoke(() =>
+        if (Application.Current?.Dispatcher is not { HasShutdownStarted: false } dispatcher)
         {
-            if (LiveFeed.Count >= 100)
-            {
-                LiveFeed.RemoveAt(LiveFeed.Count - 1);
-            }
-            LiveFeed.Insert(0, decision);
+            return;
+        }
 
-            if (decision.Passed && IsArmed)
+        _ = dispatcher.BeginInvoke(() =>
+        {
+            if (_incomingEventCts.IsCancellationRequested)
             {
-                if (!_ttsQueue.Enqueue(decision, bypassPause))
+                return;
+            }
+
+            if (IsLiveFeedReviewPaused)
+            {
+                if (_heldLiveFeedDecisions.Count >= 100)
                 {
-                    AnnounceState("The approved message queue is full. A new message was not added.");
+                    _heldLiveFeedDecisions.RemoveAt(0);
                 }
+
+                _heldLiveFeedDecisions.Add(decision);
+                HeldLiveFeedCount++;
             }
             else
             {
-                _announcer.PlayCue(SoundCueType.MessageBlocked);
+                AddDecisionToLiveFeed(decision);
+            }
+
+            if (decision.Passed && IsArmed &&
+                !_ttsQueue.Enqueue(decision, bypassPause))
+            {
+                if (_ttsQueue.Count >= _ttsQueue.Capacity &&
+                    Interlocked.Exchange(ref _queueSaturationAnnounced, 1) == 0)
+                {
+                    AnnounceState(
+                        "The approved message queue is full. Additional messages will be skipped until space is available.");
+                }
             }
         });
 
+    }
+
+    private void AddDecisionToLiveFeed(ModerationDecision decision)
+    {
+        if (LiveFeed.Count >= 100)
+        {
+            LiveFeed.RemoveAt(LiveFeed.Count - 1);
+        }
+
+        LiveFeed.Insert(0, decision);
     }
 
     private bool IsMonitoringGenerationActive(int monitoringGeneration) =>
@@ -1053,6 +1477,70 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
+    public void AddCustomAllowedTerm()
+    {
+        string term = CustomAllowedInput.Trim();
+        if (string.IsNullOrWhiteSpace(term))
+        {
+            AnnounceState("Type a word or phrase before adding an allowed term.");
+            return;
+        }
+
+        if (term.Length > 256)
+        {
+            AnnounceState("Allowed terms can contain at most 256 characters.");
+            return;
+        }
+
+        string normalizedTerm = UnicodeNormalizer.NormalizeForInspection(term);
+        if (_pipeline.Rules.DefaultRules.Contains(normalizedTerm))
+        {
+            AnnounceState("Built-in severe-abuse safety terms cannot be added to the allowed list.");
+            return;
+        }
+
+        if (CustomAllowedTerms.Any(existing =>
+                string.Equals(existing, term, StringComparison.OrdinalIgnoreCase)))
+        {
+            AnnounceState("That allowed term is already in the list.");
+            return;
+        }
+
+        if (CustomAllowedTerms.Count >= 500)
+        {
+            AnnounceState("The allowed-terms list has reached its limit of 500 entries.");
+            return;
+        }
+
+        CustomAllowedTerms.Add(term);
+        Config.CustomAllowedTerms.Add(term);
+        PersistModerationSettings();
+        SelectedCustomAllowedTerm = term;
+        OnPropertyChanged(nameof(AllowedRulesSummary));
+        AnnounceState("Allowed term added. Built-in severe-abuse and contextual safety checks remain active.");
+        CustomAllowedInput = "";
+    }
+
+    [RelayCommand]
+    public void RemoveSelectedCustomAllowedTerm()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedCustomAllowedTerm))
+        {
+            AnnounceState("Choose an allowed term to remove.");
+            return;
+        }
+
+        string term = SelectedCustomAllowedTerm;
+        CustomAllowedTerms.Remove(term);
+        Config.CustomAllowedTerms.RemoveAll(existing =>
+            string.Equals(existing, term, StringComparison.OrdinalIgnoreCase));
+        SelectedCustomAllowedTerm = null;
+        PersistModerationSettings();
+        OnPropertyChanged(nameof(AllowedRulesSummary));
+        AnnounceState("Allowed term removed.");
+    }
+
+    [RelayCommand]
     public async Task TestFilter()
     {
         string sample = FilterTestInput.Trim();
@@ -1148,6 +1636,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string voiceName = voice?.DisplayName ?? "the selected SafeSpeak voice";
         string sample = $"This is {voiceName}. SafeSpeak voice testing is working.";
 
+        _announcer.StopSpeaking();
         LiveStatusAnnouncement = $"Testing selected voice on the preview output: {voiceName}";
         try
         {
@@ -1202,6 +1691,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         LiveStatusAnnouncement = text;
         _announcer.Announce(text, interrupt);
+    }
+
+    private void AnnounceNarration(
+        string narration,
+        string conciseStatus,
+        bool interrupt = false)
+    {
+        LiveStatusAnnouncement = conciseStatus;
+        _announcer.Announce(narration, interrupt);
+    }
+
+    [RelayCommand]
+    public void TestGuidanceAudio()
+    {
+        AnnounceNarration(
+            $"SafeSpeak built-in guidance is playing through {GuidanceAudioEndpointName} at {ReaderSpeechVolume} percent volume.",
+            $"Testing built-in guidance on {GuidanceAudioEndpointName}.",
+            interrupt: true);
     }
 
     private IpcStateBroadcast GetIpcState()
@@ -1325,6 +1832,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     StopCurrentSpeech();
                     return "CurrentSpeechStopped";
 
+                case "stop_guidance":
+                    StopBuiltInGuidance();
+                    return "BuiltInGuidanceStopped";
+
                 case "emergency_stop":
                 case "panic": // Temporary Stream Deck compatibility alias.
                     EmergencyStop();
@@ -1429,8 +1940,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.SelectedBroadcastEndpointId = string.IsNullOrEmpty(SelectedAudioEndpoint) ? null : SelectedAudioEndpoint;
         _settings.SelectedVoiceName = string.IsNullOrEmpty(SelectedVoice) ? null : SelectedVoice;
         _settings.SpeechRate = Math.Clamp(SpeechRate, -5, 5);
-        _settings.SpeechVolume = Math.Clamp(SpeechVolume, 0, 100);
+        _settings.SpeechVolume = Math.Clamp(SpeechVolume, 0, 150);
         _settings.ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
+        _settings.QueueLimit = Math.Clamp(QueueLimit, 1, 500);
         SaveSettingsOrReport();
     }
 
