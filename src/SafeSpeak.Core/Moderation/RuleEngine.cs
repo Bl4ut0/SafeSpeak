@@ -9,6 +9,18 @@ namespace SafeSpeak.Core.Moderation;
 public sealed class RuleEngine
 {
     private readonly ConcurrentDictionary<string, DateTimeOffset> _userLastMessageTimes = new();
+    private readonly object _messageRateLock = new();
+    private readonly Queue<DateTimeOffset> _streamMessageTimes = new();
+    private readonly Dictionary<string, Queue<DateTimeOffset>> _userMessageTimes =
+        new(StringComparer.OrdinalIgnoreCase);
+    private int _rateLimitSweepCounter;
+
+    public enum MessageRateResult
+    {
+        Allowed = 0,
+        UserLimitExceeded = 1,
+        StreamLimitExceeded = 2
+    }
 
     // Core default prohibited terms (stored normalized)
     private static readonly HashSet<string> DefaultProhibitedTerms = new(StringComparer.OrdinalIgnoreCase)
@@ -38,6 +50,79 @@ public sealed class RuleEngine
 
         _userLastMessageTimes[author] = nowUtc;
         return false;
+    }
+
+    /// <summary>
+    /// Atomically applies sliding-window limits to one viewer and the whole
+    /// stream. Rejected attempts are not retained, keeping state bounded by the
+    /// configured accepted-message limits.
+    /// </summary>
+    public MessageRateResult TryAcceptMessageRate(
+        string author,
+        int windowSeconds,
+        int perUserLimit,
+        int streamLimit,
+        DateTimeOffset nowUtc)
+    {
+        if (string.IsNullOrWhiteSpace(author) ||
+            windowSeconds <= 0 ||
+            perUserLimit <= 0 ||
+            streamLimit <= 0)
+        {
+            return MessageRateResult.Allowed;
+        }
+
+        DateTimeOffset cutoff = nowUtc.AddSeconds(-windowSeconds);
+        lock (_messageRateLock)
+        {
+            Prune(_streamMessageTimes, cutoff);
+            if (_streamMessageTimes.Count >= streamLimit)
+            {
+                return MessageRateResult.StreamLimitExceeded;
+            }
+
+            if (!_userMessageTimes.TryGetValue(author, out Queue<DateTimeOffset>? userTimes))
+            {
+                userTimes = new Queue<DateTimeOffset>();
+                _userMessageTimes[author] = userTimes;
+            }
+
+            Prune(userTimes, cutoff);
+            if (userTimes.Count >= perUserLimit)
+            {
+                return MessageRateResult.UserLimitExceeded;
+            }
+
+            userTimes.Enqueue(nowUtc);
+            _streamMessageTimes.Enqueue(nowUtc);
+            _rateLimitSweepCounter++;
+            if (_rateLimitSweepCounter >= 256)
+            {
+                SweepInactiveUsers(cutoff);
+                _rateLimitSweepCounter = 0;
+            }
+            return MessageRateResult.Allowed;
+        }
+    }
+
+    private static void Prune(Queue<DateTimeOffset> timestamps, DateTimeOffset cutoff)
+    {
+        while (timestamps.TryPeek(out DateTimeOffset timestamp) && timestamp <= cutoff)
+        {
+            timestamps.Dequeue();
+        }
+    }
+
+    private void SweepInactiveUsers(DateTimeOffset cutoff)
+    {
+        foreach ((string author, Queue<DateTimeOffset> timestamps) in _userMessageTimes.ToArray())
+        {
+            Prune(timestamps, cutoff);
+            if (timestamps.Count == 0)
+            {
+                _userMessageTimes.Remove(author);
+            }
+        }
     }
 
     /// <summary>
@@ -144,5 +229,11 @@ public sealed class RuleEngine
     public void ResetCooldowns()
     {
         _userLastMessageTimes.Clear();
+        lock (_messageRateLock)
+        {
+            _streamMessageTimes.Clear();
+            _userMessageTimes.Clear();
+            _rateLimitSweepCounter = 0;
+        }
     }
 }

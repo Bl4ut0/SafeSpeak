@@ -469,16 +469,24 @@ public partial class MainWindow : Window
             _ => ThemeSelector
         };
         string page = isSafety ? "Safety" : "Settings";
-        string destination = movedToTop ? "top" : "end";
+        string destination = movedToTop ? "top" : "bottom";
         string focusName = movedToTop
             ? "Play whole guide"
             : isSafety ? "Moderation strength" : "Theme selector";
+        string movedButtonName = movedToTop
+            ? "Move controls to bottom"
+            : "Move controls to top";
+        string findInstruction = movedToTop
+            ? $"Navigate to the top of the {page} page to find it again."
+            : $"Navigate to the bottom of the {page} page to find it again.";
 
         Dispatcher.BeginInvoke(() =>
         {
             FocusElement(focusTarget);
             viewModel.AnnounceState(
-                $"{page} guide buttons moved to the {destination} of the page. Focus is now on {focusName}.",
+                $"{page} guide controls moved to the {destination} of the page. " +
+                $"The button you pressed moved with them and is now labeled {movedButtonName}. " +
+                $"{findInstruction} The guide text remains visible. Focus is now on {focusName}.",
                 interrupt: true);
         }, DispatcherPriority.ContextIdle);
     }

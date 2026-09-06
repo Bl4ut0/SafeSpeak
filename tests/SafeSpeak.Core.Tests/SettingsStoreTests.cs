@@ -17,6 +17,12 @@ public sealed class SettingsStoreTests
             OnboardingStage = OnboardingStage.Complete,
             SpeechVolume = 73,
             QueueLimit = 84,
+            InterMessageGapMilliseconds = 700,
+            AdaptiveInterMessageGap = false,
+            MessageRateLimitEnabled = true,
+            MessageRateWindow = MessageRateWindow.OneSecond,
+            PerUserMessageLimit = 8,
+            StreamMessageLimit = 1200,
             CustomBlockedTerms = ["first", "second"],
             CustomAllowedTerms = ["permitted"]
         };
@@ -29,6 +35,12 @@ public sealed class SettingsStoreTests
         Assert.Equal(OnboardingStage.Complete, loaded.OnboardingStage);
         Assert.Equal(73, loaded.SpeechVolume);
         Assert.Equal(84, loaded.QueueLimit);
+        Assert.Equal(700, loaded.InterMessageGapMilliseconds);
+        Assert.False(loaded.AdaptiveInterMessageGap);
+        Assert.True(loaded.MessageRateLimitEnabled);
+        Assert.Equal(MessageRateWindow.OneSecond, loaded.MessageRateWindow);
+        Assert.Equal(8, loaded.PerUserMessageLimit);
+        Assert.Equal(1200, loaded.StreamMessageLimit);
         Assert.Equal(["first", "second"], loaded.CustomBlockedTerms);
         Assert.Equal(["permitted"], loaded.CustomAllowedTerms);
         Assert.Equal(
@@ -132,6 +144,10 @@ public sealed class SettingsStoreTests
               "ReaderSpeechRate": -50,
               "ReaderSpeechVolume": 999,
               "QueueLimit": 900,
+              "InterMessageGapMilliseconds": 9000,
+              "MessageRateWindow": 99,
+              "PerUserMessageLimit": 0,
+              "StreamMessageLimit": 9000,
               "IntentModerationLevel": 99,
               "AiToxicityThreshold": 8,
               "SelectedSourceConnectorId": "",
@@ -147,6 +163,10 @@ public sealed class SettingsStoreTests
         Assert.Equal(-5, loaded.ReaderSpeechRate);
         Assert.Equal(150, loaded.ReaderSpeechVolume);
         Assert.Equal(500, loaded.QueueLimit);
+        Assert.Equal(5000, loaded.InterMessageGapMilliseconds);
+        Assert.Equal(MessageRateWindow.TenSeconds, loaded.MessageRateWindow);
+        Assert.Equal(1, loaded.PerUserMessageLimit);
+        Assert.Equal(5000, loaded.StreamMessageLimit);
         Assert.Equal(4, loaded.IntentModerationLevel);
         Assert.Equal(0.95, loaded.AiToxicityThreshold);
         Assert.Equal("tikfinity", loaded.SelectedSourceConnectorId);

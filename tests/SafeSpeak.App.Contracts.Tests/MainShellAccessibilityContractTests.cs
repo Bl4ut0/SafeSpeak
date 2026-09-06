@@ -656,7 +656,11 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("AnnounceNarration(", viewModel);
         Assert.Contains("ModerationGuideNarration,", viewModel);
         Assert.Contains("ReadNextModerationGuideSection", viewModel);
-        Assert.Contains("Safety guide buttons moved to the end of the page", viewModel);
+        Assert.Contains("Safety guide controls moved to the bottom of the page", viewModel);
+        Assert.Contains("The button you pressed moved with them", viewModel);
+        Assert.Contains("Navigate to the bottom of the Safety page to find it again", viewModel);
+        Assert.DoesNotContain("Hide guide", viewModel, StringComparison.Ordinal);
+        Assert.DoesNotContain("Show guide", viewModel, StringComparison.Ordinal);
         Assert.Contains(".Concat(SensitiveContextExamples)", viewModel);
         Assert.Contains(".Concat(AlwaysOnModerationLayers)", viewModel);
         Assert.Contains("I hate this game.", viewModel);
@@ -1090,7 +1094,7 @@ public sealed class MainShellAccessibilityContractTests
 
         Assert.Equal("SettingsPanel_PreviewKeyDown",
             settingsPanel.Attribute("PreviewKeyDown")?.Value);
-        Assert.Equal(Enumerable.Range(1, 45), stops.Select(element =>
+        Assert.Equal(Enumerable.Range(1, 49), stops.Select(element =>
             int.Parse(element.Attribute("TabIndex")!.Value)));
         Assert.Equal("SettingsGuideButton", stops[0].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ReadSettingsGuidePageButton", stops[1].Attribute(Xaml + "Name")?.Value);
@@ -1098,14 +1102,16 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("ToggleSettingsGuideButton", stops[3].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ThemeSelector", stops[4].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("SpokenGuidanceToggle", stops[5].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("Run Setup Again", stops[40].Attribute("Content")?.Value);
-        Assert.Equal("SettingsGuideButtonAtEnd", stops[41].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("Run Setup Again", stops[44].Attribute("Content")?.Value);
+        Assert.Equal("SettingsGuideButtonAtEnd", stops[45].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButtonAtEnd", stops[^1].Attribute(Xaml + "Name")?.Value);
         Assert.True(runSetup.IsBefore(visibleGuide));
         Assert.True(visibleGuide.IsBefore(guideButtonsAtEnd));
 
         string codeBehind = File.ReadAllText(
             RepositoryFile("src", "SafeSpeak.App", "MainWindow.xaml.cs"));
+        string shortcutsViewModel = File.ReadAllText(
+            RepositoryFile("src", "SafeSpeak.App", "ViewModels", "MainViewModel.Shortcuts.cs"));
         Assert.Contains("EnumerateVisualDescendants(SettingsPanel)", codeBehind);
         Assert.Contains(".OrderBy(KeyboardNavigation.GetTabIndex)", codeBehind);
         Assert.Contains("control.IsVisible", codeBehind);
@@ -1116,6 +1122,13 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains(": ThemeSelector", codeBehind);
         Assert.Contains("GuidePlacementButton_Click", codeBehind);
         Assert.Contains("Focus is now on {focusName}", codeBehind);
+        Assert.Contains("Move controls to bottom", shortcutsViewModel);
+        Assert.Contains("Move controls to top", shortcutsViewModel);
+        Assert.Contains("Settings guide controls moved to the bottom of the page", shortcutsViewModel);
+        Assert.Contains("The button you pressed moved with them", shortcutsViewModel);
+        Assert.Contains("Navigate to the bottom of the Settings page to find it again", shortcutsViewModel);
+        Assert.DoesNotContain("Hide guide", shortcutsViewModel, StringComparison.Ordinal);
+        Assert.DoesNotContain("Show guide", shortcutsViewModel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1410,6 +1423,39 @@ public sealed class MainShellAccessibilityContractTests
             Assert.False(string.IsNullOrWhiteSpace(
                 Attribute(option, "AutomationProperties.HelpText")));
         }
+    }
+
+    [Fact]
+    public void VoiceAndSettingsExposeAccessibleAdaptiveSpacingAndLargeStreamRateLimits()
+    {
+        XDocument document = LoadMainWindow();
+        XElement gap = NamedElement(document, "Slider", "InterMessageGapSlider");
+        XElement adaptive = document.Descendants(Presentation + "CheckBox")
+            .Single(element => element.Attribute("IsChecked")?.Value ==
+                "{Binding AdaptiveInterMessageGap, Mode=TwoWay}");
+        XElement window = NamedElement(document, "ComboBox", "MessageRateWindowSelector");
+        XElement perUser = NamedElement(document, "Slider", "PerUserMessageLimitSlider");
+        XElement stream = NamedElement(document, "Slider", "StreamMessageLimitSlider");
+
+        Assert.Equal("0", gap.Attribute("Minimum")?.Value);
+        Assert.Equal("50", gap.Attribute("Maximum")?.Value);
+        Assert.Equal("1", gap.Attribute("TickFrequency")?.Value);
+        Assert.False(string.IsNullOrWhiteSpace(
+            Attribute(gap, "AutomationProperties.HelpText")));
+        Assert.False(string.IsNullOrWhiteSpace(
+            Attribute(adaptive, "AutomationProperties.HelpText")));
+
+        Assert.Equal("{Binding MessageRateWindowChoices}", window.Attribute("ItemsSource")?.Value);
+        Assert.Equal("1", perUser.Attribute("Minimum")?.Value);
+        Assert.Equal("100", perUser.Attribute("Maximum")?.Value);
+        Assert.Equal("10", stream.Attribute("Minimum")?.Value);
+        Assert.Equal("5000", stream.Attribute("Maximum")?.Value);
+        Assert.Null(perUser.Attribute("IsEnabled"));
+        Assert.Null(stream.Attribute("IsEnabled"));
+        Assert.False(string.IsNullOrWhiteSpace(
+            Attribute(perUser, "AutomationProperties.HelpText")));
+        Assert.False(string.IsNullOrWhiteSpace(
+            Attribute(stream, "AutomationProperties.HelpText")));
     }
 
     private static XDocument LoadMainWindow() =>

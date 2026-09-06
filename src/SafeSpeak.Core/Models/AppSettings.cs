@@ -39,7 +39,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 7;
+    public const int CurrentSettingsSchemaVersion = 8;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -154,6 +154,12 @@ public sealed class AppSettings
     public bool NarrateTypedCharacters { get; set; }
     public int InterfaceTextScalePercent { get; set; } = 100;
     public int QueueLimit { get; set; } = 50;
+    public int InterMessageGapMilliseconds { get; set; }
+    public bool AdaptiveInterMessageGap { get; set; } = true;
+    public bool MessageRateLimitEnabled { get; set; } = true;
+    public MessageRateWindow MessageRateWindow { get; set; } = MessageRateWindow.TenSeconds;
+    public int PerUserMessageLimit { get; set; } = 3;
+    public int StreamMessageLimit { get; set; } = 500;
 
     public List<GlobalShortcutBinding> GlobalShortcuts { get; set; } =
         GlobalShortcutCatalog.CreateDefaults();
@@ -248,6 +254,13 @@ public sealed class AppSettings
         ReaderSpeechVolume = Math.Clamp(ReaderSpeechVolume, 0, 150);
         InterfaceTextScalePercent = Math.Clamp(InterfaceTextScalePercent, 100, 200);
         QueueLimit = Math.Clamp(QueueLimit, 1, 500);
+        InterMessageGapMilliseconds = Math.Clamp(InterMessageGapMilliseconds, 0, 5000);
+        if (!Enum.IsDefined(MessageRateWindow))
+        {
+            MessageRateWindow = MessageRateWindow.TenSeconds;
+        }
+        PerUserMessageLimit = Math.Clamp(PerUserMessageLimit, 1, 100);
+        StreamMessageLimit = Math.Clamp(StreamMessageLimit, 10, 5000);
         GlobalShortcuts = GlobalShortcutCatalog.NormalizeBindings(GlobalShortcuts);
         SpeakUsernames = true;
         AiClassificationEnabled = true;
@@ -566,6 +579,11 @@ public sealed class AppSettings
         AiClassificationEnabled = true,
         AiToxicityThreshold = Math.Clamp(AiToxicityThreshold, 0.3, 0.95),
         IntentModerationLevel = Math.Clamp(IntentModerationLevel, 1, 4),
+        UserCooldownSeconds = 0,
+        MessageRateLimitEnabled = MessageRateLimitEnabled,
+        MessageRateWindow = MessageRateWindow,
+        PerUserMessageLimit = Math.Clamp(PerUserMessageLimit, 1, 100),
+        StreamMessageLimit = Math.Clamp(StreamMessageLimit, 10, 5000),
         CustomBlockedTerms = new List<string>(CustomBlockedTerms),
         CustomAllowedTerms = new List<string>(CustomAllowedTerms)
     };
@@ -583,6 +601,12 @@ public sealed class AppSettings
         AiClassificationEnabled = true;
         AiToxicityThreshold = Math.Clamp(config.AiToxicityThreshold, 0.3, 0.95);
         IntentModerationLevel = Math.Clamp(config.IntentModerationLevel, 1, 4);
+        MessageRateLimitEnabled = config.MessageRateLimitEnabled;
+        MessageRateWindow = Enum.IsDefined(config.MessageRateWindow)
+            ? config.MessageRateWindow
+            : MessageRateWindow.TenSeconds;
+        PerUserMessageLimit = Math.Clamp(config.PerUserMessageLimit, 1, 100);
+        StreamMessageLimit = Math.Clamp(config.StreamMessageLimit, 10, 5000);
         CustomBlockedTerms = new List<string>(config.CustomBlockedTerms);
         CustomAllowedTerms = new List<string>(config.CustomAllowedTerms);
     }

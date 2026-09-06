@@ -140,6 +140,41 @@ public class MockAudioRouter : IAudioRouter
     }
 }
 
+public sealed class BlockingAudioRouter : IAudioRouter
+{
+    private readonly TaskCompletionSource _firstPlaybackStarted =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _releaseFirstPlayback =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _playbackCount;
+
+    public string? SelectedEndpointId { get; private set; }
+    public int PlaybackCount => Volatile.Read(ref _playbackCount);
+    public Task FirstPlaybackStarted => _firstPlaybackStarted.Task;
+
+    public IReadOnlyList<AudioEndpointInfo> GetOutputEndpoints() => [];
+
+    public void SelectEndpoint(string? endpointId) =>
+        SelectedEndpointId = endpointId;
+
+    public async Task PlayWaveStreamAsync(
+        Stream waveStream,
+        float volume = 1,
+        CancellationToken cancellationToken = default)
+    {
+        int playbackNumber = Interlocked.Increment(ref _playbackCount);
+        if (playbackNumber == 1)
+        {
+            _firstPlaybackStarted.TrySetResult();
+            await _releaseFirstPlayback.Task.WaitAsync(cancellationToken);
+        }
+    }
+
+    public void ReleaseFirstPlayback() => _releaseFirstPlayback.TrySetResult();
+    public void Stop() => _releaseFirstPlayback.TrySetResult();
+    public void Dispose() => Stop();
+}
+
 public class TtsQueueTests
 {
     [Fact]
@@ -219,9 +254,51 @@ public class TtsQueueTests
         Assert.True(queue.Enqueue(Approved("First")));
         Assert.True(queue.Enqueue(Approved("Second")));
 
-        await WaitUntilAsync(() => mockTts.SpeakCount == 2);
+        await WaitUntilAsync(() => mockRouter.PlaybackCount == 2);
 
         Assert.Equal(TtsPlaybackMode.Automatic, queue.Mode);
+        Assert.Equal(0, queue.Count);
+    }
+
+    [Theory]
+    [InlineData(1000, false, 10, 1000)]
+    [InlineData(1000, true, 1, 1000)]
+    [InlineData(1000, true, 2, 500)]
+    [InlineData(1000, true, 5, 250)]
+    [InlineData(1000, true, 10, 0)]
+    [InlineData(9000, false, 1, 5000)]
+    public void AdaptiveInterMessageGap_UsesConfiguredMaximumAndQueuePressure(
+        int configured,
+        bool adaptive,
+        int pending,
+        int expected)
+    {
+        Assert.Equal(
+            expected,
+            TtsQueue.CalculateEffectiveInterMessageGap(configured, adaptive, pending));
+    }
+
+    [Fact]
+    public async Task AutomaticMode_PrefetchesNextMessageDuringCurrentPlayback()
+    {
+        var mockTts = new MockTtsEngine();
+        var blockingRouter = new BlockingAudioRouter();
+        await using var queue = new TtsQueue(mockTts, blockingRouter);
+
+        queue.ArmAutomatic();
+        Assert.True(queue.Enqueue(Approved("First")));
+        await blockingRouter.FirstPlaybackStarted.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(queue.Enqueue(Approved("Second")));
+        await WaitUntilAsync(() => mockTts.SpeakCount == 2);
+
+        Assert.True(queue.IsSpeaking);
+        Assert.Equal(1, blockingRouter.PlaybackCount);
+
+        blockingRouter.ReleaseFirstPlayback();
+        await WaitUntilAsync(() => blockingRouter.PlaybackCount == 2);
+        await WaitUntilAsync(() => !queue.IsSpeaking);
+
         Assert.Equal(0, queue.Count);
     }
 
