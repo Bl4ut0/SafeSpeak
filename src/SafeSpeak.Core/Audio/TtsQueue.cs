@@ -34,7 +34,7 @@ public sealed class TtsQueue : IAsyncDisposable
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _signal = new(0);
     private readonly SemaphoreSlim _playbackGate = new(1, 1);
-    private readonly int _capacity;
+    private int _capacity;
     private readonly CancellationTokenSource _queueLoopCts = new();
 
     private int _queuedCount;
@@ -71,7 +71,7 @@ public sealed class TtsQueue : IAsyncDisposable
     }
 
     public int Count => Volatile.Read(ref _queuedCount);
-    public int Capacity => _capacity;
+    public int Capacity => Volatile.Read(ref _capacity);
 
     public event EventHandler<TtsQueueStateChangedEventArgs>? StateChanged;
     public event EventHandler<ModerationDecision>? PlaybackStarted;
@@ -95,6 +95,27 @@ public sealed class TtsQueue : IAsyncDisposable
         _audioRouter = audioRouter;
         _capacity = capacity;
         _playbackLoopTask = Task.Run(ProcessQueueLoopAsync);
+    }
+
+    /// <summary>
+    /// Changes the maximum number of pending approved items. Reducing the limit
+    /// never discards existing work; new items wait until the count falls below
+    /// the new limit.
+    /// </summary>
+    public void SetCapacity(int capacity)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
+        lock (_stateLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _capacity = capacity;
+        }
+
+        NotifyStateChanged();
     }
 
     /// <summary>
@@ -453,13 +474,8 @@ public sealed class TtsQueue : IAsyncDisposable
 
     private void ClearQueueLocked()
     {
-        while (_queue.TryDequeue(out _))
-        {
-        }
-        while (_pauseBypassQueue.TryDequeue(out _))
-        {
-        }
-
+        _queue.Clear();
+        _pauseBypassQueue.Clear();
         _queuedCount = 0;
     }
 

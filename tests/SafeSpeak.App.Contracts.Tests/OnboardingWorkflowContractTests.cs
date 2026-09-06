@@ -54,7 +54,7 @@ public sealed class OnboardingWorkflowContractTests
 
         Assert.Contains("confirmation 2 of 2", wizard);
         Assert.Contains("Choose the same combination to confirm it", wizard);
-        Assert.Contains("_Close SafeSpeak", wizard);
+        Assert.Contains("PrimaryButtonText = \"Close SafeSpeak (Y)\"", wizard);
         Assert.Contains("Close SafeSpeak, reopen it", wizard);
         Assert.Contains("A different combination becomes a new first choice", wizard);
 

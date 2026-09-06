@@ -7,5 +7,5 @@
   <String Id="MaintenanceWelcomeDlgDescription"
           Value="The Setup Wizard can change, repair, or remove [ProductName]. For spoken setup, press Windows+Ctrl+Enter to start Windows Narrator." />
   <String Id="MaintenanceTypeDlgRepairText"
-          Value="Repair SafeSpeak and permanently remove the current user's local settings, audit logs, and downloaded optional models." />
+          Value="Repair SafeSpeak program files. Your settings, audit logs, and downloaded optional models are preserved." />
 </WixLocalization>

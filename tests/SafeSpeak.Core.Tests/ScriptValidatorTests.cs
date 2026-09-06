@@ -40,4 +40,15 @@ public class ScriptValidatorTests
 
         Assert.False(result);
     }
+
+    [Theory]
+    [InlineData("Привет\tHello")]
+    [InlineData("Привет-Hello")]
+    [InlineData("Привет_Hello")]
+    [InlineData("Привет/Hello")]
+    public void ContainsMixedScriptWords_TreatsPunctuationAndWhitespaceAsBoundaries(
+        string text)
+    {
+        Assert.False(ScriptValidator.ContainsMixedScriptWords(text));
+    }
 }

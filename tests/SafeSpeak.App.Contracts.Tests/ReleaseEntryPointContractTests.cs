@@ -149,7 +149,24 @@ public sealed class ReleaseEntryPointContractTests
     }
 
     [Fact]
-    public void MsiInstaller_ProvidesNativeMaintenanceAndRepairReset()
+    public void DesktopShortcutScript_ResolvesAndVerifiesANativeWindowsShortcut()
+    {
+        string script = Source("installer", "Create-DesktopShortcut.ps1");
+        string readme = Source("installer", "README.md");
+
+        Assert.Contains("[Environment+SpecialFolder]::DesktopDirectory", script);
+        Assert.Contains("New-Object -ComObject WScript.Shell", script);
+        Assert.Contains("$shell.CreateShortcut($shortcutPath)", script);
+        Assert.Contains("$shortcut.TargetPath = $resolvedExecutable", script);
+        Assert.Contains("$shortcut.IconLocation = \"$iconPath,0\"", script);
+        Assert.Contains("The desktop shortcut target could not be verified", script);
+        Assert.Contains("Use -Force to replace it", script);
+        Assert.DoesNotContain(".Hotkey", script, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("`./installer/Create-DesktopShortcut.ps1`", readme);
+    }
+
+    [Fact]
+    public void MsiInstaller_ProvidesNativeMaintenanceWithoutTouchingUserProfiles()
     {
         string releaseScript = ReleaseScript();
         string msiScript = Source("installer", "Build-Msi.ps1");
@@ -166,34 +183,40 @@ public sealed class ReleaseEntryPointContractTests
 
         Assert.Contains("WixToolset.Sdk/5.0.2", wixProject);
         Assert.Contains("WixToolset.UI.wixext", wixProject);
-        Assert.Contains("WixToolset.Util.wixext", wixProject);
+        Assert.DoesNotContain("WixToolset.Util.wixext", wixProject);
         Assert.Contains("<SuppressIces>ICE61</SuppressIces>", wixProject);
 
         Assert.Contains("<MajorUpgrade AllowSameVersionUpgrades=\"yes\"", package);
         Assert.Contains("<MediaTemplate EmbedCab=\"yes\"", package);
         Assert.Contains("<ui:WixUI Id=\"WixUI_InstallDir\"", package);
         Assert.Contains("SafeSpeakStartMenuShortcut", package);
-        Assert.Contains("RepairResetComponent", package);
-        Assert.Contains("REINSTALL AND NOT REMOVE=&quot;ALL&quot;", package);
-        Assert.Contains("Property=\"SAFESPEAKAPPDATA\"", package);
-        Assert.Contains("RemoveFolderEx", package);
-        Assert.Contains("Uninstall preserves user data", package);
+        Assert.Contains("SafeSpeakDesktopShortcut", package);
+        Assert.Contains("<StandardDirectory Id=\"DesktopFolder\"", package);
+        Assert.Contains("<ComponentRef Id=\"DesktopShortcutComponent\"", package);
+        Assert.DoesNotContain("RepairResetComponent", package);
+        Assert.DoesNotContain("SAFESPEAKAPPDATA", package);
+        Assert.DoesNotContain("RemoveFolderEx", package);
+        Assert.Contains("Repair and uninstall preserve user data", package);
 
         Assert.Contains("WelcomeDlgDescription", localization);
         Assert.Contains("Windows+Ctrl+Enter", localization);
         Assert.Contains("Windows Narrator", localization);
         Assert.Contains("MaintenanceTypeDlgRepairText", localization);
-        Assert.Contains("permanently remove the current user's local settings", localization);
+        Assert.Contains("settings, audit logs, and downloaded optional models are preserved", localization);
 
         Assert.Contains("WindowsInstaller.Installer", msiScript);
         Assert.Contains("Get-MsiRowCount", msiScript);
         Assert.Contains("SELECT `File` FROM `File`", msiScript);
         Assert.Contains("SELECT `Shortcut` FROM `Shortcut`", msiScript);
+        Assert.Contains("SafeSpeakDesktopShortcut", msiScript);
         Assert.Contains("SELECT `UpgradeCode` FROM `Upgrade`", msiScript);
-        Assert.Contains("SELECT `RemoveFolderEx` FROM `Wix4RemoveFolderEx`", msiScript);
-        Assert.Contains("WHERE ``Component``='RepairResetComponent'", msiScript);
-        Assert.Contains("'%LOCALAPPDATA%\\SafeSpeak'", msiScript);
+        Assert.DoesNotContain("Wix4RemoveFolderEx", msiScript);
+        Assert.DoesNotContain("RepairResetComponent", msiScript);
+        Assert.DoesNotContain("SAFESPEAKAPPDATA", msiScript);
+        Assert.Contains("user profile data preserved", msiScript);
         Assert.Contains("unknown-publisher warning", msiScript);
+        Assert.Contains("automatically installs SafeSpeak shortcuts in both the Start menu and the desktop", Source("installer", "README.md"));
+        Assert.Contains("install-managed desktop shortcut", Source("installer", "README.md"));
     }
 
     [Fact]
@@ -279,7 +302,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("'unbundle', '/p'", script);
         Assert.Contains("Microsoft Store reserves the fourth package version component", script);
         Assert.Contains("SafeSpeakStoreVersion", script);
-        Assert.Contains("<SafeSpeakStoreVersion>1.0.2.0</SafeSpeakStoreVersion>", properties);
+        Assert.Contains("<SafeSpeakStoreVersion>1.0.3.0</SafeSpeakStoreVersion>", properties);
         Assert.Contains("requires the assigned Partner Center identity and publisher", script);
         Assert.DoesNotContain("Start-Process", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TikFinityEmulator", script, StringComparison.OrdinalIgnoreCase);
@@ -291,6 +314,10 @@ public sealed class ReleaseEntryPointContractTests
         string manifest = Source("installer", "AppxManifest.xml");
 
         Assert.Contains("<Resource Language=\"en-US\" />", manifest);
+        Assert.Contains("xmlns:desktop7=\"http://schemas.microsoft.com/appx/manifest/desktop/windows10/7\"", manifest);
+        Assert.Contains("<desktop7:Extension Category=\"windows.shortcut\">", manifest);
+        Assert.Contains("File=\"$(Desktop)\\SafeSpeak.lnk\"", manifest);
+        Assert.Contains("Icon=\"$(Package)\\SafeSpeak.App.exe\"", manifest);
         Assert.DoesNotContain("x-generate", manifest, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -309,7 +336,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("default: false", workflow);
-        Assert.Contains("default: 1.0.2.0", workflow);
+        Assert.Contains("default: 1.0.3.0", workflow);
         Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
         Assert.Contains("SafeSpeakStoreVersion", workflow);
         Assert.Contains("steps.store-version.outputs.version", workflow);

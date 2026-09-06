@@ -2,6 +2,10 @@
 
 SafeSpeak has one release build entry point: `installer/Build-Release.ps1`. It reads the current four-part desktop version from `Directory.Build.props`, restores the pinned .NET SDK dependencies, runs the Core test suite, publishes a self-contained WPF application, creates the requested artifacts, and verifies the generated MSIX and MSI packages. It never starts or owns the TikFinity emulator.
 
+The MSI automatically installs SafeSpeak shortcuts in both the Start menu and the desktop. The MSIX also declares an install-managed desktop shortcut through Microsoft's `desktop7` package extension on supported Windows versions. Older Windows builds can ignore newer optional manifest extensions; for those systems or a development build, use the helper below after installation when a desktop shortcut is required.
+
+To create a shortcut on the current user's Windows desktop, run `./installer/Create-DesktopShortcut.ps1`. It prefers an installed or verified SafeSpeak executable, falls back to the local Release build, applies the SafeSpeak icon, and verifies the saved `.lnk` target. Pass `-ExecutablePath` to select a specific build, `-PublicDesktop` for the shared desktop, or `-Force` only when intentionally replacing a shortcut that points somewhere else.
+
 ## Prerequisites
 
 - Windows 10 version 2004 (build 19041) or later.
@@ -47,7 +51,7 @@ The WiX MSI installs SafeSpeak per-machine under `Program Files\The Project Hub\
 
 Windows Narrator is already included with Windows and is not redistributed inside the MSI. The setup uses standard accessible Windows Installer controls, and its welcome and maintenance screens tell users to press **Windows+Ctrl+Enter** to start Narrator for spoken setup.
 
-Repair is also SafeSpeak's explicit reset operation. Running **Repair** restores the packaged application files and recursively removes `%LOCALAPPDATA%\SafeSpeak` for the user performing the repair. This permanently removes that user's settings, audit logs, and downloaded optional models so the next launch starts clean. Close SafeSpeak before repair. Ordinary uninstall removes the installed program and shortcut but preserves Local AppData.
+Running **Repair** restores the packaged application files without changing any user's `%LOCALAPPDATA%\SafeSpeak` directory. Settings, audit logs, and downloaded optional models are preserved during repair and uninstall. Profile reset, if added later, must run explicitly in the interactive user's context rather than from this per-machine installer. Close SafeSpeak before repair.
 
 The build opens the completed MSI database and verifies product identity, version, payload-file count, Start-menu shortcut, and major-upgrade metadata. `-CertificateThumbprint` signs the portable application's executable before ZIP/MSIX/MSI packaging and signs both MSI and MSIX containers when requested. Without a certificate, the MSI remains installable but Windows identifies it as coming from an unknown publisher.
 
@@ -89,7 +93,7 @@ Before each Store build:
 ```powershell
 ./installer/Build-Release.ps1 `
   -Architecture x64 `
-  -PackageVersion 1.0.2.0 `
+  -PackageVersion 1.0.3.0 `
   -Format Msix `
   -StoreSubmission `
   -IdentityName "PARTNER_CENTER_IDENTITY_NAME" `
@@ -131,7 +135,7 @@ The Entra application represented by those credentials must be associated with P
 
 `.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A stable tag such as `v1.0.2.0` publishes a normal release; `v1.0.2.0-rc.1` publishes a prerelease for the same four-part package version. Every tagged build requires the two signing secrets and publishes only after both architecture reports prove valid executable, MSI, and MSIX signatures. `SHA256SUMS.txt` covers every downloadable artifact.
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. A stable tag such as `v1.0.3.0` publishes a normal release; `v1.0.3.0-rc.1` publishes a prerelease for the same four-part package version. Every tagged build requires the two signing secrets and publishes only after both architecture reports prove valid executable, MSI, and MSIX signatures. `SHA256SUMS.txt` covers every downloadable artifact.
 
 The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. A successful push build on `main` then triggers the separate protected Store publisher; `develop` cannot reach Partner Center.
 

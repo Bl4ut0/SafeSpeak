@@ -11,6 +11,7 @@ public sealed class WasapiAudioRouter : IAudioRouter
     private string? _selectedEndpointId;
     private WasapiOut? _wasapiOut;
     private WaveFileReader? _currentFileReader;
+    private WaveChannel32? _currentVolumeProvider;
     private readonly object _lock = new();
 
     public string? SelectedEndpointId => _selectedEndpointId;
@@ -54,10 +55,17 @@ public sealed class WasapiAudioRouter : IAudioRouter
 
     public Task PlayWaveStreamAsync(Stream waveStream, float volume = 1.0f, CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<bool>();
-
-        Task.Run(() =>
+        if (cancellationToken.IsCancellationRequested)
         {
+            return Task.FromCanceled(cancellationToken);
+        }
+
+        var tcs = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _ = Task.Run(() =>
+        {
+            CancellationTokenRegistration cancellationRegistration = default;
             lock (_lock)
             {
                 StopInternal();
@@ -66,6 +74,11 @@ public sealed class WasapiAudioRouter : IAudioRouter
                 {
                     waveStream.Seek(0, SeekOrigin.Begin);
                     _currentFileReader = new WaveFileReader(waveStream);
+                    _currentVolumeProvider = new WaveChannel32(_currentFileReader)
+                    {
+                        Volume = Math.Clamp(volume, 0f, 1.5f),
+                        PadWithZeroes = false
+                    };
 
                     MMDevice? targetDevice = null;
                     using var enumerator = new MMDeviceEnumerator();
@@ -77,12 +90,14 @@ public sealed class WasapiAudioRouter : IAudioRouter
 
                     targetDevice ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
 
-                    _wasapiOut = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 80);
-                    _wasapiOut.Init(_currentFileReader);
+                    var output = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 80);
+                    _wasapiOut = output;
+                    output.Init(_currentVolumeProvider);
 
                     void OnPlaybackStopped(object? sender, StoppedEventArgs e)
                     {
-                        if (_wasapiOut != null) _wasapiOut.PlaybackStopped -= OnPlaybackStopped;
+                        output.PlaybackStopped -= OnPlaybackStopped;
+                        cancellationRegistration.Unregister();
                         if (e.Exception is not null)
                         {
                             tcs.TrySetException(e.Exception);
@@ -93,25 +108,26 @@ public sealed class WasapiAudioRouter : IAudioRouter
                         }
                     }
 
-                    _wasapiOut.PlaybackStopped += OnPlaybackStopped;
+                    output.PlaybackStopped += OnPlaybackStopped;
 
                     if (cancellationToken.CanBeCanceled)
                     {
-                        cancellationToken.Register(() =>
+                        cancellationRegistration = cancellationToken.Register(() =>
                         {
                             Stop();
-                            tcs.TrySetCanceled();
+                            tcs.TrySetCanceled(cancellationToken);
                         });
                     }
 
-                    _wasapiOut.Play();
+                    output.Play();
                 }
                 catch (Exception ex)
                 {
+                    cancellationRegistration.Unregister();
                     tcs.TrySetException(ex);
                 }
             }
-        }, cancellationToken);
+        });
 
         return tcs.Task;
     }
@@ -132,6 +148,8 @@ public sealed class WasapiAudioRouter : IAudioRouter
             _wasapiOut?.Dispose();
             _wasapiOut = null;
 
+            _currentVolumeProvider?.Dispose();
+            _currentVolumeProvider = null;
             _currentFileReader?.Dispose();
             _currentFileReader = null;
         }

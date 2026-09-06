@@ -16,7 +16,9 @@ public sealed class SettingsStoreTests
             Theme = ThemePreference.Dark,
             OnboardingStage = OnboardingStage.Complete,
             SpeechVolume = 73,
-            CustomBlockedTerms = ["first", "second"]
+            QueueLimit = 84,
+            CustomBlockedTerms = ["first", "second"],
+            CustomAllowedTerms = ["permitted"]
         };
 
         Assert.True(store.TrySave(settings, out string? error), error);
@@ -26,7 +28,9 @@ public sealed class SettingsStoreTests
         Assert.Equal(ThemePreference.Dark, loaded.Theme);
         Assert.Equal(OnboardingStage.Complete, loaded.OnboardingStage);
         Assert.Equal(73, loaded.SpeechVolume);
+        Assert.Equal(84, loaded.QueueLimit);
         Assert.Equal(["first", "second"], loaded.CustomBlockedTerms);
+        Assert.Equal(["permitted"], loaded.CustomAllowedTerms);
         Assert.Equal(
             AppSettings.CurrentSettingsSchemaVersion,
             loaded.SettingsSchemaVersion);
@@ -126,10 +130,13 @@ public sealed class SettingsStoreTests
               "SpeechRate": 50,
               "SpeechVolume": -10,
               "ReaderSpeechRate": -50,
+              "ReaderSpeechVolume": 999,
+              "QueueLimit": 900,
               "IntentModerationLevel": 99,
               "AiToxicityThreshold": 8,
               "SelectedSourceConnectorId": "",
-              "CustomBlockedTerms": [" keep ", "", "KEEP"]
+              "CustomBlockedTerms": [" keep ", "", "KEEP"],
+              "CustomAllowedTerms": [" okay ", "", "OKAY"]
             }
             """);
 
@@ -138,10 +145,13 @@ public sealed class SettingsStoreTests
         Assert.Equal(5, loaded.SpeechRate);
         Assert.Equal(0, loaded.SpeechVolume);
         Assert.Equal(-5, loaded.ReaderSpeechRate);
+        Assert.Equal(150, loaded.ReaderSpeechVolume);
+        Assert.Equal(500, loaded.QueueLimit);
         Assert.Equal(4, loaded.IntentModerationLevel);
         Assert.Equal(0.95, loaded.AiToxicityThreshold);
         Assert.Equal("tikfinity", loaded.SelectedSourceConnectorId);
         Assert.Equal(["keep"], loaded.CustomBlockedTerms);
+        Assert.Equal(["okay"], loaded.CustomAllowedTerms);
     }
 
     [Fact]

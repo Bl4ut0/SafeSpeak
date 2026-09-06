@@ -82,6 +82,50 @@ public sealed class StreamAuditLoggerTests : IDisposable
     }
 
     [Fact]
+    public async Task LogDecision_AutoFlushesWithoutWaitingForShutdown()
+    {
+        await using var logger = new StreamAuditLogger(_testDirectory) { IsEnabled = true };
+        Assert.True(logger.StartSession("TikFinity", "provider"));
+        string path = Assert.IsType<string>(logger.CurrentLogFilePath);
+        var message = Message("durable before shutdown");
+
+        logger.LogDecision(message, Decision(message, ModerationDisposition.Rejected));
+
+        string content = string.Empty;
+        DateTime deadline = DateTime.UtcNow.AddSeconds(2);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (File.Exists(path))
+            {
+                try
+                {
+                    await using var stream = new FileStream(
+                        path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete,
+                        bufferSize: 4096,
+                        useAsync: true);
+                    using var reader = new StreamReader(stream);
+                    content = await reader.ReadToEndAsync();
+                }
+                catch (IOException)
+                {
+                    // The background worker may still be opening the file.
+                }
+                if (content.Contains("durable before shutdown", StringComparison.Ordinal))
+                {
+                    break;
+                }
+            }
+
+            await Task.Delay(20);
+        }
+
+        Assert.Contains("durable before shutdown", content);
+    }
+
+    [Fact]
     public async Task LogEvent_WritesGiftAndSummaryCount()
     {
         var logger = new StreamAuditLogger(_testDirectory) { IsEnabled = true };

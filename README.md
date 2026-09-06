@@ -52,7 +52,7 @@ Pushing a stable `v<version>` tag or prerelease `v<version>-rc.N` tag publishes
 the verified desktop packages as permanent GitHub Release downloads. Tagged
 releases fail closed unless the executable, MSI, and MSIX have valid
 Authenticode signatures. The MSI supplies Windows-native upgrade, repair, and
-uninstall; repair also resets the current user's SafeSpeak Local AppData.
+uninstall while preserving each user's SafeSpeak settings, logs, and downloaded models.
 Its setup screens support Windows Narrator and show the **Windows+Ctrl+Enter**
 shortcut needed to start spoken setup.
 See the [development track guide](docs/development-track.md).

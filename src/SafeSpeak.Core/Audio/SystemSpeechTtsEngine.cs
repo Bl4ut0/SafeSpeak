@@ -131,7 +131,14 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
         int volume = 100,
         CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled(cancellationToken);
+        }
+
+        var tcs = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenRegistration cancellationRegistration = default;
 
         lock (_lock)
         {
@@ -147,24 +154,35 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
             _synthesizer.Volume = Math.Clamp(volume, 0, 100);
             _synthesizer.SetOutputToDefaultAudioDevice();
 
+            SpeechSynthesizer synthesizer = _synthesizer!;
             void OnSpeakCompleted(object? sender, SpeakCompletedEventArgs e)
             {
-                _synthesizer.SpeakCompleted -= OnSpeakCompleted;
+                synthesizer.SpeakCompleted -= OnSpeakCompleted;
+                cancellationRegistration.Unregister();
                 tcs.TrySetResult(true);
             }
 
-            _synthesizer.SpeakCompleted += OnSpeakCompleted;
+            synthesizer.SpeakCompleted += OnSpeakCompleted;
 
             if (cancellationToken.CanBeCanceled)
             {
-                cancellationToken.Register(() =>
+                cancellationRegistration = cancellationToken.Register(() =>
                 {
                     Stop();
-                    tcs.TrySetCanceled();
+                    tcs.TrySetCanceled(cancellationToken);
                 });
             }
 
-            _synthesizer.SpeakAsync(text);
+            try
+            {
+                synthesizer.SpeakAsync(text);
+            }
+            catch
+            {
+                synthesizer.SpeakCompleted -= OnSpeakCompleted;
+                cancellationRegistration.Unregister();
+                throw;
+            }
         }
 
         return tcs.Task;

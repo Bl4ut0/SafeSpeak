@@ -131,12 +131,12 @@ public static class HomoglyphMap
     {
         if (string.IsNullOrEmpty(input)) return string.Empty;
 
-        var span = input.AsSpan();
-        var buffer = new char[span.Length];
-        for (int i = 0; i < span.Length; i++)
+        return string.Create(input.Length, input, static (buffer, source) =>
         {
-            buffer[i] = NormalizeChar(span[i]);
-        }
-        return new string(buffer);
+            for (int index = 0; index < source.Length; index++)
+            {
+                buffer[index] = NormalizeChar(source[index]);
+            }
+        });
     }
 }

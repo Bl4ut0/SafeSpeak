@@ -68,7 +68,7 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
             text,
             VoiceId,
             Math.Clamp(Rate, -5, 5),
-            Math.Clamp(Volume, 0, 100),
+            Math.Clamp(Volume, 0, 150),
             completion);
         if (!_requests.Writer.TryWrite(request))
         {

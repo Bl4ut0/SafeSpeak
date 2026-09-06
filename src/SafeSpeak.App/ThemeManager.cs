@@ -9,6 +9,19 @@ namespace SafeSpeak.App;
 /// </summary>
 public static class ThemeManager
 {
+    private static readonly IReadOnlyDictionary<string, double> FontSizes =
+        new Dictionary<string, double>
+        {
+            ["SafeSpeakFont12"] = 12,
+            ["SafeSpeakFont13"] = 13,
+            ["SafeSpeakFont14"] = 14,
+            ["SafeSpeakFont15"] = 15,
+            ["SafeSpeakFont17"] = 17,
+            ["SafeSpeakFont18"] = 18,
+            ["SafeSpeakFont24"] = 24,
+            ["SafeSpeakFont26"] = 26,
+            ["SafeSpeakFont28"] = 28
+        };
     private static readonly string[] PaletteResourceKeys =
     [
         "SafeSpeakWindowBrush",
@@ -53,6 +66,24 @@ public static class ThemeManager
     // Compatibility for callers being migrated from the former two-theme setting.
     public static void Apply(bool highContrast) =>
         Apply(highContrast ? ThemePreference.HighContrast : ThemePreference.Light);
+
+    public static void ApplyTextScale(int percent)
+    {
+        Application? application = Application.Current;
+        if (application is null) return;
+
+        if (!application.Dispatcher.CheckAccess())
+        {
+            application.Dispatcher.Invoke(() => ApplyTextScale(percent));
+            return;
+        }
+
+        double multiplier = Math.Clamp(percent, 100, 200) / 100d;
+        foreach ((string key, double baseSize) in FontSizes)
+        {
+            application.Resources[key] = baseSize * multiplier;
+        }
+    }
 
     private static void ApplyEffectivePalette()
     {

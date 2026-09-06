@@ -16,6 +16,8 @@ const envPath = path.join(helperDirectory, ".env");
 // eligible for transfer.
 const publicFiles = [
     "assets/site.css",
+    "assets/theme.js",
+    "assets/og.png",
     "assets/safespeak-icon.png",
     "privacy/index.html",
     "support/index.html",

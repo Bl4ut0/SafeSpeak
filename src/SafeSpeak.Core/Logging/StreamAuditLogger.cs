@@ -436,9 +436,14 @@ public sealed class StreamAuditLogger : IAsyncDisposable
                 FileShare.ReadWrite,
                 bufferSize: 4096,
                 useAsync: true);
-            session.Writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            session.Writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
+            {
+                // Audit logging is opt-in and runs on this background worker.
+                // Flush every complete work item so an abrupt process exit does
+                // not strand accepted or rejected records in StreamWriter memory.
+                AutoFlush = true
+            };
             await session.Writer.WriteAsync(session.Header.AsMemory(), cancellationToken).ConfigureAwait(false);
-            await session.Writer.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

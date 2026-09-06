@@ -104,6 +104,82 @@ public sealed class AnnouncementExactOnceContractTests
     }
 
     [Fact]
+    public void VoicePreview_StopsOnlyBuiltInGuidanceBeforeNaturalVoicePlayback()
+    {
+        string main = Source(
+            "src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs");
+        string preview = Method(main, "public async Task TestSelectedVoice()");
+
+        int stop = preview.IndexOf("_announcer.StopSpeaking();", StringComparison.Ordinal);
+        int speak = preview.IndexOf("_voicePreviewOutput.SpeakAsync", StringComparison.Ordinal);
+        Assert.True(stop >= 0 && speak > stop);
+        Assert.DoesNotContain("StopCurrentSpeech", preview);
+        Assert.DoesNotContain("EmergencyStop", preview);
+    }
+
+    [Fact]
+    public void ReviewListOwner_IsSpokenOnlyWhenEnteringTheList()
+    {
+        string narrator = Source(
+            "src", "SafeSpeak.App", "Accessibility", "IntegratedFocusNarrator.cs");
+        string focusHandler = Method(
+            narrator,
+            "private void OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)");
+        string transition = Method(
+            narrator,
+            "private static bool ShouldAnnounceListOwner(");
+
+        Assert.Contains("ShouldAnnounceListOwner", focusHandler);
+        Assert.Contains("includeListOwnerName", focusHandler);
+        Assert.Contains("ReferenceEquals(previousFocus, nextOwner)", transition);
+        Assert.Contains("ItemsControlFromItemContainer(previousItem)", transition);
+    }
+
+    [Fact]
+    public void BuiltInNarrator_ReportsValuesHelpAndControlChanges()
+    {
+        string narrator = Source(
+            "src", "SafeSpeak.App", "Accessibility", "IntegratedFocusNarrator.cs");
+
+        Assert.Contains("AddDistinct(parts, textBox.Text)", narrator);
+        Assert.Contains("AutomationProperties.GetHelpText(checkBox)", narrator);
+        Assert.Contains("AutomationProperties.GetHelpText(button)", narrator);
+        Assert.Contains("RangeBase.ValueChangedEvent", narrator);
+        Assert.Contains("Selector.SelectionChangedEvent", narrator);
+        Assert.Contains("TextCompositionManager.TextInputEvent", narrator);
+        Assert.Contains("public void AnnounceCurrentFocus", narrator);
+        Assert.Contains("DispatcherPriority.DataBind", narrator);
+        Assert.Contains("AutomationProperties.GetItemStatus(element)", narrator);
+        Assert.Contains("AnnounceChangedSelection(element)", narrator);
+        Assert.Contains("option {index + 1} of {count}", narrator);
+    }
+
+    [Fact]
+    public void MainWindow_DoesNotReserveFormerFixedActionKeys()
+    {
+        string codeBehind = Source("src", "SafeSpeak.App", "MainWindow.xaml.cs");
+
+        Assert.DoesNotContain("e.Key == Key.F1", codeBehind);
+        Assert.DoesNotContain("e.Key == Key.F6", codeBehind);
+        Assert.DoesNotContain("key == Key.H", codeBehind);
+        Assert.DoesNotContain("key == Key.Space", codeBehind);
+    }
+
+    [Fact]
+    public void LongGuideNarration_DoesNotExpandTheLiveStatusBanner()
+    {
+        string main = Source(
+            "src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs");
+        string readGuide = Method(main, "public void ReadModerationGuide()");
+        string narration = Method(main, "private void AnnounceNarration(");
+
+        Assert.Contains("AnnounceNarration(", readGuide);
+        Assert.Contains("Reading the full moderation guide", readGuide);
+        Assert.Contains("LiveStatusAnnouncement = conciseStatus", narration);
+        Assert.Contains("_announcer.Announce(narration, interrupt)", narration);
+    }
+
+    [Fact]
     public void HostileRawChat_CannotReachAutomationNamesOrAnnouncementCalls()
     {
         string xaml = Source("src", "SafeSpeak.App", "MainWindow.xaml");
@@ -125,8 +201,11 @@ public sealed class AnnouncementExactOnceContractTests
         Assert.DoesNotContain("message.AuthorDisplayName", incoming);
         Assert.DoesNotContain("decision.Message", incoming);
         Assert.DoesNotContain("decision.ReasonDescription", incoming);
-        Assert.Contains("LiveFeed.Insert(0, decision)", incoming);
+        Assert.Contains("AddDecisionToLiveFeed(decision)", incoming);
+        Assert.Contains("_heldLiveFeedDecisions.Add(decision)", incoming);
         Assert.Contains("_ttsQueue.Enqueue(decision, bypassPause)", incoming);
+        Assert.DoesNotContain("PlayCue", incoming);
+        Assert.DoesNotContain("MessageBlocked", incoming);
         Assert.DoesNotContain("SpeakPrivateNoticeAsync", incoming);
     }
 

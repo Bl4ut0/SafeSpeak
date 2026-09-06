@@ -40,23 +40,61 @@ public partial class AccessibilitySetupDialog : Window
         object sender,
         KeyEventArgs e)
     {
-        if (e.Handled ||
-            _viewModel.CurrentPage != AccessibilitySetupPage.Reader ||
-            Keyboard.Modifiers != ModifierKeys.None)
+        if (e.Handled || Keyboard.Modifiers != ModifierKeys.None)
         {
             return;
         }
 
-        if (e.Key == Key.Y)
+        if (_viewModel.CurrentPage == AccessibilitySetupPage.Reader)
         {
-            _viewModel.ChooseSpokenGuidanceYesCommand.Execute(null);
+            if (e.Key == Key.Y)
+            {
+                _viewModel.ChooseSpokenGuidanceYesCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.N)
+            {
+                _viewModel.ChooseSpokenGuidanceNoCommand.Execute(null);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (e.Key == Key.Y &&
+            Keyboard.FocusedElement is not TextBox &&
+            _viewModel.IsPrimaryButtonVisible &&
+            _viewModel.IsInteractionEnabled &&
+            _viewModel.ContinueCommand.CanExecute(null))
+        {
+            _viewModel.ContinueCommand.Execute(null);
             e.Handled = true;
         }
-        else if (e.Key == Key.N)
+    }
+
+    private void ThemeList_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not ListBox selector || selector.Items.Count == 0)
         {
-            _viewModel.ChooseSpokenGuidanceNoCommand.Execute(null);
-            e.Handled = true;
+            return;
         }
+
+        int nextIndex = e.Key switch
+        {
+            Key.Left or Key.Up => Math.Max(0, selector.SelectedIndex - 1),
+            Key.Right or Key.Down => Math.Min(selector.Items.Count - 1, selector.SelectedIndex + 1),
+            Key.Home => 0,
+            Key.End => selector.Items.Count - 1,
+            _ => -1
+        };
+        if (nextIndex < 0)
+        {
+            return;
+        }
+
+        selector.SelectedIndex = nextIndex;
+        selector.ScrollIntoView(selector.SelectedItem);
+        e.Handled = true;
     }
 
     private void FocusPrimaryControl()

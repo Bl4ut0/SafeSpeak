@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Threading;
 using SafeSpeak.Core.Accessibility;
 
 namespace SafeSpeak.App.Accessibility;
@@ -18,19 +19,46 @@ public sealed class IntegratedFocusNarrator : IDisposable
     private readonly Window _window;
     private readonly ScreenReaderAnnouncer _announcer;
     private readonly KeyboardFocusChangedEventHandler _focusHandler;
+    private readonly RoutedPropertyChangedEventHandler<double> _valueChangedHandler;
+    private readonly SelectionChangedEventHandler _selectionChangedHandler;
+    private readonly RoutedEventHandler _toggleChangedHandler;
+    private readonly TextCompositionEventHandler _textInputHandler;
+    private readonly Func<bool> _includeDetailedHelp;
+    private readonly Func<bool> _typingEchoEnabled;
     private string? _lastAnnouncement;
     private DateTime _lastAnnouncementAt;
     private bool _disposed;
 
-    public IntegratedFocusNarrator(Window window, ScreenReaderAnnouncer announcer)
+    public IntegratedFocusNarrator(
+        Window window,
+        ScreenReaderAnnouncer announcer,
+        Func<bool>? includeDetailedHelp = null,
+        Func<bool>? typingEchoEnabled = null)
     {
         _window = window;
         _announcer = announcer;
+        _includeDetailedHelp = includeDetailedHelp ?? (() => true);
+        _typingEchoEnabled = typingEchoEnabled ?? (() => false);
         _focusHandler = OnGotKeyboardFocus;
+        _valueChangedHandler = OnRangeValueChanged;
+        _selectionChangedHandler = OnSelectionChanged;
+        _toggleChangedHandler = OnToggleChanged;
+        _textInputHandler = OnTextInput;
         _window.AddHandler(Keyboard.GotKeyboardFocusEvent, _focusHandler, handledEventsToo: true);
+        _window.AddHandler(RangeBase.ValueChangedEvent, _valueChangedHandler, handledEventsToo: true);
+        _window.AddHandler(Selector.SelectionChangedEvent, _selectionChangedHandler, handledEventsToo: true);
+        _window.AddHandler(ToggleButton.CheckedEvent, _toggleChangedHandler, handledEventsToo: true);
+        _window.AddHandler(ToggleButton.UncheckedEvent, _toggleChangedHandler, handledEventsToo: true);
+        _window.AddHandler(TextCompositionManager.TextInputEvent, _textInputHandler, handledEventsToo: true);
     }
 
-    internal static string? Describe(DependencyObject element)
+    internal static string? Describe(DependencyObject element) =>
+        Describe(element, includeListOwnerName: true, includeHelpText: true);
+
+    private static string? Describe(
+        DependencyObject element,
+        bool includeListOwnerName,
+        bool includeHelpText)
     {
         string name = CleanAccessKey(AutomationProperties.GetName(element));
         if (string.IsNullOrWhiteSpace(name))
@@ -45,7 +73,11 @@ public sealed class IntegratedFocusNarrator : IDisposable
 
         if (element is ListBoxItem listBoxItem)
         {
-            return DescribeListBoxItem(listBoxItem, name);
+            return DescribeListBoxItem(
+                listBoxItem,
+                name,
+                includeListOwnerName,
+                includeHelpText);
         }
 
         var parts = new List<string> { name };
@@ -54,7 +86,7 @@ public sealed class IntegratedFocusNarrator : IDisposable
         {
             case TabItem tab:
                 parts.Add(tab.IsSelected ? "selected tab" : "tab");
-                parts.Add("Use Left and Right Arrow keys to change sections");
+                if (includeHelpText) parts.Add("Use Left and Right Arrow keys to change sections");
                 break;
 
             case CheckBox checkBox:
@@ -65,35 +97,49 @@ public sealed class IntegratedFocusNarrator : IDisposable
                     null => "partially checked"
                 });
                 parts.Add("check box");
+                if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(checkBox));
                 break;
 
             case RadioButton radioButton:
                 parts.Add(radioButton.IsChecked == true ? "selected" : "not selected");
                 parts.Add("radio button");
+                if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(radioButton));
                 break;
 
             case ComboBox comboBox:
                 AddDistinct(parts, GetComboBoxValue(comboBox));
+                if (includeHelpText)
+                {
+                    AddDistinct(parts, AutomationProperties.GetItemStatus(comboBox));
+                }
                 parts.Add("selection box");
-                AddDistinct(
-                    parts,
-                    GetHelpTextOrDefault(
-                        comboBox,
-                        "Use Up and Down Arrow keys to change the selection"));
+                if (includeHelpText)
+                {
+                    AddDistinct(
+                        parts,
+                        GetHelpTextOrDefault(
+                            comboBox,
+                            "Use Up and Down Arrow keys to change the selection"));
+                }
                 break;
 
             case Slider slider:
                 parts.Add(slider.Value.ToString("0.##", CultureInfo.CurrentCulture));
                 parts.Add("slider");
-                AddDistinct(
-                    parts,
-                    GetHelpTextOrDefault(
-                        slider,
-                        "Use Left and Right Arrow keys to adjust"));
+                if (includeHelpText)
+                {
+                    AddDistinct(
+                        parts,
+                        GetHelpTextOrDefault(
+                            slider,
+                            "Use Left and Right Arrow keys to adjust"));
+                }
                 break;
 
-            case TextBox:
+            case TextBox textBox:
+                AddDistinct(parts, textBox.Text);
                 parts.Add("edit box");
+                if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(textBox));
                 break;
 
             case ListViewItem:
@@ -102,27 +148,32 @@ public sealed class IntegratedFocusNarrator : IDisposable
 
             case ListView:
                 parts.Add("list");
-                parts.Add("Use Up and Down Arrow keys to review messages");
+                if (includeHelpText) parts.Add("Use Up and Down Arrow keys to review messages");
                 break;
 
             case ListBox listBox:
                 AddDistinct(parts, AutomationProperties.GetItemStatus(listBox));
                 parts.Add("list");
-                AddDistinct(
-                    parts,
-                    GetHelpTextOrDefault(
-                        listBox,
-                        "Use Up and Down Arrow keys to review items"));
+                if (includeHelpText)
+                {
+                    AddDistinct(
+                        parts,
+                        GetHelpTextOrDefault(
+                            listBox,
+                            "Use Up and Down Arrow keys to review items"));
+                }
                 break;
 
             case Button button:
                 AddDistinct(parts, GetControlText(button));
                 parts.Add("button");
+                if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(button));
                 break;
 
             case ToggleButton toggleButton:
                 parts.Add(toggleButton.IsChecked == true ? "pressed" : "not pressed");
                 parts.Add("toggle button");
+                if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(toggleButton));
                 break;
 
             default:
@@ -139,7 +190,12 @@ public sealed class IntegratedFocusNarrator : IDisposable
             return;
         }
 
-        string? announcement = Describe(element);
+        bool includeListOwnerName = element is not ListBoxItem listBoxItem ||
+            ShouldAnnounceListOwner(e.OldFocus as DependencyObject, listBoxItem);
+        string? announcement = Describe(
+            element,
+            includeListOwnerName,
+            includeHelpText: _includeDetailedHelp());
         if (string.IsNullOrWhiteSpace(announcement))
         {
             return;
@@ -155,6 +211,125 @@ public sealed class IntegratedFocusNarrator : IDisposable
         _lastAnnouncement = announcement;
         _lastAnnouncementAt = now;
         _announcer.AnnounceFocus(announcement);
+    }
+
+    public void AnnounceCurrentFocus(bool includeHelpText = true)
+    {
+        if (!_announcer.IsEnhancedAccessibilityEnabled ||
+            Keyboard.FocusedElement is not DependencyObject element)
+        {
+            return;
+        }
+
+        string? announcement = Describe(
+            element,
+            includeListOwnerName: true,
+            includeHelpText);
+        if (!string.IsNullOrWhiteSpace(announcement))
+        {
+            _announcer.AnnounceFocus(announcement);
+        }
+    }
+
+    private void OnRangeValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (e.OriginalSource is Slider slider && slider.IsKeyboardFocusWithin)
+        {
+            AnnounceChangedControl(slider);
+        }
+    }
+
+    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject element &&
+            element is UIElement control &&
+            control.IsKeyboardFocusWithin &&
+            element is ComboBox or ListBox)
+        {
+            // SelectionChanged is raised before two-way bindings and bound UIA
+            // ItemStatus text have necessarily caught up. Announce after data
+            // binding so arrow navigation speaks the new option, not the owner.
+            _window.Dispatcher.BeginInvoke(
+                () => AnnounceChangedSelection(element),
+                DispatcherPriority.DataBind);
+        }
+    }
+
+    private void AnnounceChangedSelection(DependencyObject element)
+    {
+        if (!_announcer.IsEnhancedAccessibilityEnabled ||
+            element is not UIElement control ||
+            !control.IsKeyboardFocusWithin)
+        {
+            return;
+        }
+
+        string itemStatus = CleanAccessKey(AutomationProperties.GetItemStatus(element));
+        if (!string.IsNullOrWhiteSpace(itemStatus))
+        {
+            _announcer.AnnounceFocus(itemStatus);
+            return;
+        }
+
+        (string value, int index, int count) = element switch
+        {
+            ComboBox comboBox =>
+                (GetComboBoxValue(comboBox), comboBox.SelectedIndex, comboBox.Items.Count),
+            ListBox listBox =>
+                (GetSelectedItemText(listBox), listBox.SelectedIndex, listBox.Items.Count),
+            _ => (string.Empty, -1, 0)
+        };
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        string position = index >= 0 && count > 0
+            ? $", option {index + 1} of {count}"
+            : string.Empty;
+        _announcer.AnnounceFocus($"{value}{position}, selected.");
+    }
+
+    private void OnToggleChanged(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is ToggleButton toggle && toggle.IsKeyboardFocusWithin)
+        {
+            AnnounceChangedControl(toggle);
+        }
+    }
+
+    private void OnTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (!_announcer.IsEnhancedAccessibilityEnabled ||
+            !_typingEchoEnabled() ||
+            e.OriginalSource is not TextBox textBox ||
+            !textBox.IsKeyboardFocusWithin ||
+            string.IsNullOrEmpty(e.Text))
+        {
+            return;
+        }
+
+        string spoken = e.Text.All(char.IsWhiteSpace) ? "space" : e.Text;
+        _announcer.AnnounceFocus(spoken);
+    }
+
+    private void AnnounceChangedControl(DependencyObject element)
+    {
+        if (!_announcer.IsEnhancedAccessibilityEnabled)
+        {
+            return;
+        }
+
+        string? announcement = Describe(
+            element,
+            includeListOwnerName: false,
+            includeHelpText: false);
+        if (!string.IsNullOrWhiteSpace(announcement))
+        {
+            _announcer.AnnounceFocus(announcement);
+        }
     }
 
     private static string GetControlText(DependencyObject element)
@@ -214,20 +389,37 @@ public sealed class IntegratedFocusNarrator : IDisposable
         return string.Empty;
     }
 
-    private static string DescribeListBoxItem(ListBoxItem item, string itemName)
+    private static string GetSelectedItemText(ListBox listBox)
+    {
+        if (listBox.SelectedItem is ListBoxItem item)
+        {
+            return CleanAccessKey(item.Content?.ToString() ?? string.Empty);
+        }
+
+        return CleanAccessKey(listBox.SelectedItem?.ToString() ?? string.Empty);
+    }
+
+    private static string DescribeListBoxItem(
+        ListBoxItem item,
+        string itemName,
+        bool includeOwnerName,
+        bool includeHelpText)
     {
         var parts = new List<string>();
         ItemsControl? owner = ItemsControl.ItemsControlFromItemContainer(item);
         if (owner is not null)
         {
-            AddDistinct(parts, AutomationProperties.GetName(owner));
+            if (includeOwnerName)
+            {
+                AddDistinct(parts, AutomationProperties.GetName(owner));
+            }
             int index = owner.ItemContainerGenerator.IndexFromContainer(item);
             string position = index >= 0
                 ? $"{itemName}, option {index + 1} of {owner.Items.Count}"
                 : itemName;
             AddDistinct(parts, position);
             parts.Add(item.IsSelected ? "selected" : "not selected");
-            AddDistinct(parts, AutomationProperties.GetHelpText(owner));
+            if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(owner));
         }
         else
         {
@@ -236,6 +428,27 @@ public sealed class IntegratedFocusNarrator : IDisposable
         }
 
         return string.Join(". ", parts) + ".";
+    }
+
+    private static bool ShouldAnnounceListOwner(
+        DependencyObject? previousFocus,
+        ListBoxItem nextItem)
+    {
+        ItemsControl? nextOwner = ItemsControl.ItemsControlFromItemContainer(nextItem);
+        if (nextOwner is null)
+        {
+            return true;
+        }
+
+        if (ReferenceEquals(previousFocus, nextOwner))
+        {
+            return false;
+        }
+
+        return previousFocus is not ListBoxItem previousItem ||
+            !ReferenceEquals(
+                ItemsControl.ItemsControlFromItemContainer(previousItem),
+                nextOwner);
     }
 
     private static string GetHelpTextOrDefault(
@@ -269,6 +482,11 @@ public sealed class IntegratedFocusNarrator : IDisposable
         }
 
         _window.RemoveHandler(Keyboard.GotKeyboardFocusEvent, _focusHandler);
+        _window.RemoveHandler(RangeBase.ValueChangedEvent, _valueChangedHandler);
+        _window.RemoveHandler(Selector.SelectionChangedEvent, _selectionChangedHandler);
+        _window.RemoveHandler(ToggleButton.CheckedEvent, _toggleChangedHandler);
+        _window.RemoveHandler(ToggleButton.UncheckedEvent, _toggleChangedHandler);
+        _window.RemoveHandler(TextCompositionManager.TextInputEvent, _textInputHandler);
         _disposed = true;
     }
 }
