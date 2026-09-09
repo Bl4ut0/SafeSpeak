@@ -40,6 +40,19 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
             };
     public string AccessibleStatus =>
         $"{DisplayName}. {StatusText}. {StatusDetail}";
+    public string ConfigurationStateText => IsConfigured
+        ? "Enabled in Settings"
+        : "Disabled in Settings";
+    public string ConfigurationActionText => IsConfigured
+        ? $"Disable {DisplayName}"
+        : $"Enable {DisplayName}";
+    public string ConfigurationCardAutomationName =>
+        $"{DisplayName}. {ConfigurationStateText}. Press Enter to {ConfigurationActionText.ToLowerInvariant()}.";
+    public string ConfigurationCardHelpText => IsConfigured
+        ? $"Disables {DisplayName} and removes it from the Live connector list. A connected session will be stopped."
+        : Id == TikTokLiveConnector.ConnectorDescriptor.Id
+            ? "Opens an inline username listener. Enter the TikTok username twice to confirm and save it."
+            : $"Enables {DisplayName}, adds it to the Live connector list, and saves the change immediately.";
 
     [ObservableProperty]
     private bool _isConfigured;
@@ -68,6 +81,10 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
     partial void OnIsConfiguredChanged(bool value)
     {
         OnPropertyChanged(nameof(CanToggle));
+        OnPropertyChanged(nameof(ConfigurationStateText));
+        OnPropertyChanged(nameof(ConfigurationActionText));
+        OnPropertyChanged(nameof(ConfigurationCardAutomationName));
+        OnPropertyChanged(nameof(ConfigurationCardHelpText));
         RefreshStatus();
     }
 

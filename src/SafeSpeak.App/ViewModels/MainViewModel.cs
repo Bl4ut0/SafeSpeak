@@ -245,6 +245,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<LiveFeedEntryViewModel> LiveFeed { get; } = new();
     public ObservableCollection<LiveConnectorViewModel> LiveConnectors { get; } = new();
+    public ObservableCollection<LiveConnectorViewModel> ConfiguredConnectors { get; } = new();
+    public ObservableCollection<LiveConnectorViewModel> AvailableConnectors { get; } = new();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
     public ObservableCollection<string> CustomBlockedTerms { get; } = new();
@@ -404,8 +406,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (ConfigureTikFinity) configured.Add("TikFinity");
             if (ConfigureTikTokDirect) configured.Add("TikTok Direct");
             return configured.Count == 0
-                ? "No connectors configured. Select at least one connection."
-                : $"Configured: {string.Join(" and ", configured)}. Turn each connection on or off from Live.";
+                ? "No connectors are enabled in Settings. Enable at least one connector."
+                : $"Enabled in Settings: {string.Join(" and ", configured)}. Turn each connection on or off from Live.";
         }
     }
     public string FilteredContentToggleText => ShowFilteredContent
@@ -711,6 +713,72 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnConfigureTikTokDirectChanged(bool value) =>
         OnPropertyChanged(nameof(ConnectorConfigurationSummary));
 
+    public async Task ToggleConnectorConfigurationAsync(LiveConnectorViewModel connector)
+    {
+        ArgumentNullException.ThrowIfNull(connector);
+        bool configuring = !connector.IsConfigured;
+        if (!configuring && ConfiguredConnectors.Count <= 1)
+        {
+            AnnounceState(
+                "At least one connector must remain configured. Configure another connector before removing this one.",
+                interrupt: true);
+            return;
+        }
+
+        if (string.Equals(connector.Id, TikFinityWebSocketClient.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            ConfigureTikFinity = configuring;
+        }
+        else
+        {
+            ConfigureTikTokDirect = configuring;
+        }
+
+        bool saved = await ApplyConnectorConfigurationAsync();
+        string state = configuring ? "enabled" : "disabled";
+        AnnounceState(saved
+            ? $"{connector.DisplayName} {state} and saved. It is now in the {(configuring ? "Enabled" : "Disabled")} connector group."
+            : $"{connector.DisplayName} is {state} for this session, but SafeSpeak could not save the change.",
+            interrupt: !saved);
+    }
+
+    public async Task<bool> ConfigureTikTokDirectAsync(string username)
+    {
+        if (!TikTokLiveConnector.TryNormalizeUsername(username, out string normalized))
+        {
+            AnnounceState(
+                "TikTok Direct could not be configured. Enter a valid username using letters, numbers, periods, or underscores.",
+                interrupt: true);
+            return false;
+        }
+
+        LiveConnectorViewModel? direct = FindConnector(TikTokLiveConnector.ConnectorDescriptor.Id);
+        if (direct is null)
+        {
+            AnnounceState("TikTok Direct is unavailable in this build.", interrupt: true);
+            return false;
+        }
+
+        if (!string.Equals(normalized, _settings.TikTokUsername, StringComparison.OrdinalIgnoreCase))
+        {
+            if (direct.IsEnabled)
+            {
+                direct.IsEnabled = false;
+                await direct.Host.DisconnectAsync();
+            }
+
+            await direct.Host.ReplaceAsync(() =>
+                SourceConnectorRegistry.CreateDefault(normalized)
+                    .Create(TikTokLiveConnector.ConnectorDescriptor.Id));
+            direct.ApplyState(ConnectionState.Disconnected, direct.Host.EndpointDescription);
+        }
+
+        TikTokUsername = normalized;
+        _settings.TikTokUsername = normalized;
+        ConfigureTikTokDirect = true;
+        return await ApplyConnectorConfigurationAsync();
+    }
+
     public sealed record ThemeChoice(
         ThemePreference Value,
         string DisplayName,
@@ -768,11 +836,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var session = new LiveConnectorViewModel(host, isConfigured, isEnabled);
             _connectorSessions.Add(session);
             _connectorByHost.Add(host, session);
-            if (isConfigured)
-            {
-                LiveConnectors.Add(session);
-            }
+            if (isConfigured) LiveConnectors.Add(session);
         }
+        RefreshSettingsConnectorCollections();
         SelectedSourceConnectorId = _settings.SelectedSourceConnectorId;
         TikTokUsername = _settings.TikTokUsername;
         AreSafetyGuideControlsAtTop = _settings.SafetyGuideControlsAtTop;
@@ -2006,7 +2072,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (!configured && connector.IsEnabled)
             {
                 connector.IsEnabled = false;
-                await connector.Host.DisconnectAsync();
+                try
+                {
+                    await connector.Host.DisconnectAsync();
+                }
+                catch (Exception ex)
+                {
+                    connector.ApplyState(ConnectionState.Faulted, ex.Message);
+                }
             }
         }
 
@@ -2015,6 +2088,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             LiveConnectors.Add(connector);
         }
+        RefreshSettingsConnectorCollections();
 
         _settings.ConfiguredSourceConnectorIds = LiveConnectors.Select(item => item.Id).ToList();
         _settings.SelectedSourceConnectorId = LiveConnectors[0].Id;
@@ -2024,6 +2098,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ConnectorConfigurationSummary));
         RefreshConnectorSummary();
         return settingsSaved;
+    }
+
+    private void RefreshSettingsConnectorCollections()
+    {
+        ConfiguredConnectors.Clear();
+        AvailableConnectors.Clear();
+        foreach (LiveConnectorViewModel connector in _connectorSessions
+                     .OrderBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase))
+        {
+            (connector.IsConfigured ? ConfiguredConnectors : AvailableConnectors)
+                .Add(connector);
+        }
     }
 
     private LiveConnectorViewModel? FindConnector(string id) =>

@@ -1235,21 +1235,27 @@ public sealed class MainShellAccessibilityContractTests
 
         Assert.Equal("SettingsPanel_PreviewKeyDown",
             settingsPanel.Attribute("PreviewKeyDown")?.Value);
-        Assert.Equal(Enumerable.Range(1, 58), stops.Select(element =>
+        Assert.Equal(Enumerable.Range(1, 54), stops.Select(element =>
             int.Parse(element.Attribute("TabIndex")!.Value)));
         Assert.Equal("SettingsGuideButton", stops[0].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ReadSettingsGuidePageButton", stops[1].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ResetSettingsGuideButton", stops[2].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButton", stops[3].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("SettingsSourceChapterHeading", stops[4].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("ConfigureTikFinityCheckBox", stops[5].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("ConfigureTikTokDirectCheckBox", stops[6].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("TikTokUsernameTextBox", stops[7].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("ThemeSelector", stops[10].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("SpokenGuidanceToggle", stops[11].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("Run Setup Again", stops[52].Attribute("Content")?.Value);
-        Assert.Equal("SettingsGuideButtonAtEnd", stops[54].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("ThemeSelector", stops[6].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("SpokenGuidanceToggle", stops[7].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("Run Setup Again", stops[48].Attribute("Content")?.Value);
+        Assert.Equal("SettingsGuideButtonAtEnd", stops[50].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButtonAtEnd", stops[^1].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("{Binding ConfiguredConnectors}",
+            NamedElement(document, "ItemsControl", "ConfiguredConnectorCards")
+                .Attribute("ItemsSource")?.Value);
+        Assert.Equal("{Binding AvailableConnectors}",
+            NamedElement(document, "ItemsControl", "AvailableConnectorCards")
+                .Attribute("ItemsSource")?.Value);
+        Assert.Equal("Collapsed",
+            NamedElement(document, "Border", "InlineConnectorCapturePanel")
+                .Attribute("Visibility")?.Value);
         Assert.True(runSetup.IsBefore(visibleGuide));
         Assert.True(visibleGuide.IsBefore(guideButtonsAtEnd));
 
@@ -1258,7 +1264,13 @@ public sealed class MainShellAccessibilityContractTests
         string shortcutsViewModel = File.ReadAllText(
             RepositoryFile("src", "SafeSpeak.App", "ViewModels", "MainViewModel.Shortcuts.cs"));
         Assert.Contains("EnumerateVisualDescendants(SettingsPanel)", codeBehind);
-        Assert.Contains(".OrderBy(KeyboardNavigation.GetTabIndex)", codeBehind);
+        Assert.Contains(".OrderBy(GetSettingsNavigationOrder)", codeBehind);
+        Assert.Contains("SettingsConnectorCard", codeBehind);
+        Assert.Contains("SettingsConnectorInlineControl", codeBehind);
+        Assert.Contains("ConfigureTikTokDirectAsync(username)", codeBehind);
+        Assert.Contains("_firstConnectorUsername", codeBehind);
+        Assert.Contains("OrderBy(item => item.DisplayName", File.ReadAllText(
+            RepositoryFile("src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs")));
         Assert.Contains("control.IsVisible", codeBehind);
         Assert.Contains("control.IsEnabled", codeBehind);
         Assert.Contains("FocusElement(HearStatusButton)", codeBehind);
@@ -1539,7 +1551,7 @@ public sealed class MainShellAccessibilityContractTests
             "Border",
             "InlineShortcutCapturePanel");
 
-        Assert.Equal("21", groupEntry.Attribute("TabIndex")?.Value);
+        Assert.Equal("17", groupEntry.Attribute("TabIndex")?.Value);
         Assert.Equal("GlobalShortcutGroupEntry_Click", groupEntry.Attribute("Click")?.Value);
         Assert.Contains("Press Enter", Attribute(groupEntry, "AutomationProperties.Name"));
         Assert.Contains("Escape", Attribute(groupEntry, "AutomationProperties.HelpText"));

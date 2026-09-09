@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using SafeSpeak.App.Accessibility;
 using SafeSpeak.App.ViewModels;
 using SafeSpeak.Core.Accessibility;
+using SafeSpeak.Core.Connectors;
 
 namespace SafeSpeak.App;
 
@@ -28,6 +29,8 @@ public partial class MainWindow : Window
     private ModifierKeys _shortcutCaptureModifiers;
     private string? _shortcutCaptureKeyName;
     private bool _shortcutTriggerReleased;
+    private LiveConnectorViewModel? _capturingConnector;
+    private string? _firstConnectorUsername;
 
     public MainWindow()
     {
@@ -74,6 +77,172 @@ public partial class MainWindow : Window
         selector.SelectedIndex = nextIndex;
         selector.ScrollIntoView(selector.SelectedItem);
         e.Handled = true;
+    }
+
+    private async void SettingsConnectorCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: LiveConnectorViewModel connector } ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (!connector.IsConfigured &&
+            string.Equals(connector.Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            BeginInlineConnectorCapture(connector);
+            return;
+        }
+
+        await viewModel.ToggleConnectorConfigurationAsync(connector);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void BeginInlineConnectorCapture(LiveConnectorViewModel connector)
+    {
+        _capturingConnector = connector;
+        _firstConnectorUsername = null;
+        InlineConnectorUsernameTextBox.Clear();
+        InlineConnectorCapturePrompt.Text =
+            "Enter the TikTok username without the at sign, then press Enter.";
+        InlineConnectorCaptureStatus.Text =
+            "Waiting for the first username entry.";
+        InlineConnectorCapturePanel.Visibility = Visibility.Visible;
+        InlineConnectorCapturePanel.BringIntoView();
+        Dispatcher.BeginInvoke(() =>
+        {
+            FocusElement(InlineConnectorUsernameTextBox);
+        }, DispatcherPriority.Input);
+    }
+
+    private async void InlineConnectorUsernameTextBox_PreviewKeyDown(
+        object sender,
+        KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            CancelInlineConnectorCapture(announce: true);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key is not (Key.Enter or Key.Return) ||
+            _capturingConnector is not { } connector ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (!TikTokLiveConnector.TryNormalizeUsername(
+                InlineConnectorUsernameTextBox.Text,
+                out string username))
+        {
+            SetInlineConnectorStatus(
+                "That username cannot be used. Enter 2 to 24 letters, numbers, periods, or underscores, without the at sign.");
+            InlineConnectorUsernameTextBox.SelectAll();
+            return;
+        }
+
+        if (_firstConnectorUsername is null)
+        {
+            _firstConnectorUsername = username;
+            InlineConnectorUsernameTextBox.Clear();
+            InlineConnectorCapturePrompt.Text =
+                "Enter the same TikTok username again, then press Enter to verify and save.";
+            SetInlineConnectorStatus(
+                $"First entry captured as {username}. Enter the same username again and press Enter.");
+            return;
+        }
+
+        if (!string.Equals(_firstConnectorUsername, username, StringComparison.OrdinalIgnoreCase))
+        {
+            InlineConnectorUsernameTextBox.Clear();
+            SetInlineConnectorStatus(
+                $"The usernames did not match. The first entry was {_firstConnectorUsername}. Enter that username again and press Enter, or press Escape to cancel.");
+            return;
+        }
+
+        InlineConnectorUsernameTextBox.IsEnabled = false;
+        SetInlineConnectorStatus($"Verified {username}. Saving TikTok Direct now.");
+        bool saved;
+        try
+        {
+            saved = await viewModel.ConfigureTikTokDirectAsync(username);
+        }
+        catch (Exception ex)
+        {
+            saved = false;
+            viewModel.AnnounceState(
+                $"TikTok Direct could not be configured. {ex.Message}",
+                interrupt: true);
+        }
+        finally
+        {
+            InlineConnectorUsernameTextBox.IsEnabled = true;
+        }
+
+        CloseInlineConnectorCapture();
+        viewModel.AnnounceState(saved
+            ? $"TikTok Direct username verified and saved. TikTok Direct moved to the Enabled connectors area. Focus returned to TikTok Direct."
+            : "TikTok Direct could not be saved. Review the announced error and try again.",
+            interrupt: true);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void InlineConnectorCancelButton_Click(object sender, RoutedEventArgs e) =>
+        CancelInlineConnectorCapture(announce: true);
+
+    private void CancelInlineConnectorCapture(bool announce)
+    {
+        LiveConnectorViewModel? connector = _capturingConnector;
+        if (connector is null)
+        {
+            return;
+        }
+
+        CloseInlineConnectorCapture();
+        if (announce && DataContext is MainViewModel viewModel)
+        {
+            viewModel.AnnounceState(
+                "TikTok Direct configuration cancelled. Nothing was changed.",
+                interrupt: true);
+        }
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void CloseInlineConnectorCapture()
+    {
+        InlineConnectorCapturePanel.Visibility = Visibility.Collapsed;
+        InlineConnectorUsernameTextBox.Clear();
+        _capturingConnector = null;
+        _firstConnectorUsername = null;
+    }
+
+    private void SetInlineConnectorStatus(string message)
+    {
+        InlineConnectorCaptureStatus.Text = message;
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.Announcer.AnnounceFocus(message);
+        }
+    }
+
+    private void FocusSettingsConnectorCard(LiveConnectorViewModel connector)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            Button? card = EnumerateVisualDescendants(SettingsPanel)
+                .OfType<Button>()
+                .FirstOrDefault(button =>
+                    Equals(button.Tag, "SettingsConnectorCard") &&
+                    ReferenceEquals(button.DataContext, connector));
+            if (card is not null)
+            {
+                card.BringIntoView();
+                FocusElement(card);
+            }
+        }, DispatcherPriority.Loaded);
     }
 
     private void GlobalShortcutGroupEntry_Click(object sender, RoutedEventArgs e) =>
@@ -640,8 +809,9 @@ public partial class MainWindow : Window
                 control.IsEnabled &&
                 control.Focusable &&
                 control.IsTabStop &&
-                KeyboardNavigation.GetTabIndex(control) < int.MaxValue)
-            .OrderBy(KeyboardNavigation.GetTabIndex)
+                (KeyboardNavigation.GetTabIndex(control) < int.MaxValue ||
+                 control.Tag is "SettingsConnectorCard" or "SettingsConnectorInlineControl"))
+            .OrderBy(GetSettingsNavigationOrder)
             .ToList();
         if (orderedStops.Count == 0)
         {
@@ -678,6 +848,16 @@ public partial class MainWindow : Window
         }
 
         e.Handled = true;
+    }
+
+    private static int GetSettingsNavigationOrder(Control control)
+    {
+        if (control.Tag is "SettingsConnectorCard" or "SettingsConnectorInlineControl")
+        {
+            return 6;
+        }
+
+        return KeyboardNavigation.GetTabIndex(control);
     }
 
     private static IEnumerable<DependencyObject> EnumerateVisualDescendants(
@@ -796,6 +976,7 @@ public partial class MainWindow : Window
         };
         if (tabIndex is not null)
         {
+            CancelInlineConnectorCaptureForNavigation();
             if (_globalShortcutGroupActive)
             {
                 DeactivateGlobalShortcutGroup(
@@ -862,10 +1043,20 @@ public partial class MainWindow : Window
                 $"Keybind group exited by Alt plus {chapterNumber.Value % 10}. Any unfinished shortcut capture was cancelled.");
         }
 
+        CancelInlineConnectorCaptureForNavigation();
+
         Label target = chapters[chapterNumber.Value - 1];
         target.BringIntoView();
         FocusElement(target);
         return true;
+    }
+
+    private void CancelInlineConnectorCaptureForNavigation()
+    {
+        if (_capturingConnector is not null)
+        {
+            CloseInlineConnectorCapture();
+        }
     }
 
     private void SelectNavigationTab(int index)
