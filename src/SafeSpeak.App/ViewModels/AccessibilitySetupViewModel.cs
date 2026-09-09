@@ -14,8 +14,7 @@ public enum AccessibilitySetupPage
     Theme,
     Platform,
     Filtering,
-    Review,
-    RestartRequired
+    Review
 }
 
 public sealed record ThemeChoiceOption(
@@ -30,8 +29,8 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private readonly ScreenReaderAnnouncer _announcer;
     private readonly LocalConnectorDetector _connectorDetector = new();
     private readonly Action _onCompleted;
-    private readonly Action _onRestartRequired;
     private readonly bool _changeExistingProfile;
+    private readonly bool _confirmationOnly;
     private readonly bool _previousAnnouncerState;
     private readonly AccessibilitySnapshot? _settingsRerunSnapshot;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
@@ -45,14 +44,16 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         AppSettings settings,
         ScreenReaderAnnouncer announcer,
         Action onCompleted,
-        Action onRestartRequired,
         bool changeExistingProfile = false)
     {
         _settings = settings;
         _announcer = announcer;
         _onCompleted = onCompleted;
-        _onRestartRequired = onRestartRequired;
         _changeExistingProfile = changeExistingProfile;
+        _confirmationOnly =
+            !changeExistingProfile &&
+            settings.HasCompletedOnboarding &&
+            settings.IsAwaitingAccessibilityConfirmation;
         _previousAnnouncerState = announcer.IsEnhancedAccessibilityEnabled;
         _settingsRerunSnapshot = changeExistingProfile
             ? AccessibilitySnapshot.Capture(settings)
@@ -161,7 +162,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool IsPlatformStep => CurrentPage == AccessibilitySetupPage.Platform;
     public bool IsFilteringStep => CurrentPage == AccessibilitySetupPage.Filtering;
     public bool IsReviewStep => CurrentPage == AccessibilitySetupPage.Review;
-    public bool IsRestartRequired => CurrentPage == AccessibilitySetupPage.RestartRequired;
     public bool IsInteractionEnabled => !IsBusy;
     public bool IsBackAvailable =>
         CurrentPage switch
@@ -209,9 +209,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 await PrepareReviewAsync();
                 if (!_modelChecked) return;
                 CompleteOnboarding();
-                break;
-            case AccessibilitySetupPage.RestartRequired:
-                _onRestartRequired();
                 break;
         }
     }
@@ -287,7 +284,15 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 guidance,
                 SelectedThemeOption.Value,
                 applyImmediately: _changeExistingProfile);
+        bool confirmationPending =
+            result is AccessibilityPreferencesSelectionResult.ConfirmationPending or
+            AccessibilityPreferencesSelectionResult.ChangedConfirmationPending;
+
         if (_changeExistingProfile)
+            _settings.OnboardingStage = OnboardingStage.Platform;
+        else if (_confirmationOnly)
+            _settings.OnboardingStage = OnboardingStage.Complete;
+        else if (confirmationPending)
             _settings.OnboardingStage = OnboardingStage.Platform;
 
         if (!_settings.TrySave(out string? error))
@@ -299,11 +304,26 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
 
         ThemeManager.Apply(_settings.EffectiveTheme);
-        if (result is AccessibilityPreferencesSelectionResult.RestartRequired or
-            AccessibilityPreferencesSelectionResult.ChangedRestartRequired)
+        _announcer.IsEnhancedAccessibilityEnabled =
+            _settings.EffectiveSpokenGuidance != SpokenGuidanceMode.Disabled;
+
+        if (_confirmationOnly)
         {
-            NavigateTo(AccessibilitySetupPage.RestartRequired);
+            _completed = true;
+            _announcer.Announce(
+                confirmationPending
+                    ? "Your updated Reader and Theme choices are saved. Confirm them the next time SafeSpeak launches. Opening SafeSpeak now."
+                    : "Reader and Theme choices confirmed. Opening SafeSpeak.",
+                interrupt: true);
+            _onCompleted();
             return;
+        }
+
+        if (confirmationPending)
+        {
+            _announcer.Announce(
+                "Reader and Theme choices saved. SafeSpeak will ask you to confirm them the next time it launches. Continuing setup now.",
+                interrupt: true);
         }
 
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsSpokenGuidanceEnabled;
@@ -437,8 +457,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
         _completed = true;
         ThemeManager.Apply(_settings.EffectiveTheme);
+        string confirmationReminder = _settings.IsAwaitingAccessibilityConfirmation
+            ? " Reader and Theme will be confirmed the next time SafeSpeak launches."
+            : string.Empty;
         _announcer.Announce(
-            "Setup complete. SafeSpeak is ready. It remains disarmed until you choose Arm SafeSpeak.",
+            $"Setup complete. SafeSpeak is ready.{confirmationReminder} It remains disarmed until you choose Arm SafeSpeak.",
             interrupt: true);
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsSpokenGuidanceEnabled;
         _onCompleted();
@@ -466,6 +489,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 StepProgress = "Step 3 of 5";
                 PromptText = "Configure your streaming connections";
                 StatusText =
+                    (_settings.IsAwaitingAccessibilityConfirmation
+                        ? "Your Reader and Theme choices are saved for this session. SafeSpeak will ask you to confirm them the next time it launches. "
+                        : string.Empty) +
                     "Select every connector you may use. TikFinity uses its local app; TikTok Direct connects by creator username without TikFinity. You can turn each configured connector on or off from Live.";
                 PrimaryButtonText = "Continue (Y)";
                 PrimaryButtonAutomationName = "Save streaming connection and continue";
@@ -501,18 +527,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                         "Language filtering: verification is in progress.");
                     _ = PrepareReviewAsync();
                 }
-                break;
-            case AccessibilitySetupPage.RestartRequired:
-                StepProgress = "Reader and theme confirmation 1 of 2 saved";
-                PromptText =
-                    $"{AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingSpokenGuidance)} and {AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingTheme)} are saved.";
-                StatusText =
-                    "Close SafeSpeak, reopen it, then answer Step 1 Reader and Step 2 Theme the same way. Choose the same combination to confirm it. A different combination becomes a new first choice. After confirmation, setup continues with your streaming platform.";
-                PrimaryButtonText = "Close SafeSpeak (Y)";
-                PrimaryButtonAutomationName =
-                    "Close SafeSpeak so accessibility choices can be confirmed after reopening";
-                KeyboardHelpText =
-                    "Keyboard: press Y, or Tab to reach Close SafeSpeak, then reopen the app.";
                 break;
         }
 
@@ -559,7 +573,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 $"Last time you chose the {AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingTheme)} theme. Choose the same combination to confirm it, or choose a different theme to start a new confirmation.";
         else
             StatusText =
-                "Choose Light, Dark, or High Contrast. Reader and Theme are confirmed together across two launches to protect against an accidental first choice.";
+                "Choose Light, Dark, or High Contrast. SafeSpeak accepts these choices now and asks you to confirm them the next time it launches.";
 
         PrimaryButtonText = "Save and continue (Y)";
         PrimaryButtonAutomationName = "Save Reader and Theme choices and continue";
@@ -724,7 +738,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(IsPlatformStep));
         OnPropertyChanged(nameof(IsFilteringStep));
         OnPropertyChanged(nameof(IsReviewStep));
-        OnPropertyChanged(nameof(IsRestartRequired));
         OnPropertyChanged(nameof(IsBackAvailable));
         OnPropertyChanged(nameof(IsPrimaryButtonVisible));
     }

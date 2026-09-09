@@ -124,6 +124,7 @@
                              Background="Transparent"
                              KeyboardNavigation.TabNavigation="Once"
                              PreviewKeyDown="ThemeList_PreviewKeyDown"
+                             PreviewMouseLeftButtonDown="ThemeList_PreviewMouseLeftButtonDown"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              AutomationProperties.Name="Visual theme selector"
                              AutomationProperties.ItemStatus="{Binding SelectedThemeOption.AutomationName}"
@@ -142,7 +143,7 @@
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                 <Setter Property="VerticalContentAlignment" Value="Stretch" />
                                 <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
-                                <Setter Property="Focusable" Value="False" />
+                                <Setter Property="Focusable" Value="True" />
                                 <Setter Property="IsTabStop" Value="False" />
                                 <Setter Property="AutomationProperties.Name"
                                         Value="{Binding AutomationName}" />
@@ -375,17 +376,6 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                </StackPanel>
-
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsRestartRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Border Style="{StaticResource ContentPanel}" Padding="14">
-                        <TextBlock Text="SafeSpeak will remain closed after this step. Reopen it to provide the second confirmation; the app will then continue setup where you left off."
-                                   TextWrapping="Wrap"
-                                   FontWeight="SemiBold"
-                                   AutomationProperties.Name="Restart required. Reopen SafeSpeak to confirm the same accessibility combination." />
-                    </Border>
                 </StackPanel>
 
                 <ProgressBar Height="8"

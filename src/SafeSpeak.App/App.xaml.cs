@@ -41,7 +41,8 @@ public partial class App : Application
                     ThemeManager.RefreshForSystemSettings();
             };
 
-            if (!settings.HasCompletedOnboarding)
+            if (!settings.HasCompletedOnboarding ||
+                settings.IsAwaitingAccessibilityConfirmation)
             {
                 var tempAnnouncer = new ScreenReaderAnnouncer();
                 tempAnnouncer.SpeechRate = settings.ReaderSpeechRate;
@@ -58,8 +59,7 @@ public partial class App : Application
                         MainWindow = mainWindow;
                         mainWindow.Show();
                         wizard?.Close();
-                    },
-                    onRestartRequired: Shutdown);
+                    });
 
                 wizard = new AccessibilitySetupDialog(setupVm);
                 wizard.Closed += (_, _) => tempAnnouncer.Dispose();

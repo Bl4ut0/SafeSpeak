@@ -97,6 +97,28 @@ public partial class AccessibilitySetupDialog : Window
         e.Handled = true;
     }
 
+    private void ThemeList_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox selector ||
+            e.OriginalSource is not DependencyObject source ||
+            ItemsControl.ContainerFromElement(selector, source) is not ListBoxItem item)
+        {
+            return;
+        }
+
+        object selected = selector.ItemContainerGenerator.ItemFromContainer(item);
+        if (selected == DependencyProperty.UnsetValue)
+        {
+            return;
+        }
+
+        selector.SelectedItem = selected;
+        item.Focus();
+        e.Handled = true;
+    }
+
     private void FocusPrimaryControl()
     {
         Dispatcher.BeginInvoke(

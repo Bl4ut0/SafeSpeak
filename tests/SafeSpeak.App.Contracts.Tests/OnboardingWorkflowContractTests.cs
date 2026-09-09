@@ -30,11 +30,12 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("OnboardingStage.Filtering => AccessibilitySetupPage.Filtering", resolver);
         Assert.Contains("OnboardingStage.Review => AccessibilitySetupPage.Review", resolver);
         Assert.Contains("_ => AccessibilitySetupPage.Platform", resolver);
-        Assert.Contains("if (!settings.HasCompletedOnboarding)", startup);
+        Assert.Contains("!settings.HasCompletedOnboarding ||", startup);
+        Assert.Contains("settings.IsAwaitingAccessibilityConfirmation", startup);
     }
 
     [Fact]
-    public void AccessibilityChoices_RequireMatchingSecondLaunchAndExplainCloseReopenFlow()
+    public void AccessibilityChoices_ContinueNowAndRequestConfirmationOnNextLaunch()
     {
         string confirmation = Source(
             "src", "SafeSpeak.Core", "Accessibility",
@@ -46,26 +47,26 @@ public sealed class OnboardingWorkflowContractTests
             confirmation,
             "public static AccessibilityPreferencesSelectionResult Select(");
         Assert.Contains("StorePendingSelection(settings, spokenGuidance, theme)", select);
-        Assert.Contains("AccessibilityPreferencesSelectionResult.RestartRequired", select);
+        Assert.Contains("AccessibilityPreferencesSelectionResult.ConfirmationPending", select);
         Assert.Contains("settings.PendingSpokenGuidance == spokenGuidance", select);
         Assert.Contains("settings.PendingTheme == theme", select);
         Assert.Contains("settings.OnboardingStage = OnboardingStage.Platform", select);
-        Assert.Contains("AccessibilityPreferencesSelectionResult.ChangedRestartRequired", select);
+        Assert.Contains("AccessibilityPreferencesSelectionResult.ChangedConfirmationPending", select);
 
         Assert.Contains("confirmation 2 of 2", wizard);
         Assert.Contains("Choose the same combination to confirm it", wizard);
-        Assert.Contains("PrimaryButtonText = \"Close SafeSpeak (Y)\"", wizard);
-        Assert.Contains("Close SafeSpeak, reopen it", wizard);
-        Assert.Contains("A different combination becomes a new first choice", wizard);
-
-        XElement restartMessage = xaml.Descendants(Presentation + "TextBlock")
-            .Single(element =>
+        Assert.Contains("asks you to confirm them the next time it launches", wizard);
+        Assert.Contains("Continuing setup now", wizard);
+        Assert.Contains("_confirmationOnly", wizard);
+        Assert.Contains("_settings.OnboardingStage = OnboardingStage.Complete", wizard);
+        Assert.Contains("_onCompleted()", wizard);
+        Assert.DoesNotContain("Close SafeSpeak", wizard);
+        Assert.DoesNotContain("RestartRequired", wizard);
+        Assert.DoesNotContain(
+            xaml.Descendants(Presentation + "TextBlock"),
+            element =>
                 (element.Attribute("Text")?.Value ?? string.Empty)
-                .StartsWith("SafeSpeak will remain closed", StringComparison.Ordinal));
-        Assert.Contains("second confirmation", restartMessage.Attribute("Text")!.Value);
-        Assert.Contains(
-            "Restart required",
-            Attribute(restartMessage, "AutomationProperties.Name"));
+                .Contains("remain closed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

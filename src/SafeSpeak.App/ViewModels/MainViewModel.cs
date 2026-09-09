@@ -2230,7 +2230,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 AnnounceState("Accessibility settings updated successfully.");
                 wizard?.Close();
             },
-            onRestartRequired: () => wizard?.Close(),
             changeExistingProfile: true);
 
         wizard = new Views.AccessibilitySetupDialog(setupViewModel)
