@@ -1,19 +1,11 @@
 name: Microsoft Store publisher
 
 on:
-  workflow_run:
-    workflows:
-      - Main release build
-    types:
-      - completed
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       package_version:
         description: Store package version (four parts; final component must be 0)
         required: true
-        default: 1.0.5.0
         type: string
       verify_connection:
         description: Authenticate and verify access to the SafeSpeak Partner Center product
@@ -40,11 +32,6 @@ concurrency:
 
 jobs:
   build-store-bundle:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          (github.event.workflow_run.conclusion == 'success' &&
-           github.event.workflow_run.event == 'push' &&
-           github.event.workflow_run.head_branch == 'main') }}
     runs-on: windows-latest
     timeout-minutes: 90
     outputs:
@@ -53,14 +40,12 @@ jobs:
       STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
       STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
       STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
-      UPLOAD_DRAFT: ${{ github.event_name == 'workflow_run' || inputs.upload_draft }}
-      COMMIT_SUBMISSION: ${{ github.event_name == 'workflow_run' || inputs.commit_submission }}
+      UPLOAD_DRAFT: ${{ inputs.upload_draft }}
+      COMMIT_SUBMISSION: ${{ inputs.commit_submission }}
 
     steps:
       - name: Check out source
         uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Install pinned .NET SDK
         uses: actions/setup-dotnet@v6
@@ -160,7 +145,7 @@ jobs:
           retention-days: 30
 
   partner-center:
-    if: ${{ github.event_name == 'workflow_run' || inputs.verify_connection || inputs.upload_draft }}
+    if: ${{ inputs.verify_connection || inputs.upload_draft }}
     needs: build-store-bundle
     runs-on: windows-latest
     timeout-minutes: 30
@@ -172,11 +157,11 @@ jobs:
       PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
       PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
       PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
-      COMMIT_SUBMISSION: ${{ github.event_name == 'workflow_run' || inputs.commit_submission }}
+      COMMIT_SUBMISSION: ${{ inputs.commit_submission }}
 
     steps:
       - name: Download verified Store candidate
-        if: ${{ github.event_name == 'workflow_run' || inputs.upload_draft }}
+        if: ${{ inputs.upload_draft }}
         uses: actions/download-artifact@v7
         with:
           name: SafeSpeak-store-${{ needs.build-store-bundle.outputs.store_package_version }}
@@ -218,7 +203,7 @@ jobs:
         run: msstore apps get $env:STORE_APP_ID
 
       - name: Upload Partner Center draft or commit approved submission
-        if: ${{ github.event_name == 'workflow_run' || inputs.upload_draft }}
+        if: ${{ inputs.upload_draft }}
         shell: pwsh
         run: |
           $bundles = @(Get-ChildItem -LiteralPath 'artifacts/store' `

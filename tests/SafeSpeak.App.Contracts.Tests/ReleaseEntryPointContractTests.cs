@@ -90,7 +90,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("branches: [develop]", workflow);
         Assert.Contains("tags: ['v*']", workflow);
         Assert.Contains("artifacts/*.msi", workflow);
-        Assert.Contains("name: Publish tagged GitHub release", workflow);
+        Assert.Contains("name: Publish GitHub release", workflow);
         Assert.Contains("actions/download-artifact@v7", workflow);
         Assert.Contains("merge-multiple: true", workflow);
         Assert.Contains("$stableTag = \"v$($versions[0])\"", workflow);
@@ -107,6 +107,16 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("$buildParameters.Publisher", workflow);
         Assert.Contains("expandedApplication.signatureStatus", workflow);
         Assert.Contains("Unsigned release packages", workflow);
+        Assert.Contains("deploy_release:", workflow);
+        Assert.Contains("release_version:", workflow);
+        Assert.Contains("release_details:", workflow);
+        Assert.Contains("github.event_name == 'push' || inputs.deploy_release", workflow);
+        Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
+        Assert.Contains("name: Submit to Microsoft Store", workflow);
+        Assert.Contains("name: microsoft-store-production", workflow);
+        Assert.Contains("msstore apps get $env:STORE_APP_ID", workflow);
+        Assert.Contains("msstore publish $bundles[0].FullName", workflow);
+        Assert.Contains("Increase SafeSpeakVersion and SafeSpeakStoreVersion", workflow);
     }
 
     [Fact]
@@ -344,21 +354,16 @@ public sealed class ReleaseEntryPointContractTests
     }
 
     [Fact]
-    public void StorePublisherWorkflow_PublishesOnlyAfterSuccessfulProtectedMainBuild()
+    public void StorePublisherWorkflow_IsManualRecoveryOnly()
     {
         string workflow = Source(".github", "workflows", "store-publisher.yml");
 
         Assert.Contains("workflow_dispatch:", workflow);
-        Assert.Contains("workflow_run:", workflow);
-        Assert.Contains("- Main release build", workflow);
-        Assert.Contains("github.event.workflow_run.conclusion == 'success'", workflow);
-        Assert.Contains("github.event.workflow_run.event == 'push'", workflow);
-        Assert.Contains("github.event.workflow_run.head_branch == 'main'", workflow);
-        Assert.Contains("github.event.workflow_run.head_sha", workflow);
+        Assert.DoesNotContain("workflow_run:", workflow);
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("default: false", workflow);
-        Assert.Contains("default: 1.0.5.0", workflow);
+        Assert.DoesNotContain("default: 1.0.5.0", workflow);
         Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
         Assert.Contains("SafeSpeakStoreVersion", workflow);
         Assert.Contains("steps.store-version.outputs.version", workflow);
@@ -377,8 +382,8 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}", workflow);
         Assert.DoesNotContain("PARTNER_CENTER_CLIENT_SECRET: ${{ vars.", workflow);
         Assert.Contains("verify_connection:", workflow);
-        Assert.Contains("github.event_name == 'workflow_run' || inputs.verify_connection || inputs.upload_draft", workflow);
-        Assert.Contains("github.event_name == 'workflow_run' || inputs.commit_submission", workflow);
+        Assert.Contains("inputs.verify_connection || inputs.upload_draft", workflow);
+        Assert.Contains("COMMIT_SUBMISSION: ${{ inputs.commit_submission }}", workflow);
         Assert.Contains("msstore apps get $env:STORE_APP_ID", workflow);
     }
 

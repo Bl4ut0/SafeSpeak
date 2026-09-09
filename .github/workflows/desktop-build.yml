@@ -7,6 +7,20 @@ on:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      deploy_release:
+        description: Create the GitHub release and submit this main commit to Microsoft Store
+        required: true
+        default: false
+        type: boolean
+      release_version:
+        description: Release version (leave blank to use Directory.Build.props)
+        required: false
+        type: string
+      release_details:
+        description: Release details (leave blank to generate them from merged commits)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -40,7 +54,10 @@ jobs:
           key: ollama-runtime-v0.33.3-${{ runner.os }}-${{ matrix.architecture }}-${{ matrix.architecture == 'x64' && '52CB36A62E7E501F61514F60212DEC7117B6C098811357585E02FFFE32D2FCD7' || '98B9DDAAB6BAECE0418C6D1231526EB1E4E66944985E0A8EEB7D6171BCD7B6D8' }}
 
       - name: Import release code-signing certificate
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: >-
+          startsWith(github.ref, 'refs/tags/v') ||
+          (github.ref == 'refs/heads/main' &&
+           (github.event_name == 'push' || inputs.deploy_release))
         shell: pwsh
         env:
           WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
@@ -83,10 +100,21 @@ jobs:
 
       - name: Build, test, and package desktop application
         shell: pwsh
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           $buildParameters = @{
             Architecture = '${{ matrix.architecture }}'
             Format = 'All'
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:REQUESTED_RELEASE_VERSION)) {
+            [xml]$props = Get-Content -LiteralPath 'Directory.Build.props' -Raw
+            $configuredVersion = [string](
+              $props.Project.PropertyGroup.SafeSpeakVersion | Select-Object -First 1)
+            if ($env:REQUESTED_RELEASE_VERSION -ne $configuredVersion) {
+              throw "Requested version '$env:REQUESTED_RELEASE_VERSION' does not match the app version '$configuredVersion'. Update Directory.Build.props on develop and merge it to main first."
+            }
+            $buildParameters.PackageVersion = $env:REQUESTED_RELEASE_VERSION
           }
           if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_THUMBPRINT)) {
             $buildParameters.CertificateThumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT
@@ -95,7 +123,11 @@ jobs:
           & ./installer/Build-Release.ps1 @buildParameters
 
       - name: Remove imported release certificate
-        if: always() && startsWith(github.ref, 'refs/tags/v')
+        if: >-
+          always() &&
+          (startsWith(github.ref, 'refs/tags/v') ||
+           (github.ref == 'refs/heads/main' &&
+            (github.event_name == 'push' || inputs.deploy_release)))
         shell: pwsh
         run: |
           if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_IMPORTED_CERTIFICATE_THUMBPRINTS)) {
@@ -127,8 +159,11 @@ jobs:
           retention-days: 14
 
   publish-github-release:
-    name: Publish tagged GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Publish GitHub release
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.ref == 'refs/heads/main' &&
+       (github.event_name == 'push' || inputs.deploy_release))
     needs: windows
     runs-on: windows-latest
     permissions:
@@ -153,11 +188,16 @@ jobs:
           }
 
           $stableTag = "v$($versions[0])"
-          $releaseArguments = @()
-          if ($env:GITHUB_REF_NAME -eq $stableTag) {
+          if ($env:GITHUB_REF -eq 'refs/heads/main') {
+            "SAFESPEAK_RELEASE_TAG=$stableTag" >> $env:GITHUB_ENV
+            "SAFESPEAK_RELEASE_PRERELEASE=false" >> $env:GITHUB_ENV
+          }
+          elseif ($env:GITHUB_REF_NAME -eq $stableTag) {
+            "SAFESPEAK_RELEASE_TAG=$env:GITHUB_REF_NAME" >> $env:GITHUB_ENV
             "SAFESPEAK_RELEASE_PRERELEASE=false" >> $env:GITHUB_ENV
           }
           elseif ($env:GITHUB_REF_NAME -match "^$([regex]::Escape($stableTag))-rc\.[1-9][0-9]*$") {
+            "SAFESPEAK_RELEASE_TAG=$env:GITHUB_REF_NAME" >> $env:GITHUB_ENV
             "SAFESPEAK_RELEASE_PRERELEASE=true" >> $env:GITHUB_ENV
           }
           else {
@@ -193,18 +233,198 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_DETAILS: ${{ inputs.release_details }}
         run: |
+          if (gh release view $env:SAFESPEAK_RELEASE_TAG 2>$null) {
+            throw "Release '$env:SAFESPEAK_RELEASE_TAG' already exists. Increase SafeSpeakVersion and SafeSpeakStoreVersion on develop before merging another release to main."
+          }
           $assets = @(Get-ChildItem -LiteralPath 'release-assets' -File |
             Sort-Object Name |
             Select-Object -ExpandProperty FullName)
           $arguments = @(
-            'release', 'create', $env:GITHUB_REF_NAME
+            'release', 'create', $env:SAFESPEAK_RELEASE_TAG
           ) + $assets + @(
-            '--verify-tag',
-            '--generate-notes',
-            '--title', "SafeSpeak $env:GITHUB_REF_NAME"
+            '--title', "SafeSpeak $env:SAFESPEAK_RELEASE_TAG"
           )
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_DETAILS)) {
+            $arguments += '--generate-notes'
+          }
+          else {
+            $notesPath = Join-Path $env:RUNNER_TEMP 'safespeak-release-notes.txt'
+            $env:RELEASE_DETAILS | Set-Content -LiteralPath $notesPath -Encoding utf8
+            $arguments += @('--notes-file', $notesPath)
+          }
+          if ($env:GITHUB_REF -eq 'refs/heads/main') {
+            $arguments += @('--target', $env:GITHUB_SHA)
+          }
+          else {
+            $arguments += '--verify-tag'
+          }
           if ($env:SAFESPEAK_RELEASE_PRERELEASE -eq 'true') {
             $arguments += '--prerelease'
           }
           & gh @arguments
+
+  store-bundle:
+    name: Build Microsoft Store bundle
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.deploy_release)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    outputs:
+      package_version: ${{ steps.store-version.outputs.version }}
+    env:
+      STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
+      STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
+      STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Cache verified private model runtime archives
+        uses: actions/cache@v5
+        with:
+          path: .build-cache\ollama\downloads\v0.33.3
+          key: ollama-runtime-v0.33.3-${{ runner.os }}-store-52CB36A62E7E501F61514F60212DEC7117B6C098811357585E02FFFE32D2FCD7-98B9DDAAB6BAECE0418C6D1231526EB1E4E66944985E0A8EEB7D6171BCD7B6D8
+
+      - name: Resolve and validate Store package version
+        id: store-version
+        shell: pwsh
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          [xml]$props = Get-Content -LiteralPath 'Directory.Build.props' -Raw
+          $desktopVersion = [string](
+            $props.Project.PropertyGroup.SafeSpeakVersion | Select-Object -First 1)
+          $storeVersion = [string](
+            $props.Project.PropertyGroup.SafeSpeakStoreVersion | Select-Object -First 1)
+          if ($storeVersion -notmatch '^\d+\.\d+\.\d+\.0$') {
+            throw 'SafeSpeakStoreVersion must contain four numeric components and end in .0.'
+          }
+          if ($desktopVersion -ne $storeVersion) {
+            throw "SafeSpeakVersion '$desktopVersion' and SafeSpeakStoreVersion '$storeVersion' must match for an automatic main release."
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:REQUESTED_RELEASE_VERSION) -and
+              $env:REQUESTED_RELEASE_VERSION -ne $storeVersion) {
+            throw "Requested version '$env:REQUESTED_RELEASE_VERSION' does not match the Store version '$storeVersion'. Update Directory.Build.props on develop and merge it to main first."
+          }
+          "version=$storeVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Validate Store identity
+        shell: pwsh
+        run: |
+          $required = @(
+            'STORE_IDENTITY_NAME',
+            'STORE_PUBLISHER',
+            'STORE_PUBLISHER_DISPLAY_NAME'
+          )
+          $missing = @($required | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+            throw "Missing required GitHub variables: $($missing -join ', ')"
+          }
+
+      - name: Build and verify Store bundle
+        shell: pwsh
+        run: |
+          ./installer/Build-StoreBundle.ps1 `
+            -PackageVersion '${{ steps.store-version.outputs.version }}' `
+            -IdentityName $env:STORE_IDENTITY_NAME `
+            -Publisher $env:STORE_PUBLISHER `
+            -PublisherDisplayName $env:STORE_PUBLISHER_DISPLAY_NAME `
+            -SkipTests
+
+      - name: Upload verified Store candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: SafeSpeak-store-${{ steps.store-version.outputs.version }}
+          path: |
+            artifacts/store/*.msix
+            artifacts/store/*.msixbundle
+            artifacts/store/*.release.json
+            artifacts/store/*.store-bundle.json
+          if-no-files-found: error
+          retention-days: 30
+
+  partner-center:
+    name: Submit to Microsoft Store
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.deploy_release)
+    needs:
+      - windows
+      - publish-github-release
+      - store-bundle
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment:
+      name: microsoft-store-production
+    env:
+      STORE_APP_ID: ${{ vars.STORE_APP_ID }}
+      PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+      PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+      PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+      PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+
+    steps:
+      - name: Download verified Store candidate
+        uses: actions/download-artifact@v7
+        with:
+          name: SafeSpeak-store-${{ needs.store-bundle.outputs.package_version }}
+          path: artifacts/store
+
+      - name: Install Microsoft Store Developer CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+        with:
+          version: v0.3.9
+
+      - name: Validate Partner Center configuration
+        shell: pwsh
+        run: |
+          $required = @(
+            'STORE_APP_ID',
+            'PARTNER_CENTER_TENANT_ID',
+            'PARTNER_CENTER_SELLER_ID',
+            'PARTNER_CENTER_CLIENT_ID',
+            'PARTNER_CENTER_CLIENT_SECRET'
+          )
+          $missing = @($required | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+            throw "Missing protected Store configuration: $($missing -join ', ')"
+          }
+
+      - name: Authenticate Microsoft Store Developer CLI
+        shell: pwsh
+        run: |
+          msstore reconfigure `
+            --tenantId $env:PARTNER_CENTER_TENANT_ID `
+            --sellerId $env:PARTNER_CENTER_SELLER_ID `
+            --clientId $env:PARTNER_CENTER_CLIENT_ID `
+            --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
+
+      - name: Verify SafeSpeak Partner Center access
+        shell: pwsh
+        run: msstore apps get $env:STORE_APP_ID
+
+      - name: Upload and commit submission for Microsoft certification
+        shell: pwsh
+        run: |
+          $bundles = @(Get-ChildItem -LiteralPath 'artifacts/store' `
+            -Filter '*.msixbundle' -File)
+          if ($bundles.Count -ne 1) {
+            throw "Expected exactly one Store bundle and found $($bundles.Count)."
+          }
+          & msstore publish $bundles[0].FullName --appId $env:STORE_APP_ID
+          if ($LASTEXITCODE -ne 0) {
+            throw "Microsoft Store Developer CLI failed with exit code $LASTEXITCODE."
+          }

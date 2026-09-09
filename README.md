@@ -43,13 +43,14 @@ Build self-contained ZIP, MSI, and MSIX candidates:
 Repository work uses two separate CI tracks. Pushes and pull requests targeting
 `develop` run the non-publishing development workflow and retain an unsigned x64
 portable ZIP for seven days. Pushes and pull requests targeting `main` run the
-full x64/ARM64 release packaging workflow. After a successful push build on
-`main`, the exact verified commit triggers the Microsoft Store publisher. The
-protected `microsoft-store-production` environment requires reviewer approval
-before CI can verify Partner Center access, upload the Store bundle, and commit
-the update for certification. Development CI cannot contact Partner Center.
-Pushing a stable `v<version>` tag or prerelease `v<version>-rc.N` tag publishes
-the verified desktop packages as permanent GitHub Release downloads. Tagged
+full x64/ARM64 release packaging workflow. A successful push to `main` signs
+and publishes the verified desktop artifacts as a versioned GitHub Release,
+builds the Store-specific bundle, verifies Partner Center access, and commits
+the Store submission for Microsoft certification. GitHub reports failures
+through the repository's normal Actions notifications; no workflow polling is
+required. Development CI cannot contact Partner Center. A manual run exposes
+fallback questions for the release version and release details when they cannot
+be inferred from `Directory.Build.props` and the merged commits. Tagged
 releases fail closed unless the executable, MSI, and MSIX have valid
 Authenticode signatures. The MSI supplies Windows-native upgrade, repair, and
 uninstall while preserving each user's SafeSpeak settings, logs, and downloaded models.
