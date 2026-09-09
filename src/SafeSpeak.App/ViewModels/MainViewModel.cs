@@ -230,7 +230,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private int _heldLiveFeedCount;
 
-    public ObservableCollection<ModerationDecision> LiveFeed { get; } = new();
+    public ObservableCollection<LiveFeedEntryViewModel> LiveFeed { get; } = new();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
     public ObservableCollection<string> CustomBlockedTerms { get; } = new();
@@ -370,7 +370,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public IReadOnlyList<SourceConnectorChoice> SourceConnectorChoices { get; } =
     [
         new(TikFinityWebSocketClient.ConnectorDescriptor.Id, "TikFinity (local app)"),
-        new(TikTokLiveConnector.ConnectorDescriptor.Id, "TikTok Direct by username (test)")
+        new(TikTokLiveConnector.ConnectorDescriptor.Id, "TikTok Direct by username")
     ];
     public string SourceName => _sourceConnector.Descriptor.DisplayName;
     public string SourceDescription =>
@@ -1643,7 +1643,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             LiveFeed.RemoveAt(LiveFeed.Count - 1);
         }
 
-        LiveFeed.Insert(0, decision);
+        LiveFeed.Insert(0, new LiveFeedEntryViewModel(decision));
     }
 
     private bool IsMonitoringGenerationActive(int monitoringGeneration) =>

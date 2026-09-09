@@ -5,7 +5,7 @@ connection framing documented by PirateTok/live-cs, commit
 `ce6a19931da6c3bf22dd1189264ed4b5fa7fd411`:
 https://github.com/PirateTok/live-cs/tree/ce6a19931da6c3bf22dd1189264ed4b5fa7fd411
 
-This experimental integration is unofficial and is not affiliated with TikTok.
+This integration is unofficial and is not affiliated with TikTok.
 No PirateTok, Euler, Python, Node, or hosted signing runtime is included.
 
 Upstream license (0BSD):

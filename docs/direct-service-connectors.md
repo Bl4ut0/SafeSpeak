@@ -1,6 +1,6 @@
 # Direct service connectors and TikTok feasibility
 
-Investigation date: September 8, 2026. Status: an experimental direct TikTok connector is implemented and covered by deterministic tests. Its direct public-viewer WebSocket handshake has been validated against a user-designated active LIVE stream; actual event delivery and TTS announcements still need live validation.
+Investigation date: September 8, 2026. Status: the direct TikTok connector is implemented and covered by deterministic tests. Its direct public-viewer WebSocket handshake has been validated against a user-designated active LIVE stream.
 
 ## Intended behavior
 
@@ -24,7 +24,7 @@ The target is all supported, relevant events, with explicit capability reporting
 The existing architecture supplies most of the route from events to speech:
 
 - [ISourceConnector](../src/SafeSpeak.Core/Connectors/ISourceConnector.cs) defines connection state, cancellation, disposal, event delivery, and capabilities for chat, gifts, follows, shares, subscriptions, joins, and likes.
-- [SourceConnectorRegistry](../src/SafeSpeak.Core/Connectors/SourceConnectorRegistry.cs) creates the selected connector. Its default registry registers TikFinity and the experimental TikTok Direct connector.
+- [SourceConnectorRegistry](../src/SafeSpeak.Core/Connectors/SourceConnectorRegistry.cs) creates the selected connector. Its default registry registers TikFinity and TikTok Direct.
 - [LivestreamEvent](../src/SafeSpeak.Core/Models/LivestreamEvent.cs) carries provider identity, event type, author, display name, chat text, gift information, roles, and receive time.
 - [MainViewModel](../src/SafeSpeak.App/ViewModels/MainViewModel.cs), through `HandleIncomingEventAsync`, already applies individual announcement settings and sends generated event announcements through the same moderation method as chat. Intake is gated by the armed state.
 
@@ -83,7 +83,7 @@ Deduplicate by provider, room, and event ID where available, with bounded storag
 1. **Prove direct event delivery.** In progress. A user-designated active stream successfully completed room lookup, public-viewer cookie acquisition, WebSocket connection, and a valid TikTok message response with TikFinity closed. Actual chat and other event payloads, event counts, and TTS output still need observation. No external signing or relay fallback is permitted.
 2. **Harden the transport.** Implemented for the test: HTTP, WebSocket, decompressed payload, batch, and event-rate bounds; validated usernames; bounded retry; acknowledgements and heartbeats; observed worker tasks; and deterministic shutdown.
 3. **Implement `TikTokLiveConnector : ISourceConnector`.** Implemented for chat, gifts, follows, shares, subscriptions, joins, and likes. It includes event deduplication, stale-history suppression, final gift-streak handling, and privacy-safe synthetic fixtures. The constructor and registry factory are side-effect free.
-4. **Add accessible setup.** Implemented in Settings. The user can retain TikFinity or select TikTok Direct, enter a creator username, save, and connect. Changing the source disarms SafeSpeak and clears queued speech. The choice and username are persisted. First-run onboarding still defaults to TikFinity; the experimental source is selected after onboarding.
+4. **Add accessible setup.** Implemented in Settings. The user can retain TikFinity or select TikTok Direct, enter a creator username, save, and connect. Changing the source disarms SafeSpeak and clears queued speech. The choice and username are persisted. First-run onboarding still defaults to TikFinity; the direct source is selected after onboarding.
 5. **Validate the complete speech path.** Deterministic tests cover normalization, gift streaks, duplicates, stale history, malformed/oversize data, connection state, bounded disconnect, registry creation, and safe in-session source replacement. Live validation remains necessary for every advertised event family, reconnect behavior, stream end, and real TTS announcements.
 
 The desktop uses `SourceConnectorHost` to serialize source changes and explicitly disconnect, unsubscribe, dispose, replace, and resubscribe without restarting the application.

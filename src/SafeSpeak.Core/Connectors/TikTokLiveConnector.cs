@@ -5,12 +5,12 @@ using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.Core.Connectors;
 
-/// <summary>Experimental public LIVE connection. No external signer or relay.</summary>
+/// <summary>Public LIVE connection with no external signer or relay.</summary>
 public sealed class TikTokLiveConnector : ISourceConnector
 {
     public static SourceConnectorDescriptor ConnectorDescriptor { get; } = new(
-        "tiktok-direct", "TikTok Direct (test)", "TikTok LIVE directly by username",
-        "Experimental direct connection to a public TikTok LIVE stream",
+        "tiktok-direct", "TikTok Direct", "TikTok LIVE directly by username",
+        "Direct connection to a public TikTok LIVE stream",
         SourceConnectorCapabilities.Chat | SourceConnectorCapabilities.Gifts | SourceConnectorCapabilities.Follows |
         SourceConnectorCapabilities.Shares | SourceConnectorCapabilities.Subscriptions | SourceConnectorCapabilities.Joins |
         SourceConnectorCapabilities.Likes);
@@ -89,7 +89,7 @@ public sealed class TikTokLiveConnector : ISourceConnector
                     if (!ex.Retryable) return;
                 }
                 catch (InvalidDataException)
-                { SetState(ConnectionState.Faulted, "TikTok sent data this test connector cannot safely read. Try reconnecting later."); return; }
+                { SetState(ConnectionState.Faulted, "TikTok sent data this connector cannot safely read. Try reconnecting later."); return; }
                 catch (Exception ex) when (ex is HttpRequestException or WebSocketException or IOException or OperationCanceledException)
                 { SetState(ConnectionState.Reconnecting, "TikTok direct connection failed or timed out. SafeSpeak will retry."); }
                 catch (Exception)

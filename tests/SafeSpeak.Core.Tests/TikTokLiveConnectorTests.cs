@@ -4,7 +4,9 @@ using System.Net;
 using System.Net.Http;
 using SafeSpeak.Core.Connectors;
 using SafeSpeak.Core.Connectors.TikTok;
+using SafeSpeak.Core.AI;
 using SafeSpeak.Core.Models;
+using SafeSpeak.Core.Moderation;
 
 namespace SafeSpeak.Core.Tests;
 
@@ -48,6 +50,29 @@ public sealed class TikTokLiveConnectorTests
         Assert.Equal("hello stream", first.Text);
         Assert.Null(duplicate);
         Assert.Null(history);
+    }
+
+    [Fact]
+    public async Task DirectChatDisplayName_ReachesFinalSpokenAttribution()
+    {
+        var decoder = new TikTokEventDecoder();
+        LivestreamEvent? liveEvent = decoder.Decode(
+            "WebcastChatMessage",
+            Chat("viewer_1", "Viewer One", "hello stream", 54),
+            "10",
+            54,
+            false,
+            DateTimeOffset.UtcNow);
+        using var pipeline = new ModerationPipeline(
+            new ModerationConfig { UserCooldownSeconds = 0 },
+            intentClassifier: new AlwaysSafeIntentClassifier());
+
+        ModerationDecision decision = await pipeline.ProcessMessageAsync(
+            Assert.IsType<LivestreamEvent>(liveEvent).ToChatMessage());
+
+        Assert.True(decision.Passed);
+        Assert.Equal("Viewer One", decision.SafeAuthorDisplayName);
+        Assert.Equal("Viewer One says: hello stream", decision.SpokenText);
     }
 
     [Fact]
@@ -195,6 +220,21 @@ public sealed class TikTokLiveConnectorTests
         {
             RequestUri = request.RequestUri;
             return Task.FromResult(respond(request));
+        }
+    }
+
+    private sealed class AlwaysSafeIntentClassifier : IIntentClassifier
+    {
+        public string ModelName => "Test safe classifier";
+        public bool IsModelLoaded => true;
+
+        public Task<IntentClassificationResult> ClassifyAsync(
+            string text,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new IntentClassificationResult());
+
+        public void Dispose()
+        {
         }
     }
 }
