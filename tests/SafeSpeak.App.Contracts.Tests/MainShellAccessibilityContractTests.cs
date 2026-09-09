@@ -433,9 +433,23 @@ public sealed class MainShellAccessibilityContractTests
         XElement feed = NamedElement(document, "ListView", "LiveFeedListView");
         Assert.Equal("2", feed.Parent?.Attribute("Grid.Column")?.Value);
         XElement arm = NamedElement(document, "ToggleButton", "ArmToggle");
+        Assert.Empty(liveTab.Descendants(Presentation + "ScrollViewer"));
         Assert.Contains(arm.Ancestors(), ancestor =>
-            ancestor.Name.LocalName == "ScrollViewer" &&
+            ancestor.Name.LocalName == "StackPanel" &&
             ancestor.Attribute("Grid.Column")?.Value == "0");
+
+        XElement sourceStatus = liveTab.Descendants(Presentation + "TextBlock")
+            .Single(element =>
+                Attribute(element, "AutomationProperties.Name") ==
+                "{Binding ConnectionStatusText}");
+        Assert.Equal("{Binding ConnectionSummaryText}",
+            sourceStatus.Attribute("Text")?.Value);
+        Assert.Equal("CharacterEllipsis", sourceStatus.Attribute("TextTrimming")?.Value);
+        XElement compactValueStyle = document.Descendants(Presentation + "Style")
+            .Single(element => element.Attribute(Xaml + "Key")?.Value == "LiveStatusValue");
+        Assert.Contains(compactValueStyle.Descendants(Presentation + "Setter"), setter =>
+            setter.Attribute("Property")?.Value == "TextWrapping" &&
+            setter.Attribute("Value")?.Value == "NoWrap");
     }
 
     [Fact]

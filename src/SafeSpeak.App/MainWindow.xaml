@@ -26,6 +26,17 @@
             <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleSummary}" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
         </Style>
+        <Style x:Key="LiveStatusCard" TargetType="Border"
+               BasedOn="{StaticResource StatusCard}">
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="BorderThickness" Value="3,1,1,1" />
+        </Style>
+        <Style x:Key="LiveStatusValue" TargetType="TextBlock"
+               BasedOn="{StaticResource StatusValue}">
+            <Setter Property="Margin" Value="0,1,0,0" />
+            <Setter Property="FontSize" Value="{DynamicResource SafeSpeakFont13}" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
     </Window.Resources>
 
     <Grid Background="{DynamicResource SafeSpeakWindowBrush}"
@@ -94,54 +105,51 @@
                         <ColumnDefinition Width="3*" MinWidth="360" />
                     </Grid.ColumnDefinitions>
 
-                    <ScrollViewer Grid.Column="0"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="0,0,4,0">
+                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
                             <TextBlock Text="SafeSpeak" Style="{StaticResource PageTitle}"
                                        FontSize="{DynamicResource SafeSpeakFont24}"
                                        VerticalAlignment="Center" />
 
-                            <UniformGrid Columns="2" Margin="0,6,0,2">
-                                <Border Style="{StaticResource StatusCard}" Margin="0,0,6,6">
+                            <UniformGrid Columns="2" Margin="0,4,0,0">
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,4,4">
                                     <StackPanel>
                                         <TextBlock Text="SOURCE" Style="{StaticResource StatusLabel}" />
-                                        <TextBlock Text="{Binding ConnectionStatusText}" Style="{StaticResource StatusValue}"
-                                                   TextWrapping="Wrap"
+                                        <TextBlock Text="{Binding ConnectionSummaryText}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
                                                    AutomationProperties.Name="{Binding ConnectionStatusText}"
                                                    AutomationProperties.LiveSetting="Polite"
                                                    a11y:LiveRegion.Announcement="{Binding ConnectionStatusText}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,6">
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,0,4">
                                     <StackPanel>
                                         <TextBlock Text="TTS SAFETY" Style="{StaticResource StatusLabel}" />
-                                        <TextBlock Text="{Binding ArmedStatusText}" Style="{StaticResource StatusValue}"
-                                                   TextWrapping="Wrap"
+                                        <TextBlock Text="{Binding ArmedStatusText}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
                                                    AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Text to speech {0}}"
                                                    AutomationProperties.LiveSetting="Polite"
                                                    a11y:LiveRegion.Announcement="{Binding ArmedStatusText, StringFormat=Text to speech {0}}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource StatusCard}" Margin="0,0,6,6">
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,4,4">
                                     <StackPanel>
                                         <TextBlock Text="QUEUE" Style="{StaticResource StatusLabel}" />
-                                        <TextBlock Text="{Binding QueueCount, StringFormat={}{0} messages}" Style="{StaticResource StatusValue}"
-                                                   TextWrapping="Wrap"
+                                        <TextBlock Text="{Binding QueueCount, StringFormat={}{0} messages}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
                                                    AutomationProperties.Name="{Binding QueueCount, StringFormat=Queue has {0} messages}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,6">
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,0,4">
                                     <StackPanel>
                                         <TextBlock Text="PLAYBACK" Style="{StaticResource StatusLabel}" />
-                                        <TextBlock Text="{Binding PlaybackModeStatus}" Style="{StaticResource StatusValue}"
-                                                   TextWrapping="Wrap"
+                                        <TextBlock Text="{Binding PlaybackModeStatus}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
                                                    AutomationProperties.Name="{Binding PlaybackModeStatus, StringFormat=Playback mode {0}}" />
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
 
-                            <Border Style="{StaticResource CommandSurface}" Margin="0,0,0,8">
+                            <Border Style="{StaticResource CommandSurface}" Padding="8" Margin="0,0,0,6">
                                 <StackPanel>
                                     <ToggleButton x:Name="ArmToggle" TabIndex="1"
                                                   MinHeight="48"
@@ -228,19 +236,27 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource StatusCard}" Padding="10">
-                                <StackPanel>
-                                    <TextBlock Text="Live Stream Source" Style="{StaticResource SectionTitle}" />
-                                    <TextBlock Text="{Binding SourceDescription}" Style="{StaticResource SecondaryText}"
-                                               TextWrapping="Wrap" Margin="0,3,0,7" />
-                                    <Button TabIndex="9" HorizontalAlignment="Stretch"
+                            <Border Style="{StaticResource StatusCard}" Padding="8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Live Stream Source" Style="{StaticResource SectionTitle}" />
+                                    <TextBlock Grid.Row="1" Text="{Binding SourceDescription}" Style="{StaticResource SecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,2,8,0" />
+                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" TabIndex="9"
+                                            VerticalAlignment="Center"
                                             Style="{StaticResource CompactButton}"
                                             Command="{Binding RetrySourceConnectionCommand}" Content="Reconnect"
                                             AutomationProperties.Name="Reconnect to live stream source button" />
-                                </StackPanel>
+                                </Grid>
                             </Border>
-                        </StackPanel>
-                    </ScrollViewer>
+                    </StackPanel>
 
                     <Grid Grid.Column="2">
                         <Grid.RowDefinitions>

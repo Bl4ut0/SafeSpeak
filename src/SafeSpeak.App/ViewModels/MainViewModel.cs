@@ -62,6 +62,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string _connectionStatusText = "Disconnected";
 
     [ObservableProperty]
+    private string _connectionSummaryText = "Disconnected";
+
+    [ObservableProperty]
     private string _selectedSourceConnectorId = TikFinityWebSocketClient.ConnectorDescriptor.Id;
 
     [ObservableProperty]
@@ -799,6 +802,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (_incomingEventCts.IsCancellationRequested) return;
 
             IsConnected = e.State == ConnectionState.Connected;
+            ConnectionSummaryText = $"{SourceName}: {e.State}";
             ConnectionStatusText = string.IsNullOrWhiteSpace(e.Message)
                 ? $"{SourceName}: {e.State}"
                 : $"{SourceName}: {e.State}. {e.Message}";
@@ -895,14 +899,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (!_settings.AutoConnectSource) return;
 
-        ConnectionStatusText = $"{SourceName}: Connecting";
+        ConnectionSummaryText = $"{SourceName}: Connecting";
+        ConnectionStatusText = ConnectionSummaryText;
         try
         {
             await _sourceConnector.ConnectAsync();
         }
         catch (Exception ex)
         {
-            ConnectionStatusText = $"{SourceName}: Connection failed";
+            ConnectionSummaryText = $"{SourceName}: Connection failed";
+            ConnectionStatusText = ConnectionSummaryText;
             AnnounceState($"{SourceName} could not start. {ex.Message}");
         }
     }
@@ -1710,6 +1716,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ttsQueue.Disarm();
         _auditLogger.EndSession();
         IsConnected = false;
+        ConnectionSummaryText = "Changing source";
         ConnectionStatusText =
             "Changing live stream source. SafeSpeak is disarmed and the speech queue is clear.";
 
@@ -1731,6 +1738,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception ex)
         {
+            ConnectionSummaryText = "Source change failed";
             ConnectionStatusText = $"Source change failed. {ex.Message}";
             AnnounceState(ConnectionStatusText, interrupt: true);
         }
