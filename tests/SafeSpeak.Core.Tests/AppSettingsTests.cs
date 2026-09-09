@@ -178,8 +178,8 @@ public sealed class AppSettingsTests
         try
         {
             AppSettings settings = AppSettings.Load(path);
-            settings.ConfiguredSourceConnectorIds = ["tikfinity", "tiktok-live"];
-            settings.ActiveSourceConnectorIds = ["tiktok-live"];
+            settings.ConfiguredSourceConnectorIds = ["tikfinity", "tiktok-direct"];
+            settings.ActiveSourceConnectorIds = ["tiktok-direct"];
             settings.TikTokUsername = "creator.name";
             settings.SafetyGuideControlsAtTop = false;
             settings.SettingsGuideControlsAtTop = false;
@@ -187,8 +187,8 @@ public sealed class AppSettingsTests
             Assert.True(settings.TrySave(out string? error), error);
 
             AppSettings reloaded = AppSettings.Load(path);
-            Assert.Equal(["tikfinity", "tiktok-live"], reloaded.ConfiguredSourceConnectorIds);
-            Assert.Equal(["tiktok-live"], reloaded.ActiveSourceConnectorIds);
+            Assert.Equal(["tikfinity", "tiktok-direct"], reloaded.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-direct"], reloaded.ActiveSourceConnectorIds);
             Assert.Equal("creator.name", reloaded.TikTokUsername);
             Assert.False(reloaded.SafetyGuideControlsAtTop);
             Assert.False(reloaded.SettingsGuideControlsAtTop);
@@ -217,8 +217,9 @@ public sealed class AppSettingsTests
 
             AppSettings settings = AppSettings.Load(path);
 
-            Assert.Equal(["tiktok-live"], settings.ConfiguredSourceConnectorIds);
-            Assert.Equal(["tiktok-live"], settings.ActiveSourceConnectorIds);
+            Assert.Equal("tiktok-direct", settings.SelectedSourceConnectorId);
+            Assert.Equal(["tiktok-direct"], settings.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-direct"], settings.ActiveSourceConnectorIds);
         }
         finally
         {
@@ -272,6 +273,37 @@ public sealed class AppSettingsTests
                 OnboardingStage.Platform,
                 reloadedConfirmed.OnboardingStage);
             Assert.False(reloadedConfirmed.HasCompletedOnboarding);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void PendingAccessibilityConfirmation_DoesNotResetCompletedOnboardingOrConnectors()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            var settings = AppSettings.Load(path);
+            settings.OnboardingStage = OnboardingStage.Complete;
+            settings.PendingSpokenGuidance = SpokenGuidanceMode.Enabled;
+            settings.PendingTheme = ThemePreference.HighContrast;
+            settings.ConfiguredSourceConnectorIds = ["tiktok-direct"];
+            settings.ActiveSourceConnectorIds = ["tiktok-direct"];
+            settings.SelectedSourceConnectorId = "tiktok-direct";
+            settings.TikTokUsername = "creator_name";
+
+            Assert.True(settings.TrySave(out string? error), error);
+
+            AppSettings reloaded = AppSettings.Load(path);
+            Assert.Equal(OnboardingStage.Complete, reloaded.OnboardingStage);
+            Assert.True(reloaded.IsAwaitingAccessibilityConfirmation);
+            Assert.True(reloaded.HasCompletedOnboarding);
+            Assert.Equal(["tiktok-direct"], reloaded.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-direct"], reloaded.ActiveSourceConnectorIds);
+            Assert.Equal("creator_name", reloaded.TikTokUsername);
         }
         finally
         {

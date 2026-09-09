@@ -35,7 +35,7 @@ public sealed class GlobalShortcutEditorViewModel : ObservableObject
         : "Not assigned";
     public string CardAutomationName =>
         $"{DisplayName}. Current shortcut: {GestureDisplay}. Press Enter to change.";
-    public string CardHelpText => $"{Description} Opens a shortcut listener and requires confirmation before replacing the saved key.";
+    public string CardHelpText => $"{Description} Opens a shortcut listener. Press and release the same shortcut twice to verify and save it.";
 
     public bool IsEnabled
     {
@@ -129,7 +129,7 @@ public sealed partial class MainViewModel
     [
         new("Theme", "The Theme selector is one keyboard stop. Use Left or Right Arrow to choose Light, Dark, or High Contrast. The selected theme is announced immediately; Tab continues without changing it."),
         new("Built-in guidance", "Choose whether SafeSpeak speaks focused controls, its private output device, volume, speech speed, description detail, and typed-character echo. Open a selection box with Enter, Space, Alt plus Down Arrow, or F4 before using Arrow keys. Test guidance and Shut up affect only SafeSpeak guidance."),
-        new("Keyboard shortcuts", "Global shortcuts work outside SafeSpeak while it is running. Tab to Enter keybind group and press Enter or Space. The action boxes then become tabbable and can also be reached with Arrow keys. Press Enter on an action, press the complete shortcut once, and then press the same shortcut again to verify it. Save and close remains unavailable until both entries match. Escape exits the group without saving an unfinished change. Control plus 1, 2, 3, or 4 always cancels unfinished capture, exits the group, and opens the selected main page. Alt plus 1 through 9 opens that numbered chapter on the current page, and Alt plus 0 opens chapter 10. Assigning an Alt-number to a custom global action gives that action priority and disables the matching chapter shortcut until the binding is changed or disabled."),
+        new("Keyboard shortcuts", "Global shortcuts work outside SafeSpeak while it is running. Tab to Enter keybind group and press Enter or Space. The action boxes then become tabbable and can also be reached with Arrow keys. Press Enter on an action, press and release the complete shortcut once, and then repeat it. SafeSpeak saves a matching second entry, closes the listener, announces whether Windows activated it, and returns to that action. Escape exits the group without saving an unfinished change. Control plus 1, 2, 3, or 4 always cancels unfinished capture, exits the group, and opens the selected main page. Alt plus 1 through 9 opens that numbered chapter on the current page, and Alt plus 0 opens chapter 10. Assigning an Alt-number to a custom global action gives that action priority and disables the matching chapter shortcut until the binding is changed or disabled."),
         new("Queue and spam limits", "Set how many approved messages may wait and optionally limit messages from one viewer or the whole stream over one or ten seconds."),
         new("Language and audience", "Choose which writing systems and viewer groups are eligible before a message can enter speech. Moderation still applies to every eligible message."),
         new("Stream announcements and pause behavior", "Choose which event types may speak and which events may continue while chat speech is paused. Emergency Stop always stops and clears livestream speech."),
@@ -315,16 +315,34 @@ public sealed partial class MainViewModel
     [RelayCommand]
     public void ApplyGlobalShortcuts()
     {
+        TryApplyGlobalShortcuts();
+    }
+
+    public bool TryApplyGlobalShortcuts()
+    {
         if (!TryValidateGlobalShortcuts(out List<GlobalShortcutBinding> bindings))
         {
             AnnounceState(GlobalShortcutStatus, interrupt: true);
-            return;
+            return false;
         }
 
+        List<GlobalShortcutBinding> previousBindings = _settings.GlobalShortcuts
+            .Select(binding => binding.Clone())
+            .ToList();
         _settings.GlobalShortcuts = bindings;
-        SaveSettingsOrReport();
+        if (!_settings.TrySave(out string? error))
+        {
+            _settings.GlobalShortcuts = previousBindings;
+            GlobalShortcutStatus = string.IsNullOrWhiteSpace(error)
+                ? "Shortcut changes could not be saved. The previously saved shortcuts remain active."
+                : $"Shortcut changes could not be saved. The previously saved shortcuts remain active. {error}";
+            AnnounceState(GlobalShortcutStatus, interrupt: true);
+            return false;
+        }
+
         NotifyShortcutHelpChanged();
         GlobalShortcutsChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     [RelayCommand]

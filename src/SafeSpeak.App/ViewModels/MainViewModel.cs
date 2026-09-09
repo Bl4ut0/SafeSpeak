@@ -1914,20 +1914,26 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         bool enable = !connector.IsEnabled;
         connector.IsBusy = true;
         connector.IsEnabled = enable;
-        SaveActiveConnectorIds();
+        bool activationSaved = SaveActiveConnectorIds();
         try
         {
             if (enable)
             {
                 connector.ApplyState(ConnectionState.Connecting, "Connecting from Live.");
                 await connector.Host.ConnectAsync();
-                AnnounceState($"{connector.DisplayName} is on and will send approved events to the speech queue.");
+                AnnounceState(activationSaved
+                    ? $"{connector.DisplayName} is on and will send approved events to the speech queue. This choice was saved."
+                    : $"{connector.DisplayName} is on for this session, but SafeSpeak could not save that choice.",
+                    interrupt: !activationSaved);
             }
             else
             {
                 await connector.Host.DisconnectAsync();
                 connector.ApplyState(ConnectionState.Disconnected, "Turned off from Live.");
-                AnnounceState($"{connector.DisplayName} is off and will not send events to the speech queue.");
+                AnnounceState(activationSaved
+                    ? $"{connector.DisplayName} is off and will not send events to the speech queue. This choice was saved."
+                    : $"{connector.DisplayName} is off for this session, but SafeSpeak could not save that choice.",
+                    interrupt: !activationSaved);
             }
         }
         catch (Exception ex)
@@ -1982,11 +1988,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         _settings.TikTokUsername = username;
         TikTokUsername = username;
-        await ApplyConnectorConfigurationAsync();
-        AnnounceState("Connector settings saved. Use the Live page to turn each configured connection on or off.", interrupt: true);
+        bool settingsSaved = await ApplyConnectorConfigurationAsync();
+        if (settingsSaved)
+        {
+            AnnounceState("Connector settings saved. Use the Live page to turn each configured connection on or off.", interrupt: true);
+        }
     }
 
-    private async Task ApplyConnectorConfigurationAsync()
+    private async Task<bool> ApplyConnectorConfigurationAsync()
     {
         foreach (LiveConnectorViewModel connector in _connectorSessions)
         {
@@ -2009,25 +2018,26 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         _settings.ConfiguredSourceConnectorIds = LiveConnectors.Select(item => item.Id).ToList();
         _settings.SelectedSourceConnectorId = LiveConnectors[0].Id;
-        SaveActiveConnectorIds();
+        bool settingsSaved = SaveActiveConnectorIds();
         OnPropertyChanged(nameof(SourceName));
         OnPropertyChanged(nameof(SourceDescription));
         OnPropertyChanged(nameof(ConnectorConfigurationSummary));
         RefreshConnectorSummary();
+        return settingsSaved;
     }
 
     private LiveConnectorViewModel? FindConnector(string id) =>
         _connectorSessions.FirstOrDefault(connector =>
             string.Equals(connector.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    private void SaveActiveConnectorIds()
+    private bool SaveActiveConnectorIds()
     {
         _settings.ActiveSourceConnectorIds = _connectorSessions
             .Where(connector => connector.IsConfigured && connector.IsEnabled)
             .Select(connector => connector.Id)
             .ToList();
         _settings.AutoConnectSource = _settings.ActiveSourceConnectorIds.Count > 0;
-        SaveSettingsOrReport();
+        return SaveSettingsOrReport();
     }
 
     [RelayCommand]
@@ -2622,14 +2632,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(Config));
     }
 
-    private void SaveSettingsOrReport()
+    private bool SaveSettingsOrReport()
     {
-        if (_settings.TrySave(out string? error)) return;
+        if (_settings.TrySave(out string? error)) return true;
 
         string message = string.IsNullOrWhiteSpace(error)
             ? "SafeSpeak could not save your settings."
             : $"SafeSpeak could not save your settings. {error}";
         LiveStatusAnnouncement = message;
         _announcer?.Announce(message, interrupt: true);
+        return false;
     }
 }

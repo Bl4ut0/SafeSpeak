@@ -24,10 +24,9 @@ public partial class MainWindow : Window
     private bool _globalShortcutGroupActive;
     private GlobalShortcutEditorViewModel? _capturingShortcutEditor;
     private string? _firstCapturedShortcut;
-    private string _verifiedShortcut = string.Empty;
-    private bool _shortcutCaptureVerified;
     private ModifierKeys _shortcutCaptureModifiers;
-    private bool _shortcutCapturedNonModifier;
+    private string? _shortcutCaptureKeyName;
+    private bool _shortcutTriggerReleased;
 
     public MainWindow()
     {
@@ -211,18 +210,14 @@ public partial class MainWindow : Window
         viewModel.SelectedGlobalShortcut = editor;
         _capturingShortcutEditor = editor;
         _firstCapturedShortcut = null;
-        _verifiedShortcut = string.Empty;
-        _shortcutCaptureVerified = false;
         ResetShortcutCaptureKeys();
 
         InlineShortcutCaptureHeading.Text = $"Change shortcut: {editor.DisplayName}";
         InlineShortcutCaptureDescription.Text = editor.Description;
         InlinePendingShortcutText.Text = "Press the shortcut once";
-        InlineShortcutEnabledCheckBox.IsChecked = editor.IsEnabled;
-        InlineSaveShortcutButton.IsEnabled = false;
         InlineShortcutCapturePanel.Visibility = Visibility.Visible;
         SetInlineShortcutStatus(
-            $"Listening for {editor.DisplayName}. Press the complete shortcut combination once.");
+            $"Listening for {editor.DisplayName}. Press and release the complete shortcut combination once.");
         InlineShortcutCapturePanel.BringIntoView();
         Dispatcher.BeginInvoke(
             () => FocusElement(InlineShortcutCaptureButton),
@@ -237,18 +232,15 @@ public partial class MainWindow : Window
         ModifierKeys keyModifier = GetShortcutModifier(key);
         if (keyModifier != ModifierKeys.None)
         {
-            if (_shortcutCaptureModifiers == ModifierKeys.None)
-            {
-                _shortcutCapturedNonModifier = false;
-            }
-
             _shortcutCaptureModifiers |= keyModifier;
             e.Handled = true;
             return;
         }
 
         ModifierKeys modifiers = Keyboard.Modifiers;
-        if (key == Key.Tab && modifiers is ModifierKeys.None or ModifierKeys.Shift)
+        if (key == Key.Tab &&
+            _shortcutCaptureModifiers == ModifierKeys.None &&
+            modifiers is ModifierKeys.None or ModifierKeys.Shift)
         {
             return;
         }
@@ -261,8 +253,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        ProcessShortcutCapture(FormatShortcutGesture(modifiers, keyName));
-        _shortcutCapturedNonModifier = true;
+        if (_shortcutCaptureKeyName is not null &&
+            !string.Equals(_shortcutCaptureKeyName, keyName, StringComparison.OrdinalIgnoreCase))
+        {
+            SetInlineShortcutStatus(
+                $"Only one trigger key can be used. Release every held key, then try the complete shortcut again.");
+            e.Handled = true;
+            return;
+        }
+
+        _shortcutCaptureModifiers |= modifiers;
+        _shortcutCaptureKeyName = keyName;
+        _shortcutTriggerReleased = false;
         e.Handled = true;
     }
 
@@ -272,22 +274,30 @@ public partial class MainWindow : Window
     {
         Key key = e.Key == Key.System ? e.SystemKey : e.Key;
         ModifierKeys releasedModifier = GetShortcutModifier(key);
-        if (releasedModifier == ModifierKeys.None)
+        if (releasedModifier != ModifierKeys.None)
         {
-            return;
+            _shortcutCaptureModifiers |= releasedModifier;
+        }
+        else if (_shortcutCaptureKeyName is not null &&
+                 TryGetShortcutKeyName(key, out string releasedKeyName) &&
+                 string.Equals(_shortcutCaptureKeyName, releasedKeyName, StringComparison.OrdinalIgnoreCase))
+        {
+            _shortcutTriggerReleased = true;
         }
 
-        _shortcutCaptureModifiers |= releasedModifier;
-        ModifierKeys remainingModifiers = Keyboard.Modifiers & ~releasedModifier;
-        if (remainingModifiers == ModifierKeys.None)
+        ModifierKeys remainingModifiers = releasedModifier == ModifierKeys.None
+            ? Keyboard.Modifiers
+            : Keyboard.Modifiers & ~releasedModifier;
+        bool chordIsComplete = remainingModifiers == ModifierKeys.None &&
+            ((_shortcutCaptureKeyName is not null && _shortcutTriggerReleased) ||
+             (_shortcutCaptureKeyName is null && _shortcutCaptureModifiers != ModifierKeys.None));
+        if (chordIsComplete)
         {
-            if (!_shortcutCapturedNonModifier)
-            {
-                ProcessShortcutCapture(
-                    FormatShortcutGesture(_shortcutCaptureModifiers, null));
-            }
-
+            string candidate = FormatShortcutGesture(
+                _shortcutCaptureModifiers,
+                _shortcutCaptureKeyName);
             ResetShortcutCaptureKeys();
+            ProcessShortcutCapture(candidate);
         }
 
         e.Handled = true;
@@ -316,8 +326,6 @@ public partial class MainWindow : Window
         if (_firstCapturedShortcut is null)
         {
             _firstCapturedShortcut = normalized;
-            _shortcutCaptureVerified = false;
-            InlineSaveShortcutButton.IsEnabled = false;
             InlinePendingShortcutText.Text = $"First entry: {normalized}. Repeat it to confirm.";
             SetInlineShortcutStatus(
                 $"Captured {spoken}.{chapterWarning} Now press the same complete shortcut again to confirm it.");
@@ -326,57 +334,62 @@ public partial class MainWindow : Window
 
         if (!string.Equals(_firstCapturedShortcut, normalized, StringComparison.OrdinalIgnoreCase))
         {
-            _shortcutCaptureVerified = false;
-            InlineSaveShortcutButton.IsEnabled = false;
             SetInlineShortcutStatus(
                 $"The confirmation did not match. First entry was {SpeakableShortcut(_firstCapturedShortcut)}; second entry was {spoken}. Press {SpeakableShortcut(_firstCapturedShortcut)} again, or choose Cancel and start over.");
             return;
         }
 
-        _verifiedShortcut = normalized;
-        _shortcutCaptureVerified = true;
-        InlineShortcutEnabledCheckBox.IsChecked = true;
-        InlineSaveShortcutButton.IsEnabled = true;
         InlinePendingShortcutText.Text = $"Verified: {normalized}";
         SetInlineShortcutStatus(
-            $"Verified {spoken}.{chapterWarning} Tab to Save and close to replace the saved shortcut.");
+            $"Verified {spoken}.{chapterWarning} Saving now.");
+        CommitInlineShortcut(normalized, enabled: true);
     }
 
     private void InlineClearShortcutButton_Click(object sender, RoutedEventArgs e)
     {
-        _firstCapturedShortcut = string.Empty;
-        _verifiedShortcut = string.Empty;
-        _shortcutCaptureVerified = true;
-        InlineShortcutEnabledCheckBox.IsChecked = false;
-        InlineSaveShortcutButton.IsEnabled = true;
-        InlinePendingShortcutText.Text = "Verified: no shortcut";
-        SetInlineShortcutStatus(
-            "Shortcut removal verified by the Clear button. Choose Save and close to disable it.");
+        CommitInlineShortcut(string.Empty, enabled: false);
     }
 
-    private void InlineSaveShortcutButton_Click(object sender, RoutedEventArgs e)
+    private void CommitInlineShortcut(string gesture, bool enabled)
     {
-        if (!_shortcutCaptureVerified ||
-            _capturingShortcutEditor is not { } editor ||
+        if (_capturingShortcutEditor is not { } editor ||
             DataContext is not MainViewModel viewModel)
         {
-            SetInlineShortcutStatus(
-                "The shortcut has not been verified. Press the same key combination twice before saving.");
             return;
         }
 
-        editor.Gesture = _verifiedShortcut;
-        editor.IsEnabled = !string.IsNullOrEmpty(_verifiedShortcut) &&
-            InlineShortcutEnabledCheckBox.IsChecked == true;
+        string previousGesture = editor.Gesture;
+        bool previousEnabled = editor.IsEnabled;
+        editor.Gesture = gesture;
+        editor.IsEnabled = enabled && !string.IsNullOrEmpty(gesture);
         editor.Status = editor.IsEnabled
             ? $"Verified {editor.Gesture}; saving and registering with Windows."
             : "Verified cleared and disabled; saving now.";
-        viewModel.ApplyGlobalShortcuts();
-        string result = editor.IsEnabled
-            ? $"Saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The inline listener is closed."
-            : $"Disabled the shortcut for {editor.DisplayName}. The inline listener is closed.";
+
+        if (!viewModel.TryApplyGlobalShortcuts())
+        {
+            editor.Gesture = previousGesture;
+            editor.IsEnabled = previousEnabled;
+            SetInlineShortcutStatus(
+                $"The shortcut for {editor.DisplayName} could not be saved. The previously saved shortcut remains active. {viewModel.GlobalShortcutStatus}");
+            return;
+        }
+
+        bool active = editor.IsEnabled &&
+            editor.Status.StartsWith("Active globally:", StringComparison.OrdinalIgnoreCase);
+        string result = !editor.IsEnabled
+            ? $"Verified and saved. The shortcut for {editor.DisplayName} is disabled. Focus returned to {editor.DisplayName} in the keybind menu."
+            : active
+                ? $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The shortcut is active system-wide. Focus returned to {editor.DisplayName} in the keybind menu."
+                : $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}, but Windows could not activate it. {editor.Status} Focus returned to {editor.DisplayName} in the keybind menu.";
         CloseInlineShortcutCapture();
-        SetShortcutGroupStatus(result + " Continue through the action boxes, or exit the keybind group.");
+        SetShortcutGroupStatus(result);
+        Button? action = ShortcutActionButtons()
+            .FirstOrDefault(button => ReferenceEquals(button.DataContext, editor));
+        if (action is not null)
+        {
+            Dispatcher.BeginInvoke(() => FocusElement(action), DispatcherPriority.Input);
+        }
     }
 
     private void InlineCancelShortcutButton_Click(object sender, RoutedEventArgs e) =>
@@ -413,9 +426,6 @@ public partial class MainWindow : Window
         InlineShortcutCapturePanel.Visibility = Visibility.Collapsed;
         _capturingShortcutEditor = null;
         _firstCapturedShortcut = null;
-        _verifiedShortcut = string.Empty;
-        _shortcutCaptureVerified = false;
-        InlineSaveShortcutButton.IsEnabled = false;
         ResetShortcutCaptureKeys();
     }
 
@@ -445,7 +455,8 @@ public partial class MainWindow : Window
     private void ResetShortcutCaptureKeys()
     {
         _shortcutCaptureModifiers = ModifierKeys.None;
-        _shortcutCapturedNonModifier = false;
+        _shortcutCaptureKeyName = null;
+        _shortcutTriggerReleased = false;
     }
 
     private static string SpeakableShortcut(string gesture) =>

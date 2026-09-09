@@ -1558,9 +1558,9 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("{Binding CardHelpText}",
             Attribute(actionButton, "AutomationProperties.HelpText"));
         Assert.Equal("Collapsed", capturePanel.Attribute("Visibility")?.Value);
-        Assert.Equal("False",
-            NamedElement(document, "Button", "InlineSaveShortcutButton")
-                .Attribute("IsEnabled")?.Value);
+        Assert.DoesNotContain(
+            document.Descendants(Presentation + "Button"),
+            element => element.Attribute(XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml").GetName("Name"))?.Value == "InlineSaveShortcutButton");
         Assert.Contains(
             document.Descendants(),
             element =>
@@ -1578,7 +1578,7 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("audit logging cannot be assigned to a global shortcut", window);
         Assert.Contains("Tab to Enter keybind group", window);
         Assert.Contains("repeat the same combination to confirm", window);
-        Assert.Contains("Save and close", window);
+        Assert.Contains("matching second entry saves automatically", window);
         Assert.DoesNotContain("_announcer.AnnounceFocus(SelectedGlobalShortcutAccessibleText)", shortcuts);
         Assert.Contains("ReservedApplicationShortcuts", shortcuts);
         Assert.Contains("button.IsTabStop = true", codeBehind);
@@ -1586,9 +1586,13 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("e.Key == Key.System ? e.SystemKey : e.Key", codeBehind);
         Assert.Contains("GlobalShortcutGesture.TryParse", codeBehind);
         Assert.Contains("string.Equals(_firstCapturedShortcut, normalized", codeBehind);
-        Assert.Contains("InlineSaveShortcutButton.IsEnabled = true", codeBehind);
+        Assert.Contains("_shortcutTriggerReleased", codeBehind);
+        Assert.Contains("remainingModifiers == ModifierKeys.None", codeBehind);
+        Assert.Contains("CommitInlineShortcut(normalized, enabled: true)", codeBehind);
         Assert.Contains("Key.LeftAlt or Key.RightAlt => ModifierKeys.Alt", codeBehind);
-        Assert.Contains("viewModel.ApplyGlobalShortcuts()", codeBehind);
+        Assert.Contains("viewModel.TryApplyGlobalShortcuts()", codeBehind);
+        Assert.Contains("could not be saved", codeBehind);
+        Assert.Contains("Windows could not activate it", codeBehind);
         Assert.Contains("GlobalShortcutNavigationGroup.IsKeyboardFocusWithin", codeBehind);
         Assert.Contains("DeactivateGlobalShortcutGroup(", codeBehind);
         Assert.Contains("Any unfinished shortcut capture was cancelled", codeBehind);

@@ -1237,7 +1237,7 @@
                                        Content="Chapter 3 — Global keyboard shortcuts"
                                        AutomationProperties.Name="Settings chapter 3 of 9, global keyboard shortcuts"
                                        AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls configure actions that work system-wide while SafeSpeak is running. Use Alt plus 3 to return here." />
-                                <TextBlock Text="Shortcuts work system-wide while SafeSpeak is running, even when another application has focus. Tab to Enter keybind group, press Enter, then Tab through the action boxes. Activate an action, press the complete key combination once, and repeat the same combination to confirm it. Save and close activates the verified shortcut. Press Escape or choose Exit keybind group when finished. Function keys can be used alone; other non-modifier keys require Control, Alt, Shift, or Windows. Alt plus 1 through 9 opens that chapter on the current page; Alt plus 0 opens chapter 10. If an Alt-number is assigned as a custom global shortcut, that action takes priority and the matching chapter shortcut is unavailable until the binding is changed or disabled."
+                                <TextBlock Text="Shortcuts work system-wide while SafeSpeak is running, even when another application has focus. Tab to Enter keybind group, press Enter, then Tab through the action boxes. Activate an action, press and release the complete key combination once, and repeat the same combination to confirm it. A matching second entry saves automatically, closes the listener, and returns to that action. Press Escape or choose Exit keybind group when finished. Function keys can be used alone; other non-modifier keys require Control, Alt, Shift, or Windows. Alt plus 1 through 9 opens that chapter on the current page; Alt plus 0 opens chapter 10. If an Alt-number is assigned as a custom global shortcut, that action takes priority and the matching chapter shortcut is unavailable until the binding is changed or disabled."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Button x:Name="GlobalShortcutGroupEntry" TabIndex="21"
                                         Margin="0,0,0,7" Padding="10" HorizontalContentAlignment="Left"
@@ -1276,31 +1276,24 @@
                                                     PreviewKeyUp="InlineShortcutCaptureButton_PreviewKeyUp"
                                                     LostKeyboardFocus="InlineShortcutCaptureButton_LostKeyboardFocus"
                                                     AutomationProperties.Name="Shortcut listener. Press the complete shortcut combination now."
-                                                    AutomationProperties.HelpText="SafeSpeak captures one trigger key with any combination of Control, Alt, Shift, and Windows. Repeat the same complete combination to verify it before saving.">
+                                                    AutomationProperties.HelpText="SafeSpeak records one trigger key with any combination of Control, Alt, Shift, and Windows after every held key is released. Repeat the same complete combination to verify and save it.">
                                                 <StackPanel>
                                                     <TextBlock Text="Shortcut listener" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                                     <TextBlock x:Name="InlinePendingShortcutText" Text="Press the shortcut once"
                                                                Margin="0,4,0,0" HorizontalAlignment="Center" />
                                                 </StackPanel>
                                             </Button>
-                                            <CheckBox x:Name="InlineShortcutEnabledCheckBox" Margin="0,9,0,0"
-                                                      Content="Enable this shortcut system-wide"
-                                                      AutomationProperties.Name="Enable this shortcut system-wide after it is verified and saved" />
                                             <Button Margin="0,8,0,0" Padding="8" HorizontalAlignment="Left"
                                                     Click="InlineClearShortcutButton_Click"
                                                     Content="Clear and disable shortcut"
                                                     AutomationProperties.Name="Clear and disable this shortcut"
-                                                    AutomationProperties.HelpText="Stages removal of this shortcut. Save and close is still required." />
+                                                    AutomationProperties.HelpText="Immediately saves this shortcut as disabled and returns to its action box." />
                                             <TextBlock x:Name="InlineShortcutCaptureStatus" Margin="0,8,0,0"
                                                        Text="No replacement has been captured."
                                                        TextWrapping="Wrap"
                                                        AutomationProperties.LiveSetting="Assertive"
                                                        a11y:LiveRegion.Announcement="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                             <WrapPanel Margin="0,10,0,0">
-                                                <Button x:Name="InlineSaveShortcutButton" Margin="0,0,7,0" Padding="9,7"
-                                                        IsEnabled="False" Click="InlineSaveShortcutButton_Click"
-                                                        Content="Save and close"
-                                                        AutomationProperties.Name="Save the verified shortcut and close this inline listener" />
                                                 <Button Padding="9,7" Click="InlineCancelShortcutButton_Click"
                                                         Content="Cancel"
                                                         AutomationProperties.Name="Cancel shortcut capture without changing the saved shortcut" />

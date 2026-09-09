@@ -45,7 +45,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 10;
+    public const int CurrentSettingsSchemaVersion = 11;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -241,6 +241,7 @@ public sealed class AppSettings
 
         if (!Enum.IsDefined(OnboardingStage) ||
             (!HasConfirmedAccessibilityPreferences &&
+             !IsAwaitingAccessibilityConfirmation &&
              OnboardingStage != OnboardingStage.Accessibility))
         {
             OnboardingStage = OnboardingStage.Accessibility;
@@ -283,11 +284,8 @@ public sealed class AppSettings
         SpeakUsernames = true;
         AiClassificationEnabled = true;
 
-        if (string.IsNullOrWhiteSpace(SelectedSourceConnectorId) ||
-            SelectedSourceConnectorId.Length > 128)
-        {
-            SelectedSourceConnectorId = "tikfinity";
-        }
+        SelectedSourceConnectorId = NormalizeConnectorId(SelectedSourceConnectorId)
+            ?? "tikfinity";
 
         TikTokUsername = Connectors.TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string username)
             ? username : "";
@@ -321,20 +319,36 @@ public sealed class AppSettings
         IEnumerable<string>? connectorIds,
         string? legacyConnectorId)
     {
-        string[] supportedIds = ["tikfinity", "tiktok-live"];
+        string[] supportedIds = ["tikfinity", "tiktok-direct"];
         List<string> normalized = (connectorIds ?? [])
+            .Select(NormalizeConnectorId)
+            .Where(id => id is not null)
+            .Cast<string>()
             .Where(id => supportedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        string? normalizedLegacyId = NormalizeConnectorId(legacyConnectorId);
         if (normalized.Count == 0 &&
-            !string.IsNullOrWhiteSpace(legacyConnectorId) &&
-            supportedIds.Contains(legacyConnectorId, StringComparer.OrdinalIgnoreCase))
+            normalizedLegacyId is not null &&
+            supportedIds.Contains(normalizedLegacyId, StringComparer.OrdinalIgnoreCase))
         {
-            normalized.Add(legacyConnectorId);
+            normalized.Add(normalizedLegacyId);
         }
 
         return normalized;
+    }
+
+    private static string? NormalizeConnectorId(string? connectorId)
+    {
+        string normalized = (connectorId ?? string.Empty).Trim();
+        if (normalized.Equals("tiktok-live", StringComparison.OrdinalIgnoreCase))
+            return "tiktok-direct";
+        if (normalized.Equals("tiktok-direct", StringComparison.OrdinalIgnoreCase))
+            return "tiktok-direct";
+        if (normalized.Equals("tikfinity", StringComparison.OrdinalIgnoreCase))
+            return "tikfinity";
+        return null;
     }
 
     private void NormalizeLocalConnectorDetection()
@@ -397,6 +411,7 @@ public sealed class AppSettings
             !Enum.IsDefined(settings.OnboardingStage) ||
             (
                 !settings.HasConfirmedAccessibilityPreferences &&
+                !settings.IsAwaitingAccessibilityConfirmation &&
                 settings.OnboardingStage != OnboardingStage.Accessibility
             ))
         {
