@@ -15,7 +15,9 @@ public enum AuthorTier
 public enum SpokenAttributionStyle
 {
     Says,
-    LeadingName
+    LeadingName,
+    SaysOnPlatform,
+    LeadingNameOnPlatform
 }
 
 /// <summary>

@@ -85,10 +85,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 : _settings.EffectiveTheme;
         SelectedThemeOption =
             ThemeOptions.First(option => option.Value == initialTheme);
-        UseTikFinity = _settings.AutoConnectSource && string.Equals(
-            _settings.SelectedSourceConnectorId,
+        UseTikFinity = _settings.ConfiguredSourceConnectorIds.Contains(
             TikFinityWebSocketClient.ConnectorDescriptor.Id,
-            StringComparison.OrdinalIgnoreCase);
+            StringComparer.OrdinalIgnoreCase);
+        UseTikTokDirect = _settings.ConfiguredSourceConnectorIds.Contains(
+            TikTokLiveConnector.ConnectorDescriptor.Id,
+            StringComparer.OrdinalIgnoreCase);
+        TikTokUsername = _settings.TikTokUsername;
         AutoDetectLocalConnectors =
             _settings.LocalConnectorAutoDetectConsent;
         RestorePersistedDetectionResult();
@@ -117,6 +120,12 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     [ObservableProperty]
     private bool _useTikFinity = true;
+
+    [ObservableProperty]
+    private bool _useTikTokDirect;
+
+    [ObservableProperty]
+    private string _tikTokUsername = string.Empty;
 
     [ObservableProperty]
     private bool _autoDetectLocalConnectors;
@@ -312,6 +321,25 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         string previousDetectionSummary =
             _settings.LocalConnectorDetectionSummary;
         OnboardingStage previousStage = _settings.OnboardingStage;
+        List<string> previousConfigured = [.. _settings.ConfiguredSourceConnectorIds];
+        List<string> previousActive = [.. _settings.ActiveSourceConnectorIds];
+        string previousUsername = _settings.TikTokUsername;
+
+        if (!UseTikFinity && !UseTikTokDirect)
+        {
+            StatusText = "Select at least one connector before continuing.";
+            _announcer.Announce(StatusText, interrupt: true);
+            return;
+        }
+
+        string directUsername = string.Empty;
+        if (UseTikTokDirect &&
+            !TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out directUsername))
+        {
+            StatusText = "TikTok Direct needs a valid creator username using letters, numbers, periods, or underscores.";
+            _announcer.Announce(StatusText, interrupt: true);
+            return;
+        }
 
         DetectionResults.Clear();
         if (UseTikFinity && AutoDetectLocalConnectors)
@@ -342,8 +370,17 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
 
         _settings.SelectedSourceConnectorId =
-            TikFinityWebSocketClient.ConnectorDescriptor.Id;
-        _settings.AutoConnectSource = UseTikFinity;
+            UseTikFinity
+                ? TikFinityWebSocketClient.ConnectorDescriptor.Id
+                : TikTokLiveConnector.ConnectorDescriptor.Id;
+        _settings.ConfiguredSourceConnectorIds = [];
+        if (UseTikFinity)
+            _settings.ConfiguredSourceConnectorIds.Add(TikFinityWebSocketClient.ConnectorDescriptor.Id);
+        if (UseTikTokDirect)
+            _settings.ConfiguredSourceConnectorIds.Add(TikTokLiveConnector.ConnectorDescriptor.Id);
+        _settings.ActiveSourceConnectorIds = [.. _settings.ConfiguredSourceConnectorIds];
+        _settings.AutoConnectSource = _settings.ActiveSourceConnectorIds.Count > 0;
+        _settings.TikTokUsername = directUsername;
         _settings.LocalConnectorAutoDetectConsent =
             AutoDetectLocalConnectors;
         ApplyDetectionResultToSettings(
@@ -353,6 +390,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         {
             _settings.SelectedSourceConnectorId = previousConnector;
             _settings.AutoConnectSource = previousAutoConnect;
+            _settings.ConfiguredSourceConnectorIds = previousConfigured;
+            _settings.ActiveSourceConnectorIds = previousActive;
+            _settings.TikTokUsername = previousUsername;
             _settings.LocalConnectorAutoDetectConsent =
                 previousDetectionConsent;
             _settings.LocalConnectorDetectionStatus =
@@ -424,13 +464,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 break;
             case AccessibilitySetupPage.Platform:
                 StepProgress = "Step 3 of 5";
-                PromptText = "Choose your streaming connection";
+                PromptText = "Configure your streaming connections";
                 StatusText =
-                    "TikFinity is the supported TikTok connection in this release. SafeSpeak can check for it locally only after you select the consent checkbox.";
+                    "Select every connector you may use. TikFinity uses its local app; TikTok Direct connects by creator username without TikFinity. You can turn each configured connector on or off from Live.";
                 PrimaryButtonText = "Continue (Y)";
                 PrimaryButtonAutomationName = "Save streaming connection and continue";
                 KeyboardHelpText =
-                    "Keyboard: Tab through the platform and detection checkboxes. Space changes a checkbox. Press Y to save and continue.";
+                    "Keyboard: Tab through the connector choices, username, and detection checkbox. Space changes a checkbox. Press Y to save and continue.";
                 break;
             case AccessibilitySetupPage.Filtering:
                 StepProgress = "Step 4 of 5";
@@ -591,9 +631,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             $"Built-in spoken guidance: {(SpokenGuidanceEnabled ? "On" : "Off")}");
         ReviewItems.Add($"Visual theme: {SelectedThemeOption.Name}");
         ReviewItems.Add(
-            UseTikFinity
-                ? "Streaming platform: TikTok through TikFinity; connect automatically when SafeSpeak opens"
-                : "Streaming platform: TikFinity saved, automatic connection off");
+            $"Configured connectors: {string.Join(", ", new[]
+            {
+                UseTikFinity ? "TikFinity" : null,
+                UseTikTokDirect ? "TikTok Direct" : null
+            }.Where(name => name is not null))}. Each can be turned on or off from Live.");
         ReviewItems.Add(
             _settings.LocalConnectorAutoDetectConsent
                 ? _settings.LocalConnectorDetectionStatus ==
@@ -713,6 +755,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         ThemePreference PendingTheme,
         OnboardingStage OnboardingStage,
         string SelectedSourceConnectorId,
+        string[] ConfiguredSourceConnectorIds,
+        string[] ActiveSourceConnectorIds,
+        string TikTokUsername,
         bool AutoConnectSource,
         bool LocalConnectorAutoDetectConsent,
         OnboardingConnectorDetectionStatus LocalConnectorDetectionStatus,
@@ -727,6 +772,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 settings.PendingTheme,
                 settings.OnboardingStage,
                 settings.SelectedSourceConnectorId,
+                [.. settings.ConfiguredSourceConnectorIds],
+                [.. settings.ActiveSourceConnectorIds],
+                settings.TikTokUsername,
                 settings.AutoConnectSource,
                 settings.LocalConnectorAutoDetectConsent,
                 settings.LocalConnectorDetectionStatus,
@@ -741,6 +789,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.PendingTheme = PendingTheme;
             settings.OnboardingStage = OnboardingStage;
             settings.SelectedSourceConnectorId = SelectedSourceConnectorId;
+            settings.ConfiguredSourceConnectorIds = [.. ConfiguredSourceConnectorIds];
+            settings.ActiveSourceConnectorIds = [.. ActiveSourceConnectorIds];
+            settings.TikTokUsername = TikTokUsername;
             settings.AutoConnectSource = AutoConnectSource;
             settings.LocalConnectorAutoDetectConsent =
                 LocalConnectorAutoDetectConsent;

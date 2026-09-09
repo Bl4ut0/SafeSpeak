@@ -450,6 +450,18 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains(compactValueStyle.Descendants(Presentation + "Setter"), setter =>
             setter.Attribute("Property")?.Value == "TextWrapping" &&
             setter.Attribute("Value")?.Value == "NoWrap");
+
+        XElement connectors = liveTab.Descendants(Presentation + "ItemsControl")
+            .Single(element => element.Attribute("ItemsSource")?.Value == "{Binding LiveConnectors}");
+        XElement connectorToggle = connectors.Descendants(Presentation + "CheckBox").Single();
+        Assert.Equal("{Binding IsEnabled, Mode=OneWay}",
+            connectorToggle.Attribute("IsChecked")?.Value);
+        Assert.Equal(
+            "{Binding DataContext.ToggleLiveConnectorCommand, RelativeSource={RelativeSource AncestorType=Window}}",
+            connectorToggle.Attribute("Command")?.Value);
+        Assert.Contains(connectors.Descendants(Presentation + "DataTrigger"), trigger =>
+            trigger.Attribute("Binding")?.Value == "{Binding State}" &&
+            trigger.Attribute("Value")?.Value == "Connected");
     }
 
     [Fact]
@@ -502,7 +514,7 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("2", navigation.Attribute("Grid.ColumnSpan")?.Value);
         Assert.Equal(hearStatus, persistentTabStops[0]);
         Assert.Equal(navigation, persistentTabStops[1]);
-        Assert.Equal(Enumerable.Range(1, 11), liveTabStops
+        Assert.Equal(Enumerable.Range(1, 12), liveTabStops
             .Select(element => int.Parse(element.Attribute("TabIndex")!.Value)));
 
         string[] expectedLiveSequence =
@@ -515,8 +527,9 @@ public sealed class MainShellAccessibilityContractTests
             "SpeakNextApprovedMessageButton",
             "{Binding StopCurrentSpeechAutomationName}",
             "Clear pending text to speech queue button",
-            "Reconnect to live stream source button",
+            "Reconnect all enabled live connectors button",
             "Hear live activity review status button",
+            "{Binding FilteredContentToggleAutomationName}",
             "LiveFeedListView"
         ];
         Assert.Equal(
@@ -1195,19 +1208,20 @@ public sealed class MainShellAccessibilityContractTests
 
         Assert.Equal("SettingsPanel_PreviewKeyDown",
             settingsPanel.Attribute("PreviewKeyDown")?.Value);
-        Assert.Equal(Enumerable.Range(1, 57), stops.Select(element =>
+        Assert.Equal(Enumerable.Range(1, 58), stops.Select(element =>
             int.Parse(element.Attribute("TabIndex")!.Value)));
         Assert.Equal("SettingsGuideButton", stops[0].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ReadSettingsGuidePageButton", stops[1].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ResetSettingsGuideButton", stops[2].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButton", stops[3].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("SettingsSourceChapterHeading", stops[4].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("SourceConnectorSelector", stops[5].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("TikTokUsernameTextBox", stops[6].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("ThemeSelector", stops[9].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("SpokenGuidanceToggle", stops[10].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("Run Setup Again", stops[51].Attribute("Content")?.Value);
-        Assert.Equal("SettingsGuideButtonAtEnd", stops[53].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("ConfigureTikFinityCheckBox", stops[5].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("ConfigureTikTokDirectCheckBox", stops[6].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("TikTokUsernameTextBox", stops[7].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("ThemeSelector", stops[10].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("SpokenGuidanceToggle", stops[11].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("Run Setup Again", stops[52].Attribute("Content")?.Value);
+        Assert.Equal("SettingsGuideButtonAtEnd", stops[54].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButtonAtEnd", stops[^1].Attribute(Xaml + "Name")?.Value);
         Assert.True(runSetup.IsBefore(visibleGuide));
         Assert.True(visibleGuide.IsBefore(guideButtonsAtEnd));
@@ -1436,11 +1450,12 @@ public sealed class MainShellAccessibilityContractTests
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Contains("SafeAuthorDisplayName", boundProperties);
+        Assert.Contains("ReviewAuthorDisplayName", boundProperties);
+        Assert.Contains("PlatformName", boundProperties);
         Assert.Contains("ReviewDisplayText", boundProperties);
         Assert.Contains("SafeReasonDescription", boundProperties);
         Assert.Contains("RevealInstruction", boundProperties);
-        Assert.DoesNotContain("AuthorDisplayName", boundProperties);
+        Assert.DoesNotContain("RawAuthorDisplayName", boundProperties);
         Assert.DoesNotContain("DisplayText", boundProperties);
         Assert.DoesNotContain("RawText", boundProperties);
 
@@ -1451,6 +1466,12 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("double-click or press Enter",
             Attribute(feed, "AutomationProperties.HelpText"),
             StringComparison.Ordinal);
+        XElement revealAll = document.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute("Command")?.Value ==
+                "{Binding ToggleFilteredContentVisibilityCommand}");
+        Assert.Equal("{Binding FilteredContentToggleText}",
+            revealAll.Attribute("Content")?.Value);
+        Assert.Contains("original username", Attribute(revealAll, "AutomationProperties.HelpText"));
 
         string entryViewModel = File.ReadAllText(
             RepositoryFile("src", "SafeSpeak.App", "ViewModels", "LiveFeedEntryViewModel.cs"));
@@ -1491,7 +1512,7 @@ public sealed class MainShellAccessibilityContractTests
             "Border",
             "InlineShortcutCapturePanel");
 
-        Assert.Equal("20", groupEntry.Attribute("TabIndex")?.Value);
+        Assert.Equal("21", groupEntry.Attribute("TabIndex")?.Value);
         Assert.Equal("GlobalShortcutGroupEntry_Click", groupEntry.Attribute("Click")?.Value);
         Assert.Contains("Press Enter", Attribute(groupEntry, "AutomationProperties.Name"));
         Assert.Contains("Escape", Attribute(groupEntry, "AutomationProperties.HelpText"));

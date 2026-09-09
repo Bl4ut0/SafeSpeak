@@ -17,14 +17,14 @@ flowchart LR
     E --> F[Selected TTS voice and output]
 ```
 
-The target is all supported, relevant events, with explicit capability reporting. A connector cannot promise events the service does not expose. Protocol heartbeats and acknowledgements are transport details, not announcements. Simultaneous connections to multiple services are a separate expansion; the current application creates one selected source.
+The target is all supported, relevant events, with explicit capability reporting. A connector cannot promise events the service does not expose. Protocol heartbeats and acknowledgements are transport details, not announcements. SafeSpeak now owns independent sessions for every configured connector, and the Live page can run more than one at a time through the same moderation and speech queue.
 
 ## What SafeSpeak already has
 
 The existing architecture supplies most of the route from events to speech:
 
 - [ISourceConnector](../src/SafeSpeak.Core/Connectors/ISourceConnector.cs) defines connection state, cancellation, disposal, event delivery, and capabilities for chat, gifts, follows, shares, subscriptions, joins, and likes.
-- [SourceConnectorRegistry](../src/SafeSpeak.Core/Connectors/SourceConnectorRegistry.cs) creates the selected connector. Its default registry registers TikFinity and TikTok Direct.
+- [SourceConnectorRegistry](../src/SafeSpeak.Core/Connectors/SourceConnectorRegistry.cs) creates configured connector sessions. Its default registry registers TikFinity and TikTok Direct.
 - [LivestreamEvent](../src/SafeSpeak.Core/Models/LivestreamEvent.cs) carries provider identity, event type, author, display name, chat text, gift information, roles, and receive time.
 - [MainViewModel](../src/SafeSpeak.App/ViewModels/MainViewModel.cs), through `HandleIncomingEventAsync`, already applies individual announcement settings and sends generated event announcements through the same moderation method as chat. Intake is gated by the armed state.
 
@@ -83,14 +83,14 @@ Deduplicate by provider, room, and event ID where available, with bounded storag
 1. **Prove direct event delivery.** In progress. A user-designated active stream successfully completed room lookup, public-viewer cookie acquisition, WebSocket connection, and a valid TikTok message response with TikFinity closed. Actual chat and other event payloads, event counts, and TTS output still need observation. No external signing or relay fallback is permitted.
 2. **Harden the transport.** Implemented for the test: HTTP, WebSocket, decompressed payload, batch, and event-rate bounds; validated usernames; bounded retry; acknowledgements and heartbeats; observed worker tasks; and deterministic shutdown.
 3. **Implement `TikTokLiveConnector : ISourceConnector`.** Implemented for chat, gifts, follows, shares, subscriptions, joins, and likes. It includes event deduplication, stale-history suppression, final gift-streak handling, and privacy-safe synthetic fixtures. The constructor and registry factory are side-effect free.
-4. **Add accessible setup.** Implemented in Settings. The user can retain TikFinity or select TikTok Direct, enter a creator username, save, and connect. Changing the source disarms SafeSpeak and clears queued speech. The choice and username are persisted. First-run onboarding still defaults to TikFinity; the direct source is selected after onboarding.
+4. **Add accessible setup.** Implemented in guided setup and Settings. The user can configure TikFinity, TikTok Direct, or both and save a creator username. Live exposes each configured connector as an independent checkbox with connection status. Configured and active connector sets persist across restarts.
 5. **Validate the complete speech path.** Deterministic tests cover normalization, gift streaks, duplicates, stale history, malformed/oversize data, connection state, bounded disconnect, registry creation, and safe in-session source replacement. Live validation remains necessary for every advertised event family, reconnect behavior, stream end, and real TTS announcements.
 
 The desktop uses `SourceConnectorHost` to serialize source changes and explicitly disconnect, unsubscribe, dispose, replace, and resubscribe without restarting the application.
 
 ## Existing project constraint and next milestone
 
-The [connector development guide](connector-development.md) currently requires official, policy-compliant authentication and APIs for direct TikTok work. The [mobile track](mobile-development-tracks.md) and `ConnectorRoadmap` also describe direct TikTok as access-required. This unofficial implementation does not establish compliance with that existing product rule. The Settings label identifies it as a test, and it must not graduate to a dependable release claim until policy and live-compatibility requirements are reconciled.
+The [connector development guide](connector-development.md) currently requires official, policy-compliant authentication and APIs for direct TikTok work. The [mobile track](mobile-development-tracks.md) and `ConnectorRoadmap` also describe direct TikTok as access-required. This unofficial implementation does not establish compliance with that existing product rule. Its public-viewer protocol can change and remains subject to compatibility testing and policy review.
 
 The next milestone is evidence that the direct transport receives real events with no intermediary, followed by the existing moderated TTS path announcing those events accurately. A dependable release cannot be claimed from deterministic fixtures or source review alone.
 

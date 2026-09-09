@@ -72,7 +72,7 @@ public sealed class TikTokLiveConnectorTests
 
         Assert.True(decision.Passed);
         Assert.Equal("Viewer One", decision.SafeAuthorDisplayName);
-        Assert.Equal("Viewer One says: hello stream", decision.SpokenText);
+        Assert.Equal("Viewer One on TikTok LIVE said: hello stream", decision.SpokenText);
     }
 
     [Fact]

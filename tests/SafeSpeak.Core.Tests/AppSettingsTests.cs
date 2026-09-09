@@ -172,6 +172,61 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void ConnectorSetsAndGuidePlacementRoundTrip()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            AppSettings settings = AppSettings.Load(path);
+            settings.ConfiguredSourceConnectorIds = ["tikfinity", "tiktok-live"];
+            settings.ActiveSourceConnectorIds = ["tiktok-live"];
+            settings.TikTokUsername = "creator.name";
+            settings.SafetyGuideControlsAtTop = false;
+            settings.SettingsGuideControlsAtTop = false;
+
+            Assert.True(settings.TrySave(out string? error), error);
+
+            AppSettings reloaded = AppSettings.Load(path);
+            Assert.Equal(["tikfinity", "tiktok-live"], reloaded.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-live"], reloaded.ActiveSourceConnectorIds);
+            Assert.Equal("creator.name", reloaded.TikTokUsername);
+            Assert.False(reloaded.SafetyGuideControlsAtTop);
+            Assert.False(reloaded.SettingsGuideControlsAtTop);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void Load_MigratesLegacySelectedConnectorIntoConfiguredAndActiveSets()
+    {
+        const string legacyJson = """
+            {
+              "SettingsSchemaVersion": 9,
+              "SelectedSourceConnectorId": "tiktok-live",
+              "TikTokUsername": "creator_name",
+              "AutoConnectSource": true
+            }
+            """;
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(path, legacyJson);
+
+            AppSettings settings = AppSettings.Load(path);
+
+            Assert.Equal(["tiktok-live"], settings.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-live"], settings.ActiveSourceConnectorIds);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
     public void AccessibilityPreferences_RoundTripCurrentAndPendingSelections()
     {
         string path = CreateTemporarySettingsPath();

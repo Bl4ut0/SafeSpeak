@@ -15,7 +15,7 @@ Every source integration must follow the same boundary: provider data enters one
 
 The descriptor declares a lowercase stable ID, display/provider names, a non-secret connection description, supported event capabilities, and whether automatic reconnection is supported.
 
-`SourceConnectorRegistry` registers a descriptor and a side-effect-free factory. Construction must not authenticate, open sockets, show UI, or start background work. SafeSpeak creates only the selected connector.
+`SourceConnectorRegistry` registers a descriptor and a side-effect-free factory. Construction must not authenticate, open sockets, show UI, or start background work. SafeSpeak creates the configured connector sessions; each session connects only when its Live checkbox is on.
 
 ## Required event normalization
 
@@ -35,13 +35,13 @@ Display names and text are still untrusted after normalization. The shared moder
 
 ## Lifecycle
 
-1. SafeSpeak constructs the selected connector.
+1. SafeSpeak constructs each configured connector without connecting it.
 2. The app subscribes to events.
 3. After the main window is ready, automatic connection begins if enabled.
 4. A local-source failure changes state to Reconnecting and uses bounded backoff.
 5. SafeSpeak remains disarmed across connection and reconnection.
 6. User Retry cancels the current loop before starting another.
-7. Window shutdown stops accepting events, cancels the connector, and awaits bounded disposal as part of the app's five-second background cleanup window.
+7. Window shutdown stops accepting events, cancels every connector, and awaits bounded disposal as part of the app's five-second background cleanup window.
 
 Link caller cancellation into the connector-owned token. Disconnect and disposal must be idempotent, abort pending I/O, and use an internal deadline shorter than the app's five-second shutdown bound. Do not use untracked fire-and-forget tasks. Event handling in the application is serialized so one provider burst cannot reorder moderation state. Shutdown failures are observed and logged where appropriate; they must never open a blocking dialog.
 

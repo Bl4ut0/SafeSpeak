@@ -120,20 +120,25 @@ public sealed partial class MainViewModel
         "Alt+0: chapter 10 on the open page, when present. A custom global shortcut using the same Alt-number takes priority and disables that chapter shortcut until changed or disabled."
     ];
 
-    public IReadOnlyList<string> SettingsGuidePages { get; } =
+    public sealed record GuidePage(string Title, string Description)
+    {
+        public string Narration => $"{Title}. {Description}";
+    }
+
+    public IReadOnlyList<GuidePage> SettingsGuidePages { get; } =
     [
-        "Page 1, theme. The Theme selector is one keyboard stop. Use Left or Right Arrow to choose Light, Dark, or High Contrast. The selected theme is announced immediately; Tab continues without changing it.",
-        "Page 2, built-in guidance. Choose whether SafeSpeak speaks focused controls, its private output device, volume from zero to one hundred fifty percent, speech speed, detailed or short descriptions, and typed-character echo. A focused selection box does not change with Arrow keys until you open it with Enter, Space, Alt plus Down Arrow, or F4. Test guidance and Shut up affect only SafeSpeak guidance, never livestream text to speech.",
-        "Page 3, keyboard shortcuts. Global shortcuts work outside SafeSpeak while it is running. Tab to Enter keybind group and press Enter or Space. The action boxes then become tabbable and can also be reached with Arrow keys. Press Enter on an action, press the complete shortcut once, and then press the same shortcut again to verify it. Save and close remains unavailable until both entries match. Escape exits the group without saving an unfinished change. Control plus 1, 2, 3, or 4 always cancels unfinished capture, exits the group, and opens the selected main page. Alt plus 1 through 9 opens that numbered chapter on the current page, and Alt plus 0 opens chapter 10. Assigning an Alt-number to a custom global action gives that action priority and disables the matching chapter shortcut until the binding is changed or disabled.",
-        "Page 4, queue and spam limits. The queue limit sets how many approved messages may wait. Optional rolling spam limits separately control messages from one viewer and messages across the whole stream, counted per one second or per ten seconds. Their saved values remain adjustable while the limits are off.",
-        "Page 5, language and audience. These controls decide which writing systems and viewer groups are eligible before a message can enter speech. Moderation still applies to every eligible message.",
-        "Page 6, stream announcements and pause behavior. Choose which event types may speak and which events may continue when chat speech is paused. Emergency Stop always stops and clears all livestream speech.",
-        "Page 7, local audit logs. Logging is optional and off until enabled. Logs may contain usernames, raw chat, gifts, and moderation decisions. The Open logs folder button shows where those files are stored.",
-        "Page 8, interface and setup. Interface text size ranges from one hundred to two hundred percent. Run Setup Again reopens the guided setup and preserves current settings if it is cancelled."
+        new("Theme", "The Theme selector is one keyboard stop. Use Left or Right Arrow to choose Light, Dark, or High Contrast. The selected theme is announced immediately; Tab continues without changing it."),
+        new("Built-in guidance", "Choose whether SafeSpeak speaks focused controls, its private output device, volume, speech speed, description detail, and typed-character echo. Open a selection box with Enter, Space, Alt plus Down Arrow, or F4 before using Arrow keys. Test guidance and Shut up affect only SafeSpeak guidance."),
+        new("Keyboard shortcuts", "Global shortcuts work outside SafeSpeak while it is running. Tab to Enter keybind group and press Enter or Space. The action boxes then become tabbable and can also be reached with Arrow keys. Press Enter on an action, press the complete shortcut once, and then press the same shortcut again to verify it. Save and close remains unavailable until both entries match. Escape exits the group without saving an unfinished change. Control plus 1, 2, 3, or 4 always cancels unfinished capture, exits the group, and opens the selected main page. Alt plus 1 through 9 opens that numbered chapter on the current page, and Alt plus 0 opens chapter 10. Assigning an Alt-number to a custom global action gives that action priority and disables the matching chapter shortcut until the binding is changed or disabled."),
+        new("Queue and spam limits", "Set how many approved messages may wait and optionally limit messages from one viewer or the whole stream over one or ten seconds."),
+        new("Language and audience", "Choose which writing systems and viewer groups are eligible before a message can enter speech. Moderation still applies to every eligible message."),
+        new("Stream announcements and pause behavior", "Choose which event types may speak and which events may continue while chat speech is paused. Emergency Stop always stops and clears livestream speech."),
+        new("Local audit logs", "Logging is optional and off until enabled. Logs may contain usernames, raw chat, gifts, and moderation decisions. Open logs folder shows where those files are stored."),
+        new("Interface and setup", "Interface text size ranges from one hundred to two hundred percent. Run Setup Again reopens guided setup and preserves current settings if cancelled.")
     ];
 
     public string SettingsGuideNarration =>
-        "Settings guide. " + string.Join(" ", SettingsGuidePages);
+        "Settings guide. " + string.Join(" ", SettingsGuidePages.Select(page => page.Narration));
     public bool AreSettingsGuideControlsAtEnd => !AreSettingsGuideControlsAtTop;
     public string SettingsGuideVisibilityButtonText =>
         AreSettingsGuideControlsAtTop ? "Move controls to bottom" : "Move controls to top";
@@ -158,10 +163,10 @@ public sealed partial class MainViewModel
         }
 
         int spokenPosition = _settingsGuidePageIndex + 1;
-        string page = SettingsGuidePages[_settingsGuidePageIndex];
+        GuidePage page = SettingsGuidePages[_settingsGuidePageIndex];
         _settingsGuidePageIndex++;
         AnnounceNarration(
-            page,
+            page.Narration,
             $"Playing Settings guide page {spokenPosition} of {SettingsGuidePages.Count}.",
             interrupt: true);
     }
@@ -187,6 +192,11 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(AreSettingsGuideControlsAtEnd));
         OnPropertyChanged(nameof(SettingsGuideVisibilityButtonText));
         OnPropertyChanged(nameof(SettingsGuideVisibilityButtonAutomationName));
+        if (!_isInitializing)
+        {
+            _settings.SettingsGuideControlsAtTop = value;
+            SaveSettingsOrReport();
+        }
     }
 
     [RelayCommand]

@@ -25,7 +25,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private readonly ModerationPipeline _pipeline;
     private readonly ModerationTestService _moderationTestService;
-    private readonly SourceConnectorHost _sourceConnector;
+    private readonly List<LiveConnectorViewModel> _connectorSessions = [];
+    private readonly Dictionary<SourceConnectorHost, LiveConnectorViewModel> _connectorByHost = [];
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
     private readonly IAudioRouter _voicePreviewAudioRouter;
@@ -69,6 +70,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private string _tikTokUsername = "";
+
+    [ObservableProperty]
+    private bool _configureTikFinity;
+
+    [ObservableProperty]
+    private bool _configureTikTokDirect;
 
     [ObservableProperty]
     private bool _isConnected;
@@ -233,7 +240,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private int _heldLiveFeedCount;
 
+    [ObservableProperty]
+    private bool _showFilteredContent;
+
     public ObservableCollection<LiveFeedEntryViewModel> LiveFeed { get; } = new();
+    public ObservableCollection<LiveConnectorViewModel> LiveConnectors { get; } = new();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
     public ObservableCollection<string> CustomBlockedTerms { get; } = new();
@@ -375,9 +386,34 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         new(TikFinityWebSocketClient.ConnectorDescriptor.Id, "TikFinity (local app)"),
         new(TikTokLiveConnector.ConnectorDescriptor.Id, "TikTok Direct by username")
     ];
-    public string SourceName => _sourceConnector.Descriptor.DisplayName;
-    public string SourceDescription =>
-        $"{_sourceConnector.Descriptor.ProviderName}. {_sourceConnector.EndpointDescription}";
+    public string SourceName => LiveConnectors.Count switch
+    {
+        0 => "No configured connector",
+        1 => LiveConnectors[0].DisplayName,
+        _ => "Multiple connectors"
+    };
+    public string SourceDescription => LiveConnectors.Count == 0
+        ? "Configure at least one connector in Settings."
+        : string.Join(" ", LiveConnectors.Select(connector =>
+            $"{connector.DisplayName}: {connector.StatusText}."));
+    public string ConnectorConfigurationSummary
+    {
+        get
+        {
+            var configured = new List<string>(2);
+            if (ConfigureTikFinity) configured.Add("TikFinity");
+            if (ConfigureTikTokDirect) configured.Add("TikTok Direct");
+            return configured.Count == 0
+                ? "No connectors configured. Select at least one connection."
+                : $"Configured: {string.Join(" and ", configured)}. Turn each connection on or off from Live.";
+        }
+    }
+    public string FilteredContentToggleText => ShowFilteredContent
+        ? "Hide filtered details"
+        : "Unhide filtered details";
+    public string FilteredContentToggleAutomationName => ShowFilteredContent
+        ? "Hide usernames and original text for filtered messages"
+        : "Unhide usernames and original text for filtered messages";
     public string IntentModelStatus => _pipeline.Classifier switch
     {
         Qwen3GuardIntentClassifier qwen when qwen.IsModelLoaded =>
@@ -582,6 +618,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(AreSafetyGuideControlsAtEnd));
         OnPropertyChanged(nameof(SafetyGuideVisibilityButtonText));
         OnPropertyChanged(nameof(SafetyGuideVisibilityButtonAutomationName));
+        if (!_isInitializing)
+        {
+            _settings.SafetyGuideControlsAtTop = value;
+            SaveSettingsOrReport();
+        }
     }
 
     private IReadOnlyList<(string Title, string Text)> GetModerationGuideSections() =>
@@ -643,6 +684,33 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             "Live activity review status spoken.",
             interrupt: true);
 
+    [RelayCommand]
+    public void ToggleFilteredContentVisibility()
+    {
+        ShowFilteredContent = !ShowFilteredContent;
+        foreach (LiveFeedEntryViewModel entry in LiveFeed)
+        {
+            entry.SetFilteredContentRevealed(ShowFilteredContent);
+        }
+
+        AnnounceState(ShowFilteredContent
+            ? "Filtered message details are unhidden. The live feed now shows the original username and text for filtered entries."
+            : "Filtered message details are hidden again.",
+            interrupt: true);
+    }
+
+    partial void OnShowFilteredContentChanged(bool value)
+    {
+        OnPropertyChanged(nameof(FilteredContentToggleText));
+        OnPropertyChanged(nameof(FilteredContentToggleAutomationName));
+    }
+
+    partial void OnConfigureTikFinityChanged(bool value) =>
+        OnPropertyChanged(nameof(ConnectorConfigurationSummary));
+
+    partial void OnConfigureTikTokDirectChanged(bool value) =>
+        OnPropertyChanged(nameof(ConnectorConfigurationSummary));
+
     public sealed record ThemeChoice(
         ThemePreference Value,
         string DisplayName,
@@ -682,17 +750,33 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             : "The optional Qwen3Guard model is not installed.";
         ModerationModelAccessibleProgress = ModerationModelDownloadStatus;
         var connectorRegistry = SourceConnectorRegistry.CreateDefault(_settings.TikTokUsername);
-        string connectorId = connectorRegistry.Descriptors.Any(
-            descriptor => string.Equals(
+        ConfigureTikFinity = _settings.ConfiguredSourceConnectorIds.Contains(
+            TikFinityWebSocketClient.ConnectorDescriptor.Id,
+            StringComparer.OrdinalIgnoreCase);
+        ConfigureTikTokDirect = _settings.ConfiguredSourceConnectorIds.Contains(
+            TikTokLiveConnector.ConnectorDescriptor.Id,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (SourceConnectorDescriptor descriptor in connectorRegistry.Descriptors)
+        {
+            var host = new SourceConnectorHost(connectorRegistry.Create(descriptor.Id));
+            bool isConfigured = _settings.ConfiguredSourceConnectorIds.Contains(
                 descriptor.Id,
-                _settings.SelectedSourceConnectorId,
-                StringComparison.OrdinalIgnoreCase))
-            ? _settings.SelectedSourceConnectorId
-            : TikFinityWebSocketClient.ConnectorDescriptor.Id;
-        _sourceConnector = new SourceConnectorHost(connectorRegistry.Create(connectorId));
-        _settings.SelectedSourceConnectorId = _sourceConnector.Descriptor.Id;
+                StringComparer.OrdinalIgnoreCase);
+            bool isEnabled = _settings.ActiveSourceConnectorIds.Contains(
+                descriptor.Id,
+                StringComparer.OrdinalIgnoreCase);
+            var session = new LiveConnectorViewModel(host, isConfigured, isEnabled);
+            _connectorSessions.Add(session);
+            _connectorByHost.Add(host, session);
+            if (isConfigured)
+            {
+                LiveConnectors.Add(session);
+            }
+        }
         SelectedSourceConnectorId = _settings.SelectedSourceConnectorId;
         TikTokUsername = _settings.TikTokUsername;
+        AreSafetyGuideControlsAtTop = _settings.SafetyGuideControlsAtTop;
+        AreSettingsGuideControlsAtTop = _settings.SettingsGuideControlsAtTop;
         _kokoroManager = new KokoroModelManager();
         _ttsEngine = new ModularTtsEngine(_kokoroManager);
         _audioRouter = new WasapiAudioRouter();
@@ -786,8 +870,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void WireEvents()
     {
-        _sourceConnector.EventReceived += SourceConnector_EventReceived;
-        _sourceConnector.StateChanged += SourceConnector_StateChanged;
+        foreach (LiveConnectorViewModel connector in _connectorSessions)
+        {
+            connector.Host.EventReceived += SourceConnector_EventReceived;
+            connector.Host.StateChanged += SourceConnector_StateChanged;
+        }
         _ttsQueue.StateChanged += TtsQueue_StateChanged;
         _ttsQueue.PlaybackStarted += TtsQueue_PlaybackStarted;
         _ttsQueue.PlaybackFinished += TtsQueue_PlaybackFinished;
@@ -796,40 +883,52 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void SourceConnector_StateChanged(object? sender, ConnectionStateChangedEventArgs e)
     {
         if (_incomingEventCts.IsCancellationRequested) return;
+        if (sender is not SourceConnectorHost host ||
+            !_connectorByHost.TryGetValue(host, out LiveConnectorViewModel? connector))
+        {
+            return;
+        }
 
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             if (_incomingEventCts.IsCancellationRequested) return;
 
-            IsConnected = e.State == ConnectionState.Connected;
-            ConnectionSummaryText = $"{SourceName}: {e.State}";
-            ConnectionStatusText = string.IsNullOrWhiteSpace(e.Message)
-                ? $"{SourceName}: {e.State}"
-                : $"{SourceName}: {e.State}. {e.Message}";
+            connector.ApplyState(e.State, e.Message);
+            IsConnected = _connectorSessions.Any(item => item.IsConnected);
+            RefreshConnectorSummary();
             OnPropertyChanged(nameof(SourceName));
             OnPropertyChanged(nameof(SourceDescription));
-            if (IsConnected)
+            if (e.State == ConnectionState.Connected)
             {
-                _auditLogger.StartSession(SourceName, _sourceConnector.Descriptor.ProviderName, Config);
+                _auditLogger.StartSession(
+                    SourceName,
+                    string.Join(", ", _connectorSessions
+                        .Where(item => item.IsConnected)
+                        .Select(item => item.PlatformName)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    Config);
                 _announcer.PlayCue(SoundCueType.TikFinityConnected);
-                AnnounceState($"{SourceName} connected");
+                AnnounceState($"{connector.DisplayName} connected and ready to capture events.");
             }
             else
             {
-                _auditLogger.EndSession();
+                if (!IsConnected)
+                {
+                    _auditLogger.EndSession();
+                }
                 if (e.State == ConnectionState.Disconnected)
                 {
                     _announcer.PlayCue(SoundCueType.TikFinityDisconnected);
-                    AnnounceState($"{SourceName} disconnected");
+                    AnnounceState($"{connector.DisplayName} disconnected");
                 }
                 else if (e.State == ConnectionState.Reconnecting)
                 {
-                    LiveStatusAnnouncement = $"{SourceName} is unavailable. SafeSpeak will keep trying automatically.";
+                    LiveStatusAnnouncement = $"{connector.DisplayName} is unavailable. SafeSpeak will keep trying automatically.";
                 }
                 else if (e.State == ConnectionState.Faulted)
                 {
                     LiveStatusAnnouncement = string.IsNullOrWhiteSpace(e.Message)
-                        ? $"{SourceName} could not connect."
+                        ? $"{connector.DisplayName} could not connect."
                         : e.Message;
                     AnnounceState(LiveStatusAnnouncement);
                 }
@@ -837,8 +936,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         });
     }
 
-    private void SourceConnector_EventReceived(object? sender, LivestreamEvent liveEvent) =>
-        QueueIncomingEvent(liveEvent);
+    private void SourceConnector_EventReceived(object? sender, LivestreamEvent liveEvent)
+    {
+        if (sender is SourceConnectorHost host &&
+            _connectorByHost.TryGetValue(host, out LiveConnectorViewModel? connector) &&
+            connector.IsConfigured && connector.IsEnabled)
+        {
+            QueueIncomingEvent(liveEvent);
+        }
+    }
 
     private void QueueIncomingEvent(LivestreamEvent liveEvent)
     {
@@ -885,7 +991,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 catch (Exception ex)
                 {
                     Application.Current?.Dispatcher.BeginInvoke(() =>
-                        AnnounceState($"A {SourceName} event could not be processed. {ex.Message}"));
+                        AnnounceState($"A {queuedEvent.Event.Platform} event could not be processed. {ex.Message}"));
                 }
             }
         }
@@ -897,20 +1003,45 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private async Task AutoConnectSourceAsync()
     {
-        if (!_settings.AutoConnectSource) return;
+        LiveConnectorViewModel[] enabled = _connectorSessions
+            .Where(connector => connector.IsConfigured && connector.IsEnabled)
+            .ToArray();
+        RefreshConnectorSummary();
+        foreach (LiveConnectorViewModel connector in enabled)
+        {
+            connector.IsBusy = true;
+            try
+            {
+                connector.ApplyState(ConnectionState.Connecting, "Connecting automatically.");
+                await connector.Host.ConnectAsync();
+            }
+            catch (Exception ex)
+            {
+                connector.ApplyState(ConnectionState.Faulted, ex.Message);
+                AnnounceState($"{connector.DisplayName} could not start. {ex.Message}");
+            }
+            finally
+            {
+                connector.IsBusy = false;
+                RefreshConnectorSummary();
+            }
+        }
+    }
 
-        ConnectionSummaryText = $"{SourceName}: Connecting";
-        ConnectionStatusText = ConnectionSummaryText;
-        try
-        {
-            await _sourceConnector.ConnectAsync();
-        }
-        catch (Exception ex)
-        {
-            ConnectionSummaryText = $"{SourceName}: Connection failed";
-            ConnectionStatusText = ConnectionSummaryText;
-            AnnounceState($"{SourceName} could not start. {ex.Message}");
-        }
+    private void RefreshConnectorSummary()
+    {
+        LiveConnectorViewModel[] enabled = _connectorSessions
+            .Where(connector => connector.IsConfigured && connector.IsEnabled)
+            .ToArray();
+        int connectedCount = enabled.Count(connector => connector.IsConnected);
+        ConnectionSummaryText = enabled.Length == 0
+            ? "No connectors on"
+            : $"{connectedCount} of {enabled.Length} connected";
+        ConnectionStatusText = enabled.Length == 0
+            ? "No live connectors are enabled. Turn on a configured connector to capture events."
+            : string.Join(" ", enabled.Select(connector =>
+                $"{connector.DisplayName}: {connector.StatusText}."));
+        OnPropertyChanged(nameof(SourceDescription));
     }
 
     private void LoadSystemAudioAndVoices()
@@ -1048,7 +1179,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             _auditLogger.IsEnabled = value;
             if (value && IsConnected)
             {
-                _auditLogger.StartSession(SourceName, _sourceConnector.Descriptor.ProviderName, Config);
+                _auditLogger.StartSession(
+                    SourceName,
+                    string.Join(", ", _connectorSessions
+                        .Where(connector => connector.IsConnected)
+                        .Select(connector => connector.PlatformName)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    Config);
             }
         }
         if (_isInitializing) return;
@@ -1496,7 +1633,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         if (liveEvent.Type == LivestreamEventType.Gift)
         {
-            TrackSessionDonor(liveEvent.Author, liveEvent.AuthorDisplayName);
+            TrackSessionDonor(
+                liveEvent.Platform,
+                liveEvent.Author,
+                liveEvent.AuthorDisplayName);
         }
 
         if (liveEvent.Type == LivestreamEventType.Chat)
@@ -1504,7 +1644,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (AnnounceChatMessages)
             {
                 ChatMessage chatMessage = liveEvent.ToChatMessage();
-                if (IsSessionDonor(chatMessage.Author, chatMessage.AuthorDisplayName))
+                if (IsSessionDonor(
+                        chatMessage.Platform,
+                        chatMessage.Author,
+                        chatMessage.AuthorDisplayName))
                 {
                     chatMessage = chatMessage with { IsDonor = true };
                 }
@@ -1560,12 +1703,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 AuthorDisplayName = liveEvent.AuthorDisplayName,
                 RawText = spoken,
                 Platform = liveEvent.Platform,
-                AttributionStyle = SpokenAttributionStyle.LeadingName,
+                AttributionStyle = SpokenAttributionStyle.LeadingNameOnPlatform,
                 AuthorTier = liveEvent.AuthorTier,
                 IsSubscriber = liveEvent.IsSubscriber,
                 IsModerator = liveEvent.IsModerator,
                 IsDonor = liveEvent.Type == LivestreamEventType.Gift ||
-                    IsSessionDonor(liveEvent.Author, liveEvent.AuthorDisplayName)
+                    IsSessionDonor(
+                        liveEvent.Platform,
+                        liveEvent.Author,
+                        liveEvent.AuthorDisplayName)
             },
             monitoringGeneration,
             cancellationToken,
@@ -1649,60 +1795,148 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             LiveFeed.RemoveAt(LiveFeed.Count - 1);
         }
 
-        LiveFeed.Insert(0, new LiveFeedEntryViewModel(decision));
+        var entry = new LiveFeedEntryViewModel(decision);
+        entry.SetFilteredContentRevealed(ShowFilteredContent);
+        LiveFeed.Insert(0, entry);
     }
 
     private bool IsMonitoringGenerationActive(int monitoringGeneration) =>
         _ttsQueue.IsArmed &&
         monitoringGeneration == Volatile.Read(ref _monitoringGeneration);
 
-    private void TrackSessionDonor(string author, string displayName)
+    private void TrackSessionDonor(string platform, string author, string displayName)
     {
-        string key = DonorKey(author, displayName);
+        string key = DonorKey(platform, author, displayName);
         if (key.Length > 0)
         {
             _sessionDonors.TryAdd(key, 0);
         }
     }
 
-    private bool IsSessionDonor(string author, string displayName)
+    private bool IsSessionDonor(string platform, string author, string displayName)
     {
-        string key = DonorKey(author, displayName);
+        string key = DonorKey(platform, author, displayName);
         return key.Length > 0 && _sessionDonors.ContainsKey(key);
     }
 
-    private static string DonorKey(string author, string displayName) =>
-        (string.IsNullOrWhiteSpace(author) ? displayName : author).Trim();
+    private static string DonorKey(string platform, string author, string displayName)
+    {
+        string identity = (string.IsNullOrWhiteSpace(author) ? displayName : author).Trim();
+        return identity.Length == 0
+            ? string.Empty
+            : $"{platform.Trim()}\u001f{identity}";
+    }
 
     [RelayCommand]
     public async Task ConnectTikFinity()
     {
-        await _sourceConnector.ConnectAsync();
+        LiveConnectorViewModel? connector = FindConnector(TikFinityWebSocketClient.ConnectorDescriptor.Id);
+        if (connector is not null && !connector.IsEnabled)
+        {
+            await ToggleLiveConnector(connector);
+        }
     }
 
     [RelayCommand]
     public async Task DisconnectTikFinity()
     {
-        await _sourceConnector.DisconnectAsync();
+        LiveConnectorViewModel? connector = FindConnector(TikFinityWebSocketClient.ConnectorDescriptor.Id);
+        if (connector is not null && connector.IsEnabled)
+        {
+            await ToggleLiveConnector(connector);
+        }
     }
 
     [RelayCommand]
     public async Task RetrySourceConnection()
     {
-        await _sourceConnector.DisconnectAsync();
-        await _sourceConnector.ConnectAsync();
-        AnnounceState($"Retrying {SourceName} connection.");
+        LiveConnectorViewModel[] enabled = _connectorSessions
+            .Where(connector => connector.IsConfigured && connector.IsEnabled)
+            .ToArray();
+        if (enabled.Length == 0)
+        {
+            AnnounceState("No live connectors are on. Turn on a configured connector first.");
+            return;
+        }
+
+        foreach (LiveConnectorViewModel connector in enabled)
+        {
+            connector.IsBusy = true;
+            try
+            {
+                await connector.Host.DisconnectAsync();
+                connector.ApplyState(ConnectionState.Connecting, "Reconnect requested.");
+                await connector.Host.ConnectAsync();
+            }
+            catch (Exception ex)
+            {
+                connector.ApplyState(ConnectionState.Faulted, ex.Message);
+            }
+            finally
+            {
+                connector.IsBusy = false;
+            }
+        }
+
+        RefreshConnectorSummary();
+        AnnounceState("Retrying all enabled live connectors.");
+    }
+
+    [RelayCommand]
+    public async Task ToggleLiveConnector(LiveConnectorViewModel? connector)
+    {
+        if (connector is null || !connector.IsConfigured || connector.IsBusy)
+        {
+            return;
+        }
+
+        if (!connector.IsEnabled &&
+            string.Equals(connector.Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase) &&
+            !TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out _))
+        {
+            AnnounceState(
+                "TikTok Direct needs a valid username. Configure it in Settings before turning it on.",
+                interrupt: true);
+            return;
+        }
+
+        bool enable = !connector.IsEnabled;
+        connector.IsBusy = true;
+        connector.IsEnabled = enable;
+        SaveActiveConnectorIds();
+        try
+        {
+            if (enable)
+            {
+                connector.ApplyState(ConnectionState.Connecting, "Connecting from Live.");
+                await connector.Host.ConnectAsync();
+                AnnounceState($"{connector.DisplayName} is on and will send approved events to the speech queue.");
+            }
+            else
+            {
+                await connector.Host.DisconnectAsync();
+                connector.ApplyState(ConnectionState.Disconnected, "Turned off from Live.");
+                AnnounceState($"{connector.DisplayName} is off and will not send events to the speech queue.");
+            }
+        }
+        catch (Exception ex)
+        {
+            connector.ApplyState(ConnectionState.Faulted, ex.Message);
+            AnnounceState($"{connector.DisplayName} could not connect. {ex.Message}", interrupt: true);
+        }
+        finally
+        {
+            connector.IsBusy = false;
+            IsConnected = _connectorSessions.Any(item => item.IsConnected);
+            RefreshConnectorSummary();
+        }
     }
 
     [RelayCommand]
     public async Task SaveAndConnectSource()
     {
-        string selectedId = SourceConnectorChoices.Any(choice =>
-            string.Equals(choice.Id, SelectedSourceConnectorId, StringComparison.OrdinalIgnoreCase))
-            ? SelectedSourceConnectorId
-            : TikFinityWebSocketClient.ConnectorDescriptor.Id;
-        string username = "";
-        if (string.Equals(selectedId, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase) &&
+        string username = string.Empty;
+        if (ConfigureTikTokDirect &&
             !TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out username))
         {
             AnnounceState(
@@ -1711,37 +1945,78 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        Interlocked.Increment(ref _monitoringGeneration);
-        _sessionDonors.Clear();
-        _ttsQueue.Disarm();
-        _auditLogger.EndSession();
-        IsConnected = false;
-        ConnectionSummaryText = "Changing source";
-        ConnectionStatusText =
-            "Changing live stream source. SafeSpeak is disarmed and the speech queue is clear.";
+        if (!ConfigureTikFinity && !ConfigureTikTokDirect)
+        {
+            AnnounceState("Select at least one connector before saving.", interrupt: true);
+            return;
+        }
 
-        try
+        LiveConnectorViewModel? direct = FindConnector(TikTokLiveConnector.ConnectorDescriptor.Id);
+        if (direct is not null && !string.Equals(username, _settings.TikTokUsername, StringComparison.OrdinalIgnoreCase))
         {
-            await _sourceConnector.ReplaceAsync(() =>
-                SourceConnectorRegistry.CreateDefault(username).Create(selectedId));
-            _settings.SelectedSourceConnectorId = selectedId;
-            _settings.TikTokUsername = username;
-            _settings.AutoConnectSource = true;
-            TikTokUsername = username;
-            SaveSettingsOrReport();
-            OnPropertyChanged(nameof(SourceName));
-            OnPropertyChanged(nameof(SourceDescription));
-            await _sourceConnector.ConnectAsync();
-            AnnounceState(
-                $"{SourceName} selected. SafeSpeak remains disarmed while the source connects.",
-                interrupt: true);
+            bool reconnect = direct.IsEnabled;
+            if (reconnect)
+            {
+                await direct.Host.DisconnectAsync();
+            }
+            await direct.Host.ReplaceAsync(() =>
+                SourceConnectorRegistry.CreateDefault(username).Create(TikTokLiveConnector.ConnectorDescriptor.Id));
+            direct.ApplyState(ConnectionState.Disconnected, direct.Host.EndpointDescription);
+            if (reconnect)
+            {
+                direct.ApplyState(ConnectionState.Connecting, "Reconnecting with the saved username.");
+                await direct.Host.ConnectAsync();
+            }
         }
-        catch (Exception ex)
+
+        _settings.TikTokUsername = username;
+        TikTokUsername = username;
+        await ApplyConnectorConfigurationAsync();
+        AnnounceState("Connector settings saved. Use the Live page to turn each configured connection on or off.", interrupt: true);
+    }
+
+    private async Task ApplyConnectorConfigurationAsync()
+    {
+        foreach (LiveConnectorViewModel connector in _connectorSessions)
         {
-            ConnectionSummaryText = "Source change failed";
-            ConnectionStatusText = $"Source change failed. {ex.Message}";
-            AnnounceState(ConnectionStatusText, interrupt: true);
+            bool configured = string.Equals(connector.Id, TikFinityWebSocketClient.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase)
+                ? ConfigureTikFinity
+                : ConfigureTikTokDirect;
+            connector.IsConfigured = configured;
+            if (!configured && connector.IsEnabled)
+            {
+                connector.IsEnabled = false;
+                await connector.Host.DisconnectAsync();
+            }
         }
+
+        LiveConnectors.Clear();
+        foreach (LiveConnectorViewModel connector in _connectorSessions.Where(item => item.IsConfigured))
+        {
+            LiveConnectors.Add(connector);
+        }
+
+        _settings.ConfiguredSourceConnectorIds = LiveConnectors.Select(item => item.Id).ToList();
+        _settings.SelectedSourceConnectorId = LiveConnectors[0].Id;
+        SaveActiveConnectorIds();
+        OnPropertyChanged(nameof(SourceName));
+        OnPropertyChanged(nameof(SourceDescription));
+        OnPropertyChanged(nameof(ConnectorConfigurationSummary));
+        RefreshConnectorSummary();
+    }
+
+    private LiveConnectorViewModel? FindConnector(string id) =>
+        _connectorSessions.FirstOrDefault(connector =>
+            string.Equals(connector.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    private void SaveActiveConnectorIds()
+    {
+        _settings.ActiveSourceConnectorIds = _connectorSessions
+            .Where(connector => connector.IsConfigured && connector.IsEnabled)
+            .Select(connector => connector.Id)
+            .ToList();
+        _settings.AutoConnectSource = _settings.ActiveSourceConnectorIds.Count > 0;
+        SaveSettingsOrReport();
     }
 
     [RelayCommand]
@@ -2251,8 +2526,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         _incomingEvents.Writer.TryComplete();
         _incomingEventCts.Cancel();
-        _sourceConnector.EventReceived -= SourceConnector_EventReceived;
-        _sourceConnector.StateChanged -= SourceConnector_StateChanged;
+        foreach (LiveConnectorViewModel connector in _connectorSessions)
+        {
+            connector.Host.EventReceived -= SourceConnector_EventReceived;
+            connector.Host.StateChanged -= SourceConnector_StateChanged;
+        }
         _ttsQueue.StateChanged -= TtsQueue_StateChanged;
         _ttsQueue.PlaybackStarted -= TtsQueue_PlaybackStarted;
         _ttsQueue.PlaybackFinished -= TtsQueue_PlaybackFinished;
@@ -2271,9 +2549,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         // Calling connector disposal initiates cancellation immediately. Never
         // wait for auto-connect before that cancellation has been requested.
-        Task connectorShutdown = StartShutdownTask(() => _sourceConnector.DisposeAsync());
+        Task[] connectorShutdown = _connectorSessions
+            .Select(connector => StartShutdownTask(() => connector.Host.DisposeAsync()))
+            .ToArray();
 
-        await IgnoreShutdownFailureAsync(connectorShutdown);
+        foreach (Task shutdown in connectorShutdown)
+        {
+            await IgnoreShutdownFailureAsync(shutdown);
+        }
         await IgnoreShutdownFailureAsync(_autoConnectTask);
         await IgnoreShutdownFailureAsync(_incomingEventPumpTask);
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _voicePreviewOutput.DisposeAsync()));

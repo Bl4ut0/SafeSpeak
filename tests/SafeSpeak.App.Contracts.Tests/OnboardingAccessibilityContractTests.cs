@@ -57,7 +57,7 @@ public sealed class OnboardingAccessibilityContractTests
                 .Where(element => element.Attribute("TabIndex") is not null),
             element => Assert.Contains(
                 element.Name.LocalName,
-                new[] { "Button", "CheckBox", "ListBox" }));
+                new[] { "Button", "CheckBox", "ListBox", "TextBox" }));
     }
 
     [Fact]

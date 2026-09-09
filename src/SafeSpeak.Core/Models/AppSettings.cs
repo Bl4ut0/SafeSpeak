@@ -45,7 +45,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 9;
+    public const int CurrentSettingsSchemaVersion = 10;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -122,8 +122,12 @@ public sealed class AppSettings
         set => HasConsentedToLocalAuditLogging = value;
     }
     public string SelectedSourceConnectorId { get; set; } = "tikfinity";
+    public List<string> ConfiguredSourceConnectorIds { get; set; } = ["tikfinity"];
+    public List<string> ActiveSourceConnectorIds { get; set; } = ["tikfinity"];
     public string TikTokUsername { get; set; } = "";
     public bool AutoConnectSource { get; set; } = true;
+    public bool SafetyGuideControlsAtTop { get; set; } = true;
+    public bool SettingsGuideControlsAtTop { get; set; } = true;
     public bool LocalConnectorAutoDetectConsent { get; set; }
     public OnboardingConnectorDetectionStatus LocalConnectorDetectionStatus { get; set; } =
         OnboardingConnectorDetectionStatus.NotChecked;
@@ -210,6 +214,7 @@ public sealed class AppSettings
         MigrateAndValidateOnboardingStage(root, this);
         MigrateAuditLoggingConsent(root, this);
         MigrateGlobalShortcuts(root, this);
+        MigrateConnectorCollections(root, this);
     }
 
     internal void NormalizeForPersistence()
@@ -286,6 +291,14 @@ public sealed class AppSettings
 
         TikTokUsername = Connectors.TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string username)
             ? username : "";
+        ConfiguredSourceConnectorIds = NormalizeConnectorIds(
+            ConfiguredSourceConnectorIds,
+            SelectedSourceConnectorId);
+        ActiveSourceConnectorIds = NormalizeConnectorIds(
+                ActiveSourceConnectorIds,
+                AutoConnectSource ? SelectedSourceConnectorId : null)
+            .Where(id => ConfiguredSourceConnectorIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+            .ToList();
         NormalizeLocalConnectorDetection();
 
         CustomBlockedTerms = (CustomBlockedTerms ?? [])
@@ -302,6 +315,26 @@ public sealed class AppSettings
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(500)
             .ToList();
+    }
+
+    private static List<string> NormalizeConnectorIds(
+        IEnumerable<string>? connectorIds,
+        string? legacyConnectorId)
+    {
+        string[] supportedIds = ["tikfinity", "tiktok-live"];
+        List<string> normalized = (connectorIds ?? [])
+            .Where(id => supportedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0 &&
+            !string.IsNullOrWhiteSpace(legacyConnectorId) &&
+            supportedIds.Contains(legacyConnectorId, StringComparer.OrdinalIgnoreCase))
+        {
+            normalized.Add(legacyConnectorId);
+        }
+
+        return normalized;
     }
 
     private void NormalizeLocalConnectorDetection()
@@ -400,6 +433,24 @@ public sealed class AppSettings
         {
             settings.GlobalShortcuts = GlobalShortcutCatalog.CreateDefaults();
         }
+    }
+
+    private static void MigrateConnectorCollections(
+        JsonElement root,
+        AppSettings settings)
+    {
+        if (root.TryGetProperty(nameof(ConfiguredSourceConnectorIds), out _))
+        {
+            return;
+        }
+
+        string legacyId = string.IsNullOrWhiteSpace(settings.SelectedSourceConnectorId)
+            ? "tikfinity"
+            : settings.SelectedSourceConnectorId;
+        settings.ConfiguredSourceConnectorIds = [legacyId];
+        settings.ActiveSourceConnectorIds = settings.AutoConnectSource
+            ? [legacyId]
+            : [];
     }
 
     private static void MigrateLegacyAccessibilitySettings(

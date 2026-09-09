@@ -145,7 +145,7 @@ public sealed class OnboardingWorkflowContractTests
 
         Assert.Contains("Built-in spoken guidance:", review);
         Assert.Contains("Visual theme:", review);
-        Assert.Contains("Streaming platform:", review);
+        Assert.Contains("Configured connectors:", review);
         Assert.Contains("Local connector detection:", review);
         Assert.Contains("Language filtering:", review);
         Assert.Contains("SafeSpeak opens disarmed", review);

@@ -113,7 +113,7 @@ public sealed class StreamDeckPluginContractTests
         }
 
         Assert.Contains("RequiredSafetyFeaturesStatus", window);
-        Assert.Contains("Reconnect to live stream source button", window);
+        Assert.Contains("Reconnect all enabled live connectors button", window);
         Assert.DoesNotContain("Binding PrivateMonitorEnabled", window);
         Assert.DoesNotContain("Private monitor output", window);
     }

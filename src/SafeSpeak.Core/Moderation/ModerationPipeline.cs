@@ -264,9 +264,16 @@ public sealed class ModerationPipeline : IDisposable
         string safeDisplayName = await GetSafeDisplayNameAsync(
             message.AuthorDisplayName,
             cancellationToken);
-        string finalSpokenText = message.AttributionStyle == SpokenAttributionStyle.LeadingName
-            ? $"{safeDisplayName}, {speechCleaned}"
-            : $"{safeDisplayName} says: {speechCleaned}";
+        string platformName = SafePlatformName(message.Platform);
+        string finalSpokenText = message.AttributionStyle switch
+        {
+            SpokenAttributionStyle.LeadingName => $"{safeDisplayName}, {speechCleaned}",
+            SpokenAttributionStyle.SaysOnPlatform =>
+                $"{safeDisplayName} on {platformName} said: {speechCleaned}",
+            SpokenAttributionStyle.LeadingNameOnPlatform =>
+                $"{safeDisplayName} on {platformName}, {speechCleaned}",
+            _ => $"{safeDisplayName} says: {speechCleaned}"
+        };
 
         return new ModerationDecision
         {
@@ -280,6 +287,19 @@ public sealed class ModerationPipeline : IDisposable
             NormalizedText = normalizedForInspection,
             ToxicityScore = toxicityScore
         };
+    }
+
+    private static string SafePlatformName(string? platform)
+    {
+        if (string.IsNullOrWhiteSpace(platform))
+        {
+            return "the livestream";
+        }
+
+        string cleaned = UnicodeNormalizer.CleanForSpeech(platform, stripUrls: true).Trim();
+        return cleaned.Length is > 0 and <= 40
+            ? cleaned
+            : "the livestream";
     }
 
     private async Task<string> GetSafeDisplayNameAsync(
