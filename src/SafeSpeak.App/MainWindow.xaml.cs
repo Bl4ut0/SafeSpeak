@@ -31,6 +31,8 @@ public partial class MainWindow : Window
     private bool _shortcutTriggerReleased;
     private LiveConnectorViewModel? _capturingConnector;
     private string? _firstConnectorUsername;
+    private LiveConnectorViewModel? _managingConnector;
+    private bool _editingConnectorConfiguration;
 
     public MainWindow()
     {
@@ -87,21 +89,46 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!connector.IsConfigured &&
-            string.Equals(connector.Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
+        if (connector.IsConfigured)
         {
-            BeginInlineConnectorCapture(connector);
+            BeginInlineConnectorManagement(connector);
             return;
         }
 
+        if (
+            string.Equals(connector.Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            BeginInlineConnectorCapture(connector, editing: false);
+            return;
+        }
+
+        CancelInlineConnectorSurfaces();
         await viewModel.ToggleConnectorConfigurationAsync(connector);
         FocusSettingsConnectorCard(connector);
     }
 
-    private void BeginInlineConnectorCapture(LiveConnectorViewModel connector)
+    private void BeginInlineConnectorManagement(LiveConnectorViewModel connector)
     {
+        CancelInlineConnectorSurfaces();
+        _managingConnector = connector;
+        InlineConnectorManagementHeading.Text = $"Connector options: {connector.DisplayName}";
+        InlineConnectorManagementPrompt.Text =
+            $"{connector.DisplayName} is enabled. Choose Edit to review its configuration, Delete to disable it, or Cancel.";
+        InlineConnectorManagementPanel.Visibility = Visibility.Visible;
+        InlineConnectorManagementPanel.BringIntoView();
+        Dispatcher.BeginInvoke(
+            () => FocusElement(InlineConnectorEditButton),
+            DispatcherPriority.Input);
+    }
+
+    private void BeginInlineConnectorCapture(
+        LiveConnectorViewModel connector,
+        bool editing)
+    {
+        CloseInlineConnectorManagement();
         _capturingConnector = connector;
         _firstConnectorUsername = null;
+        _editingConnectorConfiguration = editing;
         InlineConnectorUsernameTextBox.Clear();
         InlineConnectorCapturePrompt.Text =
             "Enter the TikTok username without the at sign, then press Enter.";
@@ -113,6 +140,70 @@ public partial class MainWindow : Window
         {
             FocusElement(InlineConnectorUsernameTextBox);
         }, DispatcherPriority.Input);
+    }
+
+    private void InlineConnectorEditButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_managingConnector is not { } connector ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (string.Equals(
+                connector.Id,
+                TikTokLiveConnector.ConnectorDescriptor.Id,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            BeginInlineConnectorCapture(connector, editing: true);
+            return;
+        }
+
+        CloseInlineConnectorManagement();
+        viewModel.AnnounceState(
+            "TikFinity has no additional configuration fields. It remains enabled. Focus returned to TikFinity.",
+            interrupt: true);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private async void InlineConnectorDeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_managingConnector is not { } connector ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        CloseInlineConnectorManagement();
+        await viewModel.ToggleConnectorConfigurationAsync(connector);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void InlineConnectorManagementCancelButton_Click(object sender, RoutedEventArgs e)
+        => CancelInlineConnectorManagement(announce: true);
+
+    private void CancelInlineConnectorManagement(bool announce)
+    {
+        LiveConnectorViewModel? connector = _managingConnector;
+        CloseInlineConnectorManagement();
+        if (connector is null)
+        {
+            return;
+        }
+
+        if (announce && DataContext is MainViewModel viewModel)
+        {
+            viewModel.AnnounceState(
+                $"Connector options closed for {connector.DisplayName}. Nothing was changed.",
+                interrupt: true);
+        }
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void CloseInlineConnectorManagement()
+    {
+        InlineConnectorManagementPanel.Visibility = Visibility.Collapsed;
+        _managingConnector = null;
     }
 
     private async void InlineConnectorUsernameTextBox_PreviewKeyDown(
@@ -182,9 +273,12 @@ public partial class MainWindow : Window
             InlineConnectorUsernameTextBox.IsEnabled = true;
         }
 
+        bool wasEditing = _editingConnectorConfiguration;
         CloseInlineConnectorCapture();
         viewModel.AnnounceState(saved
-            ? $"TikTok Direct username verified and saved. TikTok Direct moved to the Enabled connectors area. Focus returned to TikTok Direct."
+            ? wasEditing
+                ? "TikTok Direct username verified and saved. TikTok Direct remains in the Enabled connectors area. Focus returned to TikTok Direct."
+                : "TikTok Direct username verified and saved. TikTok Direct moved to the Enabled connectors area. Focus returned to TikTok Direct."
             : "TikTok Direct could not be saved. Review the announced error and try again.",
             interrupt: true);
         FocusSettingsConnectorCard(connector);
@@ -217,6 +311,13 @@ public partial class MainWindow : Window
         InlineConnectorUsernameTextBox.Clear();
         _capturingConnector = null;
         _firstConnectorUsername = null;
+        _editingConnectorConfiguration = false;
+    }
+
+    private void CancelInlineConnectorSurfaces()
+    {
+        CloseInlineConnectorCapture();
+        CloseInlineConnectorManagement();
     }
 
     private void SetInlineConnectorStatus(string message)
@@ -884,6 +985,12 @@ public partial class MainWindow : Window
 
         ModifierKeys modifiers = Keyboard.Modifiers;
         Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.Escape && _managingConnector is not null)
+        {
+            CancelInlineConnectorManagement(announce: true);
+            e.Handled = true;
+            return;
+        }
         bool controlOnly = (modifiers & ModifierKeys.Control) != 0 &&
             (modifiers & (ModifierKeys.Alt | ModifierKeys.Shift | ModifierKeys.Windows)) == 0;
         if (controlOnly && TryHandleDirectNavigationShortcut(key))
@@ -1053,9 +1160,9 @@ public partial class MainWindow : Window
 
     private void CancelInlineConnectorCaptureForNavigation()
     {
-        if (_capturingConnector is not null)
+        if (_capturingConnector is not null || _managingConnector is not null)
         {
-            CloseInlineConnectorCapture();
+            CancelInlineConnectorSurfaces();
         }
     }
 

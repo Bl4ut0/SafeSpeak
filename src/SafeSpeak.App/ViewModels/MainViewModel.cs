@@ -717,14 +717,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(connector);
         bool configuring = !connector.IsConfigured;
-        if (!configuring && ConfiguredConnectors.Count <= 1)
-        {
-            AnnounceState(
-                "At least one connector must remain configured. Configure another connector before removing this one.",
-                interrupt: true);
-            return;
-        }
-
         if (string.Equals(connector.Id, TikFinityWebSocketClient.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
         {
             ConfigureTikFinity = configuring;
@@ -830,9 +822,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             bool isConfigured = _settings.ConfiguredSourceConnectorIds.Contains(
                 descriptor.Id,
                 StringComparer.OrdinalIgnoreCase);
-            bool isEnabled = _settings.ActiveSourceConnectorIds.Contains(
-                descriptor.Id,
-                StringComparer.OrdinalIgnoreCase);
+            bool isEnabled = isConfigured;
             var session = new LiveConnectorViewModel(host, isConfigured, isEnabled);
             _connectorSessions.Add(session);
             _connectorByHost.Add(host, session);
@@ -1980,26 +1970,21 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         bool enable = !connector.IsEnabled;
         connector.IsBusy = true;
         connector.IsEnabled = enable;
-        bool activationSaved = SaveActiveConnectorIds();
         try
         {
             if (enable)
             {
                 connector.ApplyState(ConnectionState.Connecting, "Connecting from Live.");
                 await connector.Host.ConnectAsync();
-                AnnounceState(activationSaved
-                    ? $"{connector.DisplayName} is on and will send approved events to the speech queue. This choice was saved."
-                    : $"{connector.DisplayName} is on for this session, but SafeSpeak could not save that choice.",
-                    interrupt: !activationSaved);
+                AnnounceState(
+                    $"{connector.DisplayName} is on and will send approved events to the speech queue for this session.");
             }
             else
             {
                 await connector.Host.DisconnectAsync();
                 connector.ApplyState(ConnectionState.Disconnected, "Turned off from Live.");
-                AnnounceState(activationSaved
-                    ? $"{connector.DisplayName} is off and will not send events to the speech queue. This choice was saved."
-                    : $"{connector.DisplayName} is off for this session, but SafeSpeak could not save that choice.",
-                    interrupt: !activationSaved);
+                AnnounceState(
+                    $"{connector.DisplayName} is off for this session. It will connect automatically the next time SafeSpeak starts unless it is disabled in Settings.");
             }
         }
         catch (Exception ex)
@@ -2069,6 +2054,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 ? ConfigureTikFinity
                 : ConfigureTikTokDirect;
             connector.IsConfigured = configured;
+            if (configured && !connector.IsEnabled)
+            {
+                connector.IsEnabled = true;
+                connector.IsBusy = true;
+                try
+                {
+                    connector.ApplyState(ConnectionState.Connecting, "Connecting automatically after configuration.");
+                    await connector.Host.ConnectAsync();
+                }
+                catch (Exception ex)
+                {
+                    connector.ApplyState(ConnectionState.Faulted, ex.Message);
+                }
+                finally
+                {
+                    connector.IsBusy = false;
+                }
+            }
             if (!configured && connector.IsEnabled)
             {
                 connector.IsEnabled = false;
@@ -2091,7 +2094,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         RefreshSettingsConnectorCollections();
 
         _settings.ConfiguredSourceConnectorIds = LiveConnectors.Select(item => item.Id).ToList();
-        _settings.SelectedSourceConnectorId = LiveConnectors[0].Id;
+        _settings.SelectedSourceConnectorId = LiveConnectors.FirstOrDefault()?.Id
+            ?? _settings.SelectedSourceConnectorId;
         bool settingsSaved = SaveActiveConnectorIds();
         OnPropertyChanged(nameof(SourceName));
         OnPropertyChanged(nameof(SourceDescription));

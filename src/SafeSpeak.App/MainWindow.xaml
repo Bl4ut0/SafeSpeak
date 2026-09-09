@@ -1011,59 +1011,110 @@
                                        Content="Chapter 1 — Live connectors"
                                        AutomationProperties.Name="Settings chapter 1 of 9, live connectors"
                                        AutomationProperties.HelpText="Press Tab to enter this chapter. Enable every service you may use, then turn individual connections on from Live. Use Alt plus 1 to return here." />
-                                <TextBlock Text="Each connector is a separate Tab stop. Press Enter on a connector to enable or disable it. Enabled connectors appear on Live, where each connection can be turned on or off."
+                                <TextBlock Text="Each connector is a separate Tab stop. Press Enter on a disabled connector to enable it. Press Enter on an enabled connector for Edit, Delete, and Cancel options. Enabled connectors appear on Live, where each connection can be turned on or off."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
-                                <TextBlock Text="Enabled connectors" FontWeight="SemiBold"
-                                           FontSize="{DynamicResource SafeSpeakFont17}"
-                                           AutomationProperties.HeadingLevel="Level3" />
-                                <ItemsControl x:Name="ConfiguredConnectorCards"
-                                              ItemsSource="{Binding ConfiguredConnectors}"
-                                              Margin="0,5,0,7">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Tag="SettingsConnectorCard" Margin="0,0,0,6"
-                                                    Padding="10" MinHeight="68"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    Click="SettingsConnectorCard_Click"
-                                                    AutomationProperties.Name="{Binding ConfigurationCardAutomationName}"
-                                                    AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
-                                                               Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding ConfigurationActionText}" Margin="0,3,0,0"
-                                                               Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <Border Style="{StaticResource StatusCard}" Padding="10" Margin="0,0,0,8"
+                                        MinHeight="104" AutomationProperties.Name="Enabled connectors group">
+                                    <StackPanel>
+                                        <TextBlock Text="Enabled connectors" FontWeight="SemiBold"
+                                                   FontSize="{DynamicResource SafeSpeakFont17}"
+                                                   AutomationProperties.HeadingLevel="Level3" />
+                                        <ItemsControl x:Name="ConfiguredConnectorCards"
+                                                      ItemsSource="{Binding ConfiguredConnectors}"
+                                                      Margin="0,5,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="2" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Tag="SettingsConnectorCard" Margin="0,0,7,6"
+                                                            Padding="10" MinHeight="68"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            Click="SettingsConnectorCard_Click"
+                                                            AutomationProperties.Name="{Binding ConfigurationCardAutomationName}"
+                                                            AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
+                                                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
+                                                            <TextBlock Text="Press Enter for options" Margin="0,3,0,0"
+                                                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="Disabled connectors" FontWeight="SemiBold"
-                                           FontSize="{DynamicResource SafeSpeakFont17}"
-                                           AutomationProperties.HeadingLevel="Level3" />
-                                <ItemsControl x:Name="AvailableConnectorCards"
-                                              ItemsSource="{Binding AvailableConnectors}"
-                                              Margin="0,5,0,7">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Tag="SettingsConnectorCard" Margin="0,0,0,6"
-                                                    Padding="10" MinHeight="68"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    Click="SettingsConnectorCard_Click"
-                                                    AutomationProperties.Name="{Binding ConfigurationCardAutomationName}"
-                                                    AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
-                                                               Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding ConfigurationActionText}" Margin="0,3,0,0"
-                                                               Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <Border Style="{StaticResource StatusCard}" Padding="10" Margin="0,0,0,8"
+                                        MinHeight="104" AutomationProperties.Name="Disabled connectors group">
+                                    <StackPanel>
+                                        <TextBlock Text="Disabled connectors" FontWeight="SemiBold"
+                                                   FontSize="{DynamicResource SafeSpeakFont17}"
+                                                   AutomationProperties.HeadingLevel="Level3" />
+                                        <ItemsControl x:Name="AvailableConnectorCards"
+                                                      ItemsSource="{Binding AvailableConnectors}"
+                                                      Margin="0,5,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="2" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Tag="SettingsConnectorCard" Margin="0,0,7,6"
+                                                            Padding="10" MinHeight="68"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            Click="SettingsConnectorCard_Click"
+                                                            AutomationProperties.Name="{Binding ConfigurationCardAutomationName}"
+                                                            AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
+                                                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding ConfigurationActionText}" Margin="0,3,0,0"
+                                                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border x:Name="InlineConnectorManagementPanel"
+                                        Style="{StaticResource StatusCard}" Padding="12" Margin="0,0,0,8"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock x:Name="InlineConnectorManagementHeading"
+                                                   FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}"
+                                                   TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level3" />
+                                        <TextBlock x:Name="InlineConnectorManagementPrompt" Margin="0,4,0,8"
+                                                   TextWrapping="Wrap" />
+                                        <WrapPanel>
+                                            <Button x:Name="InlineConnectorEditButton" Tag="SettingsConnectorInlineControl"
+                                                    Margin="0,0,7,5" Padding="9,7"
+                                                    Click="InlineConnectorEditButton_Click"
+                                                    Content="Edit"
+                                                    AutomationProperties.Name="Edit this enabled connector"
+                                                    AutomationProperties.HelpText="Runs this connector's configuration flow and keeps it enabled." />
+                                            <Button x:Name="InlineConnectorDeleteButton" Tag="SettingsConnectorInlineControl"
+                                                    Margin="0,0,7,5" Padding="9,7"
+                                                    Click="InlineConnectorDeleteButton_Click"
+                                                    Content="Delete"
+                                                    AutomationProperties.Name="Delete this enabled connector"
+                                                    AutomationProperties.HelpText="Disables this connector, removes it from Live, and moves its card to the Disabled connectors group." />
+                                            <Button Tag="SettingsConnectorInlineControl" Margin="0,0,0,5" Padding="9,7"
+                                                    Click="InlineConnectorManagementCancelButton_Click"
+                                                    Content="Cancel"
+                                                    AutomationProperties.Name="Cancel connector options"
+                                                    AutomationProperties.HelpText="Closes connector options without changing the connector." />
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
 
                                 <Border x:Name="InlineConnectorCapturePanel"
                                         Style="{StaticResource StatusCard}" Padding="12" Margin="0,0,0,8"

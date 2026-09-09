@@ -200,6 +200,29 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void EmptyConfiguredConnectorSetPersistsForCurrentSchema()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            var settings = AppSettings.Load(path);
+            settings.ConfiguredSourceConnectorIds = [];
+            settings.ActiveSourceConnectorIds = [];
+            settings.AutoConnectSource = false;
+
+            Assert.True(settings.TrySave(out string? error), error);
+
+            AppSettings reloaded = AppSettings.Load(path);
+            Assert.Empty(reloaded.ConfiguredSourceConnectorIds);
+            Assert.Empty(reloaded.ActiveSourceConnectorIds);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
     public void Load_MigratesLegacySelectedConnectorIntoConfiguredAndActiveSets()
     {
         const string legacyJson = """

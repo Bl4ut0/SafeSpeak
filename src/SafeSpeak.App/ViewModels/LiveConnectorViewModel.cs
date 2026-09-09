@@ -47,9 +47,11 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
         ? $"Disable {DisplayName}"
         : $"Enable {DisplayName}";
     public string ConfigurationCardAutomationName =>
-        $"{DisplayName}. {ConfigurationStateText}. Press Enter to {ConfigurationActionText.ToLowerInvariant()}.";
+        IsConfigured
+            ? $"{DisplayName}. {ConfigurationStateText}. Press Enter for Edit, Delete, and Cancel options."
+            : $"{DisplayName}. {ConfigurationStateText}. Press Enter to {ConfigurationActionText.ToLowerInvariant()}.";
     public string ConfigurationCardHelpText => IsConfigured
-        ? $"Disables {DisplayName} and removes it from the Live connector list. A connected session will be stopped."
+        ? $"Opens options to edit or delete {DisplayName}. Delete disables it and stops any connected session."
         : Id == TikTokLiveConnector.ConnectorDescriptor.Id
             ? "Opens an inline username listener. Enter the TikTok username twice to confirm and save it."
             : $"Enables {DisplayName}, adds it to the Live connector list, and saves the change immediately.";

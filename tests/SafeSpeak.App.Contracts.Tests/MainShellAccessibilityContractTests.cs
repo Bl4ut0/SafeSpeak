@@ -1253,9 +1253,25 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("{Binding AvailableConnectors}",
             NamedElement(document, "ItemsControl", "AvailableConnectorCards")
                 .Attribute("ItemsSource")?.Value);
+        Assert.True(
+            NamedElement(document, "ItemsControl", "ConfiguredConnectorCards")
+                .IsBefore(NamedElement(document, "ItemsControl", "AvailableConnectorCards")));
         Assert.Equal("Collapsed",
             NamedElement(document, "Border", "InlineConnectorCapturePanel")
                 .Attribute("Visibility")?.Value);
+        Assert.Equal("Collapsed",
+            NamedElement(document, "Border", "InlineConnectorManagementPanel")
+                .Attribute("Visibility")?.Value);
+        Assert.Equal("2",
+            NamedElement(document, "ItemsControl", "ConfiguredConnectorCards")
+                .Descendants(Presentation + "UniformGrid")
+                .Single()
+                .Attribute("Columns")?.Value);
+        Assert.Equal("2",
+            NamedElement(document, "ItemsControl", "AvailableConnectorCards")
+                .Descendants(Presentation + "UniformGrid")
+                .Single()
+                .Attribute("Columns")?.Value);
         Assert.True(runSetup.IsBefore(visibleGuide));
         Assert.True(visibleGuide.IsBefore(guideButtonsAtEnd));
 
@@ -1269,8 +1285,14 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("SettingsConnectorInlineControl", codeBehind);
         Assert.Contains("ConfigureTikTokDirectAsync(username)", codeBehind);
         Assert.Contains("_firstConnectorUsername", codeBehind);
-        Assert.Contains("OrderBy(item => item.DisplayName", File.ReadAllText(
-            RepositoryFile("src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs")));
+        Assert.Contains("BeginInlineConnectorManagement(connector)", codeBehind);
+        Assert.Contains("InlineConnectorEditButton_Click", codeBehind);
+        Assert.Contains("InlineConnectorDeleteButton_Click", codeBehind);
+        string mainViewModel = File.ReadAllText(
+            RepositoryFile("src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs"));
+        Assert.Contains("OrderBy(item => item.DisplayName", mainViewModel);
+        Assert.Contains("bool isEnabled = isConfigured", mainViewModel);
+        Assert.Contains("connect automatically the next time SafeSpeak starts", mainViewModel);
         Assert.Contains("control.IsVisible", codeBehind);
         Assert.Contains("control.IsEnabled", codeBehind);
         Assert.Contains("FocusElement(HearStatusButton)", codeBehind);

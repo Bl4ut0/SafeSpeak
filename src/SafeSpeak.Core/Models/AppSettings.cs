@@ -45,7 +45,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 11;
+    public const int CurrentSettingsSchemaVersion = 12;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -290,11 +290,9 @@ public sealed class AppSettings
         TikTokUsername = Connectors.TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string username)
             ? username : "";
         ConfiguredSourceConnectorIds = NormalizeConnectorIds(
-            ConfiguredSourceConnectorIds,
-            SelectedSourceConnectorId);
+            ConfiguredSourceConnectorIds);
         ActiveSourceConnectorIds = NormalizeConnectorIds(
-                ActiveSourceConnectorIds,
-                AutoConnectSource ? SelectedSourceConnectorId : null)
+                ActiveSourceConnectorIds)
             .Where(id => ConfiguredSourceConnectorIds.Contains(id, StringComparer.OrdinalIgnoreCase))
             .ToList();
         NormalizeLocalConnectorDetection();
@@ -316,8 +314,7 @@ public sealed class AppSettings
     }
 
     private static List<string> NormalizeConnectorIds(
-        IEnumerable<string>? connectorIds,
-        string? legacyConnectorId)
+        IEnumerable<string>? connectorIds)
     {
         string[] supportedIds = ["tikfinity", "tiktok-direct"];
         List<string> normalized = (connectorIds ?? [])
@@ -327,14 +324,6 @@ public sealed class AppSettings
             .Where(id => supportedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        string? normalizedLegacyId = NormalizeConnectorId(legacyConnectorId);
-        if (normalized.Count == 0 &&
-            normalizedLegacyId is not null &&
-            supportedIds.Contains(normalizedLegacyId, StringComparer.OrdinalIgnoreCase))
-        {
-            normalized.Add(normalizedLegacyId);
-        }
 
         return normalized;
     }
@@ -454,7 +443,17 @@ public sealed class AppSettings
         JsonElement root,
         AppSettings settings)
     {
-        if (root.TryGetProperty(nameof(ConfiguredSourceConnectorIds), out _))
+        int schemaVersion = 0;
+        if (root.TryGetProperty(nameof(SettingsSchemaVersion), out JsonElement schemaElement))
+        {
+            _ = schemaElement.TryGetInt32(out schemaVersion);
+        }
+
+        bool hasConfiguredCollection = root.TryGetProperty(
+            nameof(ConfiguredSourceConnectorIds),
+            out _);
+        if (hasConfiguredCollection &&
+            (schemaVersion >= 12 || (settings.ConfiguredSourceConnectorIds?.Count ?? 0) > 0))
         {
             return;
         }
