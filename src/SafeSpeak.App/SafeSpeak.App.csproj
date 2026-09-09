@@ -9,6 +9,16 @@
     <PackageReference Include="KokoroSharp" Version="0.8.4" GeneratePathProperty="true" />
   </ItemGroup>
 
+  <!-- Release builds provide a verified architecture-specific, CPU-only Ollama
+       runtime directory. It is packaged privately and never installed system-wide. -->
+  <ItemGroup Condition="'$(OllamaRuntimeDirectory)' != '' And Exists('$(OllamaRuntimeDirectory)')">
+    <Content Include="$(OllamaRuntimeDirectory)\**\*">
+      <Link>Runtime\Ollama\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- KokoroSharp's upstream target copies voice embeddings after Build but not after Publish.
        Declare the English embeddings explicitly so portable and MSIX releases are complete. -->
   <ItemGroup>

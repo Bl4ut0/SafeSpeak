@@ -12,6 +12,7 @@ namespace SafeSpeak.Core.Moderation;
 internal static partial class ContextualTargetingPolicy
 {
     private const double ExplicitMinorSexualIntentScore = 0.99;
+    private const double ExplicitGenocidalIntentScore = 0.99;
     private const double DirectedHostilityScore = 0.85;
     private const double AmbiguousMinorSafetyScore = 0.70;
     private const double SafeContextCeiling = 0.40;
@@ -30,6 +31,16 @@ internal static partial class ContextualTargetingPolicy
         @"^\s*(?:(?:(?:child(?:ren)?(?:['’]s)?\s+sexual\s+(?:abuse|exploitation)|sexual\s+(?:abuse|exploitation)\s+of\s+(?:a\s+)?child(?:ren)?)\s+(?:is|are)\s+(?:wrong|harmful|illegal|unacceptable|never\s+acceptable))|(?:(?:we\s+(?:must|should)|please)\s+)?protect\s+(?:kids|children|minors)\s+from\s+(?:sexual\s+)?(?:abuse|exploitation|grooming)|(?:i|we)\s+(?:reported|am\s+reporting|are\s+reporting)\s+(?:suspected\s+)?(?:child\s+)?(?:sexual\s+)?(?:abuse|exploitation|grooming)\s+to\s+(?:the\s+)?(?:authorities|police|moderators?))\s*[.!?]*\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ProtectiveMinorSafetyRegex();
+
+    [GeneratedRegex(
+        @"\b(?:(?:i|we)\s+(?:support|endorse|celebrate|welcome|want|demand|plan|intend|will|would\s+support)\s+(?:a\s+|the\s+)?genocide(?!\s+(?:prevention|education|awareness|research|remembrance|survivors?|victims?|stopped|prevented|ended|to\s+(?:stop|end|be\s+stopped|be\s+prevented)))|(?:you|u|they|them|those\s+people|your\s+people|that\s+group)\s+(?:deserve|need|should\s+(?:face|suffer|experience))\s+(?:a\s+|the\s+)?genocide|(?:we|you|they)\s+(?:should|must|need\s+to|have\s+to|will)\s+(?:commit|carry\s+out|start|finish|complete)\s+(?:a\s+|the\s+)?genocide|(?:i|we|you|they)\s+(?:should|must|need\s+to|have\s+to|will|want\s+to|plan\s+to|intend\s+to)\s+(?:genocide|exterminate|eradicate)\s+(?:them|you|u|those\s+people|your\s+people|that\s+group)(?:\s+all)?|(?:them|you|u|those\s+people|your\s+people|that\s+group)\s+(?:should|must|need\s+to)\s+be\s+(?:genocided|exterminated|eradicated)|(?:commit|carry\s+out|start|finish|complete)\s+(?:a\s+|the\s+)?genocide\s+(?:against|of)\b|(?:genocide|exterminate|eradicate)\s+(?:them|you|u|those\s+people|your\s+people|that\s+group)(?:\s+all)?|(?:i|we)\s+(?:hope|wish|pray)\s+(?:you|u|they|your\s+people|those\s+people)\s+(?:face|suffer|experience|get)\s+(?:a\s+|the\s+)?genocide)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ExplicitGenocidalIntentRegex();
+
+    [GeneratedRegex(
+        @"^\s*(?:genocide\s+(?:is|was)\s+(?:a\s+)?(?:crime(?:\s+against\s+humanity)?|wrong|evil|horrific|an?\s+atrocity|never\s+acceptable)|(?:(?:we\s+)?(?:must|should)\s+|please\s+)?(?:prevent|stop|oppose|condemn)\s+genocide|(?:i|we|they|students?)\s+(?:am|are|were)?\s*(?:studying|learning|reading|talking|teaching)\s+about\s+(?:the\s+)?genocide|(?:remember|honor)\s+(?:the\s+)?(?:victims?|survivors?)\s+of\s+genocide|genocide\s+(?:prevention|education|awareness|research|remembrance)\s+(?:is|remains)\s+(?:important|necessary|essential)|(?:this|that|the)\s+(?:book|article|documentary|lesson|museum|class)\s+(?:is|was)\s+about\s+genocide)\s*[.!?]*\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ProtectiveOrInformationalGenocideRegex();
 
     [GeneratedRegex(
         @"\b(?:(?:i|we)\s+(?:really\s+|absolutely\s+)?(?:hate|despise|can['’]?t\s+stand)\s+(?:you|u|him|her|them|@[\p{L}\p{N}_]{1,32}|your\s+(?:stream|channel|content)|(?:this|that|the)\s+(?:stream|streamer|creator|host|channel|chat|community)|(?:the\s+)?(?:streamer|creator|host)|(?:all\s+)?(?:people|viewers|streamers|moderators)|everyone|(?:everyone|people|viewers)\s+(?:here|in\s+(?:this\s+)?(?:chat|stream)))|(?:this|that|the)\s+(?:streamer|creator|host)\s+(?:is|was)\s+(?:trash|garbage|awful|stupid|an?\s+idiot|a\s+moron|pathetic|disgusting|terrible|the\s+worst)|(?:everyone|people|viewers)\s+(?:here|in\s+(?:this\s+)?(?:chat|stream))\s+(?:is|are)\s+(?:trash|garbage|awful|stupid|pathetic|disgusting|terrible|the\s+worst))\b",
@@ -65,6 +76,33 @@ internal static partial class ContextualTargetingPolicy
                 FlaggedCategory = "Explicit minor sexual exploitation",
                 ModelUsed = $"{result.ModelUsed} + target-context policy"
             };
+        }
+
+        bool isExplicitGenocidalIntent = ExplicitGenocidalIntentRegex().IsMatch(originalText) ||
+            ExplicitGenocidalIntentRegex().IsMatch(normalizedText);
+        if (isExplicitGenocidalIntent)
+        {
+            return result with
+            {
+                IsToxic = true,
+                ToxicityScore = Math.Max(result.ToxicityScore, ExplicitGenocidalIntentScore),
+                SevereToxicityScore = Math.Max(result.SevereToxicityScore, ExplicitGenocidalIntentScore),
+                ThreatScore = Math.Max(result.ThreatScore, 0.95),
+                HarassmentScore = Math.Max(result.HarassmentScore, 0.95),
+                FlaggedCategory = "Genocidal advocacy or threat",
+                ModelUsed = $"{result.ModelUsed} + target-context policy"
+            };
+        }
+
+        // Discussion, education, remembrance, and explicit opposition are not
+        // endorsements of mass violence. Full-message matching prevents a safe
+        // preface from concealing an appended threat or expression of support.
+        bool isProtectiveOrInformationalGenocideStatement =
+            ProtectiveOrInformationalGenocideRegex().IsMatch(originalText) ||
+            ProtectiveOrInformationalGenocideRegex().IsMatch(normalizedText);
+        if (isProtectiveOrInformationalGenocideStatement)
+        {
+            return ApplySafeContextCeiling(result, "Protective or informational genocide discussion");
         }
 
         // A complete protective statement is a speech act opposing harm, not

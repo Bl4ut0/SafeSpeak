@@ -6,17 +6,20 @@ namespace SafeSpeak.Core.Tests;
 public sealed class SourceConnectorRegistryTests
 {
     [Fact]
-    public async Task DefaultRegistryExposesTikFinityThroughGenericContract()
+    public async Task DefaultRegistryExposesTikFinityAndTikTokDirectThroughGenericContract()
     {
         SourceConnectorRegistry registry = SourceConnectorRegistry.CreateDefault();
 
-        SourceConnectorDescriptor descriptor = Assert.Single(registry.Descriptors);
-        Assert.Equal("tikfinity", descriptor.Id);
-        Assert.True(descriptor.Capabilities.HasFlag(SourceConnectorCapabilities.Chat));
-
-        ISourceConnector connector = registry.Create(descriptor.Id);
-        Assert.Equal(descriptor, connector.Descriptor);
-        await connector.DisposeAsync();
+        Assert.Equal(2, registry.Descriptors.Count);
+        Assert.Contains(registry.Descriptors, descriptor => descriptor.Id == "tikfinity");
+        Assert.Contains(registry.Descriptors, descriptor => descriptor.Id == "tiktok-direct");
+        foreach (SourceConnectorDescriptor descriptor in registry.Descriptors)
+        {
+            Assert.True(descriptor.Capabilities.HasFlag(SourceConnectorCapabilities.Chat));
+            ISourceConnector connector = registry.Create(descriptor.Id);
+            Assert.Equal(descriptor, connector.Descriptor);
+            await connector.DisposeAsync();
+        }
     }
 
     [Fact]

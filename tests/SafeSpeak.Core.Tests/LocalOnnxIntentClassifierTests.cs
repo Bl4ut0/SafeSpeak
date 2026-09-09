@@ -210,7 +210,33 @@ public sealed class LocalOnnxIntentClassifierTests
         });
 
         Assert.True(decision.Passed);
-        Assert.Equal("A viewer followed the stream", decision.SpokenText);
+        Assert.Equal("A viewer, followed the stream", decision.SpokenText);
+    }
+
+    [Theory]
+    [InlineData("𝖝𝖞", "xy")]
+    [InlineData("🖤Danis🖤", "Danis")]
+    [InlineData("😶‍🌫️", "A viewer")]
+    public async Task DisplayNameIsConvertedToSpeakableAttribution(
+        string displayName,
+        string expectedName)
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            IntentModerationLevel = 3,
+            UserCooldownSeconds = 0
+        });
+
+        ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+        {
+            Author = "viewer-id",
+            AuthorDisplayName = displayName,
+            RawText = "Hello streamer"
+        });
+
+        Assert.True(decision.Passed);
+        Assert.Equal(expectedName, decision.SafeAuthorDisplayName);
+        Assert.Equal($"{expectedName} says: Hello streamer", decision.SpokenText);
     }
 
     [Fact]

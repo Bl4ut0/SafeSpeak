@@ -244,6 +244,88 @@ public sealed class IntentModerationLevelTests
     }
 
     [Theory]
+    [InlineData("I support genocide.")]
+    [InlineData("They deserve genocide.")]
+    [InlineData("We should commit genocide against them.")]
+    [InlineData("We need to genocide them.")]
+    [InlineData("Those people should be genocided.")]
+    [InlineData("Genocide them all.")]
+    [InlineData("I hope your people face genocide.")]
+    public async Task GenocidalAdvocacyThreatsAndHostileWishesAreBlockedAtEveryLevel(string text)
+    {
+        for (int level = 1; level <= 4; level++)
+        {
+            using var pipeline = new ModerationPipeline(new ModerationConfig
+            {
+                IntentModerationLevel = level,
+                UserCooldownSeconds = 0
+            });
+
+            ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+            {
+                Author = "hostile_viewer",
+                RawText = text
+            });
+
+            Assert.False(decision.Passed, $"Expected genocidal intent '{text}' to be blocked at level {level}.");
+            Assert.Equal(ModerationReasonCode.ThreatOrHarassment, decision.ReasonCode);
+            Assert.Empty(decision.SpokenText);
+        }
+    }
+
+    [Theory]
+    [InlineData("Genocide is a crime against humanity.")]
+    [InlineData("We must prevent genocide.")]
+    [InlineData("Students are learning about genocide.")]
+    [InlineData("Remember the victims of genocide.")]
+    [InlineData("This documentary is about genocide.")]
+    [InlineData("I support genocide prevention.")]
+    public async Task ProtectiveEducationalAndInformationalGenocideDiscussionPassesEveryLevel(string text)
+    {
+        for (int level = 1; level <= 4; level++)
+        {
+            using var pipeline = new ModerationPipeline(new ModerationConfig
+            {
+                IntentModerationLevel = level,
+                UserCooldownSeconds = 0
+            });
+
+            ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+            {
+                Author = "viewer",
+                RawText = text
+            });
+
+            Assert.True(
+                decision.Passed,
+                $"Expected neutral or protective context '{text}' to pass at level {level}: {decision.ReasonDescription}");
+            Assert.NotEmpty(decision.SpokenText);
+        }
+    }
+
+    [Theory]
+    [InlineData("Genocide is a crime against humanity, but I support genocide.")]
+    [InlineData("We must prevent genocide, but they deserve genocide.")]
+    public async Task ProtectiveGenocideWordingCannotHideAppendedHostileIntent(string text)
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            IntentModerationLevel = 1,
+            UserCooldownSeconds = 0
+        });
+
+        ModerationDecision decision = await pipeline.ProcessMessageAsync(new ChatMessage
+        {
+            Author = "hostile_viewer",
+            RawText = text
+        });
+
+        Assert.False(decision.Passed);
+        Assert.Equal(ModerationReasonCode.ThreatOrHarassment, decision.ReasonCode);
+        Assert.Empty(decision.SpokenText);
+    }
+
+    [Theory]
     [InlineData("I want to have sex with my underage niece.")]
     [InlineData("I plan to do sexual things with a child.")]
     [InlineData("That underage girl is sexy.")]

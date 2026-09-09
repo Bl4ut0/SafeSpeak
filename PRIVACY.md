@@ -1,6 +1,6 @@
 # SafeSpeak Privacy Policy
 
-Last updated: September 1, 2026
+Last updated: September 8, 2026
 
 SafeSpeak is a local-first accessibility application published by The Project Hub. It moderates livestream chat and converts approved content to speech. This policy covers the SafeSpeak Windows application and its Android and iOS test applications.
 
@@ -14,7 +14,7 @@ The current mobile test applications process only text that you enter directly i
 
 Current moderation and supported speech processing occur on your device. SafeSpeak does not require a SafeSpeak account and does not send livestream messages, viewer identities, moderation decisions, settings, or audio to The Project Hub. SafeSpeak does not include advertising or developer-operated analytics or telemetry.
 
-SafeSpeak connects to supported integrations on your own computer, including TikFinity through a loopback connection. Those integrations are separate products and are governed by their own privacy practices. If you choose to install an optional local neural-voice model, SafeSpeak downloads that model from the project’s published GitHub release source.
+SafeSpeak connects to supported integrations on your own computer, including TikFinity through a loopback connection. Those integrations are separate products and are governed by their own privacy practices. If you choose to install an optional local neural-voice model, SafeSpeak downloads that model from the project’s published GitHub release source. If you choose to install the optional Qwen3Guard moderation model, SafeSpeak's packaged private runtime downloads the pinned model from the Ollama model registry. Livestream messages and viewer identities are not included in that download. After installation, Qwen3Guard moderation requests stay on a randomly selected Windows loopback port and Ollama cloud features are disabled.
 
 ## Device speech services
 
@@ -22,7 +22,7 @@ The mobile test applications use the text-to-speech service provided by Android 
 
 ## Local storage and logs
 
-SafeSpeak stores settings locally under `%LOCALAPPDATA%\SafeSpeak`.
+SafeSpeak stores settings locally under `%LOCALAPPDATA%\SafeSpeak`. The optional Qwen3Guard model is stored under `%LOCALAPPDATA%\SafeSpeak\Models\Qwen3Guard` and can be removed from the Safety page.
 
 Stream audit logging is disabled by default. If you explicitly enable it, SafeSpeak writes logs under `%LOCALAPPDATA%\SafeSpeak\Logs`. Those logs can contain livestream messages, viewer names, normalized or spoken text, moderation results, and related event details. The logs remain on your device unless you choose to copy or share them. You can stop future logging in SafeSpeak and delete existing logs from that local folder.
 

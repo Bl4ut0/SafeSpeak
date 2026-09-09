@@ -25,7 +25,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private readonly ModerationPipeline _pipeline;
     private readonly ModerationTestService _moderationTestService;
-    private readonly ISourceConnector _sourceConnector;
+    private readonly SourceConnectorHost _sourceConnector;
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
     private readonly IAudioRouter _voicePreviewAudioRouter;
@@ -60,6 +60,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private string _connectionStatusText = "Disconnected";
+
+    [ObservableProperty]
+    private string _selectedSourceConnectorId = TikFinityWebSocketClient.ConnectorDescriptor.Id;
+
+    [ObservableProperty]
+    private string _tikTokUsername = "";
 
     [ObservableProperty]
     private bool _isConnected;
@@ -194,6 +200,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _moderationLevel = 3;
 
     [ObservableProperty]
+    private ModerationModelPreference _selectedModerationModel =
+        ModerationModelPreference.BuiltInHybrid;
+
+    [ObservableProperty]
     private string? _selectedCustomBlockedTerm;
 
     [ObservableProperty]
@@ -230,6 +240,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         new(ThemePreference.Light, "Light", 1),
         new(ThemePreference.Dark, "Dark", 2),
         new(ThemePreference.HighContrast, "High Contrast", 3)
+    ];
+    public IReadOnlyList<ModerationModelChoice> ModerationModelChoices { get; } =
+    [
+        new(
+            ModerationModelPreference.BuiltInHybrid,
+            "Built-in enhanced model (recommended)",
+            1),
+        new(
+            ModerationModelPreference.Qwen3Guard06BCompressed,
+            "Qwen3Guard 0.6B compressed (optional)",
+            2)
     ];
     public IReadOnlyList<AudienceChoice> AudienceChoices { get; } =
     [
@@ -346,18 +367,60 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 : $"While chat is paused, {string.Join(", ", bypassed)} can still be spoken. Emergency Stop always stops everything.";
         }
     }
+    public IReadOnlyList<SourceConnectorChoice> SourceConnectorChoices { get; } =
+    [
+        new(TikFinityWebSocketClient.ConnectorDescriptor.Id, "TikFinity (local app)"),
+        new(TikTokLiveConnector.ConnectorDescriptor.Id, "TikTok Direct by username (test)")
+    ];
     public string SourceName => _sourceConnector.Descriptor.DisplayName;
-    public string SourceDescription => _sourceConnector.Descriptor.ProviderName;
-    public string IntentModelStatus => _pipeline.Classifier is LocalOnnxIntentClassifier local
-        ? local.IsModelLoaded
-            ? "Enhanced filtering model: bundled, installed, and active on this computer."
-            : $"Enhanced filtering model: unavailable. Deterministic local filtering remains active. {local.AvailabilityMessage}"
-        : $"Selected intent moderation engine: {_pipeline.Classifier.ModelName}. The bundled local model remains packaged as its fallback.";
-    public string IntentModelShortStatus => _pipeline.Classifier is LocalOnnxIntentClassifier local
-        ? local.IsModelLoaded
-            ? "Enhanced model — Active"
-            : "Local fallback — Active"
-        : $"{_pipeline.Classifier.ModelName} — Active";
+    public string SourceDescription =>
+        $"{_sourceConnector.Descriptor.ProviderName}. {_sourceConnector.EndpointDescription}";
+    public string IntentModelStatus => _pipeline.Classifier switch
+    {
+        Qwen3GuardIntentClassifier qwen when qwen.IsModelLoaded =>
+            "Qwen3Guard 0.6B compressed is installed, verified, and active through SafeSpeak's private local service. The built-in model remains active as its safety fallback.",
+        Qwen3GuardIntentClassifier when IsInstallingModerationModel =>
+            $"Qwen3Guard installation is in progress: {Math.Round(ModerationModelDownloadProgress):0} percent. The built-in local model remains active.",
+        Qwen3GuardIntentClassifier when !_qwenRuntime.IsRuntimeAvailable =>
+            "Qwen3Guard is selected, but this development build is missing SafeSpeak's packaged local model runtime. The built-in local model remains active.",
+        Qwen3GuardIntentClassifier when !IsQwenModelInstalled =>
+            "Qwen3Guard 0.6B compressed is selected but not installed. Use the Install optional model button; no separate application or terminal command is needed. Until installation finishes, the built-in local model remains active.",
+        Qwen3GuardIntentClassifier =>
+            "Qwen3Guard 0.6B compressed is installed and its private local service is starting. The built-in local model remains active until Qwen3Guard responds.",
+        LocalOnnxIntentClassifier local when local.IsModelLoaded =>
+            "Enhanced filtering model: bundled, installed, and active on this computer.",
+        LocalOnnxIntentClassifier local =>
+            $"Enhanced filtering model: unavailable. Deterministic local filtering remains active. {local.AvailabilityMessage}",
+        _ =>
+            $"Selected intent moderation engine: {_pipeline.Classifier.ModelName}. The bundled local model remains packaged as its fallback."
+    };
+    public string IntentModelShortStatus => _pipeline.Classifier switch
+    {
+        Qwen3GuardIntentClassifier qwen when qwen.IsModelLoaded =>
+            "Qwen3Guard 0.6B — Active",
+        Qwen3GuardIntentClassifier when IsInstallingModerationModel =>
+            $"Qwen3Guard — Installing {Math.Round(ModerationModelDownloadProgress):0}%",
+        Qwen3GuardIntentClassifier when !IsQwenModelInstalled =>
+            "Qwen3Guard — Install available",
+        Qwen3GuardIntentClassifier =>
+            "Qwen3Guard selected — Built-in fallback active",
+        LocalOnnxIntentClassifier local when local.IsModelLoaded =>
+            "Enhanced model — Active",
+        LocalOnnxIntentClassifier =>
+            "Local fallback — Active",
+        _ => $"{_pipeline.Classifier.ModelName} — Active"
+    };
+    public string ModerationModelSelectionAccessibleText
+    {
+        get
+        {
+            int index = ModerationModelChoices
+                .Select((choice, position) => (choice, position))
+                .First(item => item.choice.Value == SelectedModerationModel)
+                .position;
+            return $"{ModerationModelChoices[index].DisplayName}, option {index + 1} of {ModerationModelChoices.Count}. {IntentModelStatus}";
+        }
+    }
     public string ModerationLevelName => Math.Clamp(ModerationLevel, 1, 4) switch
     {
         1 => "Relaxed",
@@ -438,6 +501,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             "Moderation guide.",
             ModerationLevelAccessibleText,
             "The slider changes the minimum contextual-hostility score required to block a message. Always-on safety layers remain active.",
+            "Contextual filtering model.",
+            IntentModelStatus,
             "All four cutoffs."
         }
         .Concat(ModerationLevelGuide)
@@ -519,6 +584,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private IReadOnlyList<(string Title, string Text)> GetModerationGuideSections() =>
     [
         ("Current moderation strength", $"{ModerationLevelAccessibleText} The slider changes the minimum contextual-hostility score required to block a message. Always-on safety layers remain active."),
+        ("Contextual filtering model", IntentModelStatus + " Focus the model selector, then press Enter, Space, Alt plus Down Arrow, or F4 to open its choices. Arrow keys change the model only while the list is open. When Qwen3Guard is selected, use Install optional model, Cancel model download, or Remove optional model directly below the selector. SafeSpeak manages the runtime; no separate application or terminal command is needed."),
         ("All four cutoffs", string.Join(" ", ModerationLevelGuide)),
         ("Contextual wording signals", string.Join(" ", ContextualIntentSignals)),
         ("Examples accepted at every level", string.Join(" ", AcceptedHostilityExamples)),
@@ -579,6 +645,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string DisplayName,
         int Position);
 
+    public sealed record ModerationModelChoice(
+        ModerationModelPreference Value,
+        string DisplayName,
+        int Position);
+
     public sealed record AudienceChoice(
         AudienceMode Value,
         string DisplayName,
@@ -589,14 +660,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string DisplayName,
         int Position);
 
+    public sealed record SourceConnectorChoice(
+        string Id,
+        string DisplayName);
+
     private readonly KokoroModelManager _kokoroManager;
 
     public MainViewModel()
     {
         _settings = AppSettings.Load();
-        _pipeline = new ModerationPipeline(_settings.CreateModerationConfig());
+        _pipeline = new ModerationPipeline(
+            _settings.CreateModerationConfig(),
+            intentClassifier: CreateSelectedIntentClassifier());
         _moderationTestService = new ModerationTestService(_pipeline);
-        var connectorRegistry = SourceConnectorRegistry.CreateDefault();
+        SelectedModerationModel = _settings.ModerationModel;
+        ModerationModelDownloadStatus = IsQwenModelInstalled
+            ? "The optional Qwen3Guard model is installed."
+            : "The optional Qwen3Guard model is not installed.";
+        ModerationModelAccessibleProgress = ModerationModelDownloadStatus;
+        var connectorRegistry = SourceConnectorRegistry.CreateDefault(_settings.TikTokUsername);
         string connectorId = connectorRegistry.Descriptors.Any(
             descriptor => string.Equals(
                 descriptor.Id,
@@ -604,8 +686,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 StringComparison.OrdinalIgnoreCase))
             ? _settings.SelectedSourceConnectorId
             : TikFinityWebSocketClient.ConnectorDescriptor.Id;
-        _sourceConnector = connectorRegistry.Create(connectorId);
+        _sourceConnector = new SourceConnectorHost(connectorRegistry.Create(connectorId));
         _settings.SelectedSourceConnectorId = _sourceConnector.Descriptor.Id;
+        SelectedSourceConnectorId = _settings.SelectedSourceConnectorId;
+        TikTokUsername = _settings.TikTokUsername;
         _kokoroManager = new KokoroModelManager();
         _ttsEngine = new ModularTtsEngine(_kokoroManager);
         _audioRouter = new WasapiAudioRouter();
@@ -694,6 +778,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             _announcer.Announce(_pendingGuidanceDeviceNotice);
         }
         _autoConnectTask = AutoConnectSourceAsync();
+        _ = StartInstalledQwenModelAsync();
     }
 
     private void WireEvents()
@@ -714,7 +799,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (_incomingEventCts.IsCancellationRequested) return;
 
             IsConnected = e.State == ConnectionState.Connected;
-            ConnectionStatusText = $"{SourceName}: {e.State}";
+            ConnectionStatusText = string.IsNullOrWhiteSpace(e.Message)
+                ? $"{SourceName}: {e.State}"
+                : $"{SourceName}: {e.State}. {e.Message}";
+            OnPropertyChanged(nameof(SourceName));
+            OnPropertyChanged(nameof(SourceDescription));
             if (IsConnected)
             {
                 _auditLogger.StartSession(SourceName, _sourceConnector.Descriptor.ProviderName, Config);
@@ -732,6 +821,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 else if (e.State == ConnectionState.Reconnecting)
                 {
                     LiveStatusAnnouncement = $"{SourceName} is unavailable. SafeSpeak will keep trying automatically.";
+                }
+                else if (e.State == ConnectionState.Faulted)
+                {
+                    LiveStatusAnnouncement = string.IsNullOrWhiteSpace(e.Message)
+                        ? $"{SourceName} could not connect."
+                        : e.Message;
+                    AnnounceState(LiveStatusAnnouncement);
                 }
             }
         });
@@ -1311,6 +1407,34 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ModerationLevelThresholdSummary);
     }
 
+    partial void OnSelectedModerationModelChanged(ModerationModelPreference value)
+    {
+        ModerationModelPreference normalized = Enum.IsDefined(value)
+            ? value
+            : ModerationModelPreference.BuiltInHybrid;
+        if (value != normalized)
+        {
+            SelectedModerationModel = normalized;
+            return;
+        }
+
+        if (_isInitializing)
+        {
+            RefreshQwenModelProperties();
+            return;
+        }
+
+        _settings.ModerationModel = normalized;
+        _pipeline.SetIntentClassifier(CreateSelectedIntentClassifier());
+        HasFilterTestResult = false;
+        SaveSettingsOrReport();
+        RefreshQwenModelProperties();
+        if (normalized == ModerationModelPreference.Qwen3Guard06BCompressed)
+        {
+            _ = StartInstalledQwenModelAsync();
+        }
+    }
+
     private void SaveOutputSettings()
     {
         if (_ttsQueue is null) return;
@@ -1429,6 +1553,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 Author = liveEvent.Author,
                 AuthorDisplayName = liveEvent.AuthorDisplayName,
                 RawText = spoken,
+                Platform = liveEvent.Platform,
                 AttributionStyle = SpokenAttributionStyle.LeadingName,
                 AuthorTier = liveEvent.AuthorTier,
                 IsSubscriber = liveEvent.IsSubscriber,
@@ -1564,6 +1689,54 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
+    public async Task SaveAndConnectSource()
+    {
+        string selectedId = SourceConnectorChoices.Any(choice =>
+            string.Equals(choice.Id, SelectedSourceConnectorId, StringComparison.OrdinalIgnoreCase))
+            ? SelectedSourceConnectorId
+            : TikFinityWebSocketClient.ConnectorDescriptor.Id;
+        string username = "";
+        if (string.Equals(selectedId, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase) &&
+            !TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out username))
+        {
+            AnnounceState(
+                "Enter a valid TikTok username using letters, numbers, periods, or underscores.",
+                interrupt: true);
+            return;
+        }
+
+        Interlocked.Increment(ref _monitoringGeneration);
+        _sessionDonors.Clear();
+        _ttsQueue.Disarm();
+        _auditLogger.EndSession();
+        IsConnected = false;
+        ConnectionStatusText =
+            "Changing live stream source. SafeSpeak is disarmed and the speech queue is clear.";
+
+        try
+        {
+            await _sourceConnector.ReplaceAsync(() =>
+                SourceConnectorRegistry.CreateDefault(username).Create(selectedId));
+            _settings.SelectedSourceConnectorId = selectedId;
+            _settings.TikTokUsername = username;
+            _settings.AutoConnectSource = true;
+            TikTokUsername = username;
+            SaveSettingsOrReport();
+            OnPropertyChanged(nameof(SourceName));
+            OnPropertyChanged(nameof(SourceDescription));
+            await _sourceConnector.ConnectAsync();
+            AnnounceState(
+                $"{SourceName} selected. SafeSpeak remains disarmed while the source connects.",
+                interrupt: true);
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatusText = $"Source change failed. {ex.Message}";
+            AnnounceState(ConnectionStatusText, interrupt: true);
+        }
+    }
+
+    [RelayCommand]
     public void AnnounceStatusPrivately()
     {
         string armedStr = IsArmed
@@ -1581,7 +1754,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         string announcement =
             $"SafeSpeak {armedStr}. Source status: {ConnectionStatusText}. " +
             $"{queueStr}. {speechStr}. {broadcastRoute}.";
-        AnnounceState(announcement, interrupt: true);
+        LiveStatusAnnouncement = announcement;
+        _announcer.AnnounceOnDemand(announcement, interrupt: true);
     }
 
     [RelayCommand]
@@ -1713,6 +1887,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             FilterTestPassed = result.IsAllowed;
             FilterTestResult = result.AccessibleSummary;
             HasFilterTestResult = true;
+            OnPropertyChanged(nameof(IntentModelStatus));
+            OnPropertyChanged(nameof(IntentModelShortStatus));
             AnnounceState($"Filter test result. {FilterTestResult}");
         }
         catch (Exception)
@@ -1868,11 +2044,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         return new IpcStateBroadcast
         {
-            IsArmed = IsArmed,
-            IsAutoPlay = IsAutoPlay,
-            IsPaused = IsPaused,
-            IsSpeaking = IsSpeaking,
-            QueueCount = QueueCount,
+            IsArmed = _ttsQueue.IsArmed,
+            IsAutoPlay = _ttsQueue.IsAutoPlay,
+            IsPaused = _ttsQueue.IsPaused,
+            IsSpeaking = _ttsQueue.IsSpeaking,
+            QueueCount = _ttsQueue.Count,
             ConnectionState = ConnectionStatusText,
             IsConnected = IsConnected
         };
@@ -1894,9 +2070,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
                 case "toggle_arm":
                     ToggleArm();
-                    return IsArmed ? "Armed" : "Disarmed";
+                    return _ttsQueue.IsArmed ? "Armed" : "Disarmed";
 
                 case "toggle_autoplay":
+                    if (!_ttsQueue.IsArmed)
+                    {
+                        AnnounceState(
+                            "SafeSpeak is disarmed. Arm SafeSpeak before choosing automatic playback.");
+                        return "Disarmed";
+                    }
                     if (_ttsQueue.Mode == TtsPlaybackMode.Automatic)
                     {
                         UseManualPlayback();
@@ -1906,24 +2088,52 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     return "AutomaticPlaybackEnabled";
 
                 case "toggle_pause":
+                    if (!_ttsQueue.IsArmed)
+                    {
+                        AnnounceState(
+                            "SafeSpeak is disarmed. There is no text to speech playback to pause.");
+                        return "Disarmed";
+                    }
                     PauseOrResumeTts();
                     return _ttsQueue.Mode == TtsPlaybackMode.Paused ? "Paused" : "Resumed";
 
                 case "pause":
+                    if (!_ttsQueue.IsArmed)
+                    {
+                        AnnounceState(
+                            "SafeSpeak is disarmed. There is no text to speech playback to pause.");
+                        return "Disarmed";
+                    }
                     _ttsQueue.SetPaused(true);
                     AnnounceState("TTS Queue Paused");
                     return "Paused";
 
                 case "resume":
+                    if (!_ttsQueue.IsArmed)
+                    {
+                        AnnounceState(
+                            "SafeSpeak is disarmed. Arm SafeSpeak before resuming playback.");
+                        return "Disarmed";
+                    }
                     _ttsQueue.ResumeAutomatic();
                     AnnounceState("TTS Queue Resumed");
                     return "Resumed";
 
                 case "manual":
+                    if (!_ttsQueue.IsArmed)
+                    {
+                        UseManualPlayback();
+                        return "Disarmed";
+                    }
                     UseManualPlayback();
                     return "ManualPlaybackEnabled";
 
                 case "automatic":
+                    if (!_ttsQueue.IsArmed)
+                    {
+                        UseAutomaticPlayback();
+                        return "Disarmed";
+                    }
                     UseAutomaticPlayback();
                     return "AutomaticPlaybackEnabled";
 
@@ -2040,6 +2250,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ttsQueue.PlaybackFinished -= TtsQueue_PlaybackFinished;
 
         Interlocked.Increment(ref _monitoringGeneration);
+        _moderationModelInstallCts?.Cancel();
+        _qwenRuntime.StopNow();
         TryShutdownStep(_ttsQueue.EmergencyStop);
         TryShutdownStep(_ipcServer.Dispose);
         return DisposeCoreAsync();
@@ -2061,6 +2273,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _auditLogger.DisposeAsync()));
 
         TryShutdownStep(_pipeline.Dispose);
+        await IgnoreShutdownFailureAsync(_qwenRuntime.DisposeAsync().AsTask());
         TryShutdownStep(_ttsEngine.Dispose);
         TryShutdownStep(_audioRouter.Dispose);
         TryShutdownStep(_voicePreviewAudioRouter.Dispose);

@@ -40,6 +40,9 @@ public class AttackCorpusTests : IDisposable
     // Leetspeak / symbol substitutions
     [InlineData("k1ll your$elf", false)]
     [InlineData("die in a f1re", false)]
+    [InlineData("you are a FAG0T", false)]
+    [InlineData("F4G0T", false)]
+    [InlineData("you N166ER", false)]
     // Repetition stretch
     [InlineData("kyyyyysssss", false)]
     public async Task ProcessMessage_CorrectlyFiltersAttacksAndAllowsCleanMessages(string text, bool shouldPass)

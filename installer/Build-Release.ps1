@@ -55,6 +55,8 @@ $msixPath = Join-Path $artifactRoot "SafeSpeak_${PackageVersion}_${Architecture}
 $msiPath = Join-Path $artifactRoot "SafeSpeak_${PackageVersion}_${Architecture}.msi"
 $manifestReportPath = Join-Path $artifactRoot "SafeSpeak-$PackageVersion-$runtimeIdentifier.release.json"
 $msiBuildScript = Join-Path $PSScriptRoot 'Build-Msi.ps1'
+$ollamaPrepareScript = Join-Path $PSScriptRoot 'Prepare-OllamaRuntime.ps1'
+$ollamaRuntimeCache = Join-Path $repoRoot '.build-cache\ollama'
 
 function Invoke-CheckedCommand {
     param(
@@ -159,6 +161,18 @@ try {
         Invoke-CheckedCommand -FilePath 'dotnet' -ArgumentList @('test', $appContractsTestProject, '-c', 'Release', '--no-restore')
     }
 
+    if (-not (Test-Path -LiteralPath $ollamaPrepareScript -PathType Leaf)) {
+        throw "The managed local model runtime preparation script is missing: $ollamaPrepareScript"
+    }
+    $runtimePreparationOutput = @(& $ollamaPrepareScript `
+        -Architecture $Architecture `
+        -CacheRoot $ollamaRuntimeCache)
+    $ollamaRuntimeDirectory = [string]($runtimePreparationOutput | Select-Object -Last 1)
+    if ([string]::IsNullOrWhiteSpace($ollamaRuntimeDirectory) -or
+        -not (Test-Path -LiteralPath (Join-Path $ollamaRuntimeDirectory 'ollama.exe') -PathType Leaf)) {
+        throw 'The verified private local model runtime was not prepared correctly.'
+    }
+
     $publishProfile = if ($Architecture -eq 'x64') { 'win-x64' } else { 'win-arm64' }
     Invoke-CheckedCommand -FilePath 'dotnet' -ArgumentList @(
         'publish', $appProject,
@@ -172,6 +186,7 @@ try {
         "-p:FileVersion=$PackageVersion",
         "-p:InformationalVersion=$PackageVersion",
         '-p:IncludeSourceRevisionInInformationalVersion=false',
+        "-p:OllamaRuntimeDirectory=$ollamaRuntimeDirectory",
         '-p:DebugType=None',
         '-p:DebugSymbols=false',
         '-o', $publishDirectory
@@ -253,6 +268,28 @@ foreach ($requiredRuntimeFile in @('KokoroSharp.dll', 'Microsoft.ML.OnnxRuntime.
         throw "Publish is incomplete: required neural voice runtime is missing: $requiredRuntimeFile"
     }
 }
+
+$ollamaRuntimeDirectoryPublished = Join-Path $publishDirectory 'Runtime\Ollama'
+$ollamaRuntimeExecutable = Join-Path $ollamaRuntimeDirectoryPublished 'ollama.exe'
+foreach ($requiredOllamaRuntimeFile in @(
+    'ollama.exe',
+    'LICENSE.txt',
+    'RUNTIME-NOTICE.md',
+    '.safespeak-runtime.json',
+    'lib\ollama\llama-server.exe',
+    'lib\ollama\ggml.dll',
+    'lib\ollama\LLAMA_CPP_LICENSE'
+)) {
+    if (-not (Test-Path -LiteralPath (Join-Path $ollamaRuntimeDirectoryPublished $requiredOllamaRuntimeFile) -PathType Leaf)) {
+        throw "Publish is incomplete: private local model runtime file is missing: $requiredOllamaRuntimeFile"
+    }
+}
+if (Get-ChildItem -LiteralPath (Join-Path $ollamaRuntimeDirectoryPublished 'lib\ollama') -Directory |
+    Where-Object { $_.Name -match '^(cuda|vulkan)' }) {
+    throw 'Publish contains GPU runtime libraries that are excluded from SafeSpeak CPU-only packages.'
+}
+$ollamaRuntimeBytes = (Get-ChildItem -LiteralPath $ollamaRuntimeDirectoryPublished -File -Recurse |
+    Measure-Object -Property Length -Sum).Sum
 
 $moderationDirectory = Join-Path $publishDirectory 'Models\Moderation'
 $moderationModelPath = Join-Path $moderationDirectory 'model.onnx'
@@ -413,6 +450,19 @@ if ($Format -in @('Msix', 'Both', 'All')) {
             throw "MSIX verification failed: packaged legal notice is missing: $requiredLegalFile"
         }
     }
+    foreach ($requiredOllamaRuntimeFile in @(
+        'ollama.exe',
+        'LICENSE.txt',
+        'RUNTIME-NOTICE.md',
+        '.safespeak-runtime.json',
+        'lib\ollama\llama-server.exe',
+        'lib\ollama\ggml.dll',
+        'lib\ollama\LLAMA_CPP_LICENSE'
+    )) {
+        if (-not (Test-Path -LiteralPath (Join-Path $verificationDirectory "Runtime\Ollama\$requiredOllamaRuntimeFile") -PathType Leaf)) {
+            throw "MSIX verification failed: private local model runtime file is missing: $requiredOllamaRuntimeFile"
+        }
+    }
 
     if ($CertificateThumbprint) {
         Invoke-CheckedCommand -FilePath $signTool -ArgumentList @(
@@ -516,6 +566,17 @@ $report = [ordered]@{
         revision = '4831179af569756699fdd6132a520dcdbfe07f03'
         modelSha256 = $expectedModerationModelHash
         tokenizerSha256 = $expectedModerationTokenizerHash
+    }
+    optionalModerationRuntime = [ordered]@{
+        product = 'Ollama command-line runtime'
+        version = '0.33.3'
+        architecture = $Architecture
+        cpuOnly = $true
+        bytes = $ollamaRuntimeBytes
+        executableSha256 = (Get-FileHash -LiteralPath $ollamaRuntimeExecutable -Algorithm SHA256).Hash
+        modelBundled = $false
+        optionalModelBytes = 484220000
+        optionalModelBlobSha256 = '2A53E0CE1CDD156B4DCF023E4F7285D4CC1D0D32BBBB0FFA9BAED8F5C617F4AD'
     }
     generatedUtc = $generatedUtc
     artifacts = @($artifacts)

@@ -51,4 +51,66 @@ public class ScriptValidatorTests
     {
         Assert.False(ScriptValidator.ContainsMixedScriptWords(text));
     }
+
+    [Fact]
+    public void IsLatinOrEmojiOnly_RejectsCjkCompatibilitySquareCharacters()
+    {
+        string rawMessage = ".1, 2, 3 ㌕㌖㌖㌕㌖㌖㌕㌖㌖㌕㌖㌖1, 2, 3 ㌕㌖";
+        Assert.False(ScriptValidator.IsLatinOrEmojiOnly(rawMessage));
+        Assert.False(ScriptValidator.IsLatinOrEmojiOnly("㌕"));
+        Assert.False(ScriptValidator.IsLatinOrEmojiOnly("㌖"));
+    }
+
+    [Theory]
+    [InlineData("キログラム")] // Katakana
+    [InlineData("こんにちは")] // Hiragana
+    [InlineData("你好")] // Chinese Hanzi
+    [InlineData("안녕하세요")] // Korean Hangul
+    [InlineData("สวัสดี")] // Thai
+    [InlineData("مرحبا")] // Arabic
+    [InlineData("שלום")] // Hebrew
+    [InlineData("नमस्ते")] // Devanagari
+    [InlineData("வணக்கம்")] // Tamil
+    public void IsLatinOrEmojiOnly_RejectsNonLatinWritingSystems(string nonLatinText)
+    {
+        Assert.False(ScriptValidator.IsLatinOrEmojiOnly(nonLatinText));
+    }
+
+    [Theory]
+    [InlineData("¡Hola amigo! ¿Cómo estás? 100% bien")]
+    [InlineData("Grüße aus München! C'est très bien, café")]
+    [InlineData("Price is $10.99 or 15€ or £20 or ¥500")]
+    [InlineData("🇦🇫 🇺🇸 ❤️ 🔥 ✨ ⭐ 👍")]
+    public void IsLatinOrEmojiOnly_AllowsEnglishSpanishFrenchAccentsAndEmojis(string validText)
+    {
+        Assert.True(ScriptValidator.IsLatinOrEmojiOnly(validText));
+    }
+
+    [Fact]
+    public void ContainsMixedScriptWords_DetectsCjkMixedWithLatin()
+    {
+        Assert.True(ScriptValidator.ContainsMixedScriptWords("streamer㌕test"));
+        Assert.True(ScriptValidator.ContainsMixedScriptWords("f\u3042ck"));
+    }
+
+    [Theory]
+    [InlineData("Ω")] // Ohm sign, compatibility-decomposes to Greek omega
+    [InlineData("ℵ")] // Alef symbol, compatibility-decomposes to Hebrew alef
+    [InlineData("\u2066")] // Left-to-right isolate formatting control
+    public void IsLatinOrEmojiOnly_RejectsNonLatinCompatibilityAndFormattingCharacters(string text)
+    {
+        Assert.False(ScriptValidator.IsLatinOrEmojiOnly(text));
+    }
+
+    [Fact]
+    public void IsLatinOrEmojiOnly_RejectsUnpairedSurrogate()
+    {
+        Assert.False(ScriptValidator.IsLatinOrEmojiOnly("\uD83D"));
+    }
+
+    [Fact]
+    public void IsLatinOrEmojiOnly_AllowsJoinedEmojiSequence()
+    {
+        Assert.True(ScriptValidator.IsLatinOrEmojiOnly("👨‍👩‍👧‍👦"));
+    }
 }

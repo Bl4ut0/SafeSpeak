@@ -17,8 +17,11 @@ public class HomoglyphTests
     [InlineData('$', 's')]      // Leetspeak $
     [InlineData('0', 'o')]      // Leetspeak 0
     [InlineData('1', 'i')]      // Leetspeak 1
+    [InlineData('2', 'z')]      // Leetspeak 2
     [InlineData('3', 'e')]      // Leetspeak 3
+    [InlineData('6', 'g')]      // Leetspeak 6
     [InlineData('7', 't')]      // Leetspeak 7
+    [InlineData('9', 'g')]      // Leetspeak 9
     public void NormalizeChar_MapsConfusablesToAscii(char input, char expected)
     {
         char actual = HomoglyphMap.NormalizeChar(input);
@@ -43,5 +46,17 @@ public class HomoglyphTests
         string result = HomoglyphMap.NormalizeString(input);
 
         Assert.Equal("ABC", result);
+    }
+
+    [Theory]
+    [InlineData("FAG0T", "fagot")]
+    [InlineData("F4G0T", "fagot")]
+    [InlineData("FA660T", "faggot")]
+    [InlineData("N166ER", "nigger")]
+    public void NormalizeForInspection_TranslatesNumericSlurEvasion(
+        string input,
+        string expected)
+    {
+        Assert.Equal(expected, UnicodeNormalizer.NormalizeForInspection(input));
     }
 }

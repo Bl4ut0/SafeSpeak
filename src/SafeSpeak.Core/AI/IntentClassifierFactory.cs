@@ -13,9 +13,21 @@ public static class IntentClassifierFactory
     public const string LocalLlmId = "local_llm";
     public const string GooglePerspectiveId = "google_perspective";
 
-    public static IIntentClassifier Create(AppSettings settings)
+    public static IIntentClassifier Create(
+        AppSettings settings,
+        string? managedQwenEndpointUrl = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
+
+        if (settings.ModerationModel ==
+            ModerationModelPreference.Qwen3Guard06BCompressed)
+        {
+            return new Qwen3GuardIntentClassifier(
+                endpointUrl: string.IsNullOrWhiteSpace(managedQwenEndpointUrl)
+                    ? Qwen3GuardIntentClassifier.DefaultEndpointUrl
+                    : managedQwenEndpointUrl,
+                fallback: IntentClassifierDefaults.CreateLocal());
+        }
 
         string engineId = settings.SelectedIntentEngineId?.ToLowerInvariant() ?? LocalHybridId;
 

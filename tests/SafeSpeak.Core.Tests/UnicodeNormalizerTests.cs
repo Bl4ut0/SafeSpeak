@@ -61,4 +61,18 @@ public class UnicodeNormalizerTests
 
         Assert.Equal("fack", result);
     }
+
+    [Theory]
+    [InlineData("𝕻𝖎𝖈𝖐𝖑𝖊 ✨", "Pickle")]
+    [InlineData("𝖝𝖞", "xy")]
+    [InlineData("🖤Danis🖤", "Danis")]
+    [InlineData("Meraj_hh🇦🇫", "Meraj hh")]
+    [InlineData("O’Connor", "O'Connor")]
+    [InlineData("😶‍🌫️", "")]
+    public void CleanDisplayNameForSpeech_ReturnsOnlySpeakableNameContent(
+        string input,
+        string expected)
+    {
+        Assert.Equal(expected, UnicodeNormalizer.CleanDisplayNameForSpeech(input));
+    }
 }

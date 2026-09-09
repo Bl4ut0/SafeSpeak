@@ -19,6 +19,12 @@ public enum ThemePreference
     HighContrast = 3
 }
 
+public enum ModerationModelPreference
+{
+    BuiltInHybrid = 0,
+    Qwen3Guard06BCompressed = 1
+}
+
 public enum OnboardingStage
 {
     Accessibility = 0,
@@ -39,7 +45,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 8;
+    public const int CurrentSettingsSchemaVersion = 9;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -90,6 +96,8 @@ public sealed class AppSettings
     public bool AiClassificationEnabled { get; set; } = true;
     public double AiToxicityThreshold { get; set; } = 0.65;
     public int IntentModerationLevel { get; set; } = 3;
+    public ModerationModelPreference ModerationModel { get; set; } =
+        ModerationModelPreference.BuiltInHybrid;
 
     public bool AnnounceChatMessages { get; set; } = true;
     public bool AnnounceGifts { get; set; } = true;
@@ -114,6 +122,7 @@ public sealed class AppSettings
         set => HasConsentedToLocalAuditLogging = value;
     }
     public string SelectedSourceConnectorId { get; set; } = "tikfinity";
+    public string TikTokUsername { get; set; } = "";
     public bool AutoConnectSource { get; set; } = true;
     public bool LocalConnectorAutoDetectConsent { get; set; }
     public OnboardingConnectorDetectionStatus LocalConnectorDetectionStatus { get; set; } =
@@ -248,6 +257,10 @@ public sealed class AppSettings
         }
         AiToxicityThreshold = Math.Clamp(AiToxicityThreshold, 0.3, 0.95);
         IntentModerationLevel = Math.Clamp(IntentModerationLevel, 1, 4);
+        if (!Enum.IsDefined(ModerationModel))
+        {
+            ModerationModel = ModerationModelPreference.BuiltInHybrid;
+        }
         SpeechRate = Math.Clamp(SpeechRate, -5, 5);
         SpeechVolume = Math.Clamp(SpeechVolume, 0, 150);
         ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
@@ -271,6 +284,8 @@ public sealed class AppSettings
             SelectedSourceConnectorId = "tikfinity";
         }
 
+        TikTokUsername = Connectors.TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string username)
+            ? username : "";
         NormalizeLocalConnectorDetection();
 
         CustomBlockedTerms = (CustomBlockedTerms ?? [])

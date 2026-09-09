@@ -48,3 +48,7 @@ tools/website-deploy/.transfer-cache/
 # Local, upload-ready legal/support website. This intentionally stays outside
 # the application repository so deployment details can be managed separately.
 local-deployment/
+
+# Private business strategy and SaaS planning documents.
+/docs/private/
+/.build-cache/

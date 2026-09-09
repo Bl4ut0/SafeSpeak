@@ -94,6 +94,21 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     }
 
     /// <summary>
+    /// Speaks information the user explicitly requested, even when automatic
+    /// built-in focus and state guidance is disabled.
+    /// </summary>
+    public void AnnounceOnDemand(string text, bool interrupt = false)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        AnnouncementRequested?.Invoke(this, text);
+        lock (_lock)
+        {
+            SpeakWithSystemVoice(text, interrupt);
+        }
+    }
+
+    /// <summary>
     /// Announces keyboard focus without waiting for first-use neural synthesis.
     /// Focus always uses the low-latency Windows voice. Neural stream voices are
     /// deliberately kept out of keyboard navigation to avoid delay and overlap.

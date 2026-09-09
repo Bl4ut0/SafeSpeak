@@ -75,6 +75,10 @@ public class GooglePerspectiveClassifierTests
         settings.PerspectiveApiKey = "test_key";
         using var perspectiveClassifier = IntentClassifierFactory.Create(settings);
         Assert.IsType<GooglePerspectiveClassifier>(perspectiveClassifier);
+
+        settings.ModerationModel = ModerationModelPreference.Qwen3Guard06BCompressed;
+        using var qwenClassifier = IntentClassifierFactory.Create(settings);
+        Assert.IsType<Qwen3GuardIntentClassifier>(qwenClassifier);
     }
 
     private sealed class MockHttpMessageHandler : HttpMessageHandler

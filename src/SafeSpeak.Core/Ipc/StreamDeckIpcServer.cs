@@ -84,7 +84,7 @@ public sealed class StreamDeckIpcServer : IDisposable
         var resp = context.Response;
 
         string? origin = req.Headers["Origin"];
-        bool isPluginOrigin = string.IsNullOrEmpty(origin) || string.Equals(origin, "null", StringComparison.OrdinalIgnoreCase);
+        bool isPluginOrigin = IsAllowedOrigin(origin);
         if (!isPluginOrigin)
         {
             resp.StatusCode = 403;
@@ -172,6 +172,18 @@ public sealed class StreamDeckIpcServer : IDisposable
         {
             try { resp.Close(); } catch { }
         }
+    }
+
+    private static bool IsAllowedOrigin(string? origin)
+    {
+        if (string.IsNullOrEmpty(origin)) return true;
+        if (string.Equals(origin, "null", StringComparison.OrdinalIgnoreCase)) return true;
+        if (origin.StartsWith("file://", StringComparison.OrdinalIgnoreCase)) return true;
+        if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+        {
+            return uri.IsLoopback || string.Equals(uri.Scheme, "file", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 
     public void Dispose()

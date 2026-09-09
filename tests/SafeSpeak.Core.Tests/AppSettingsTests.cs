@@ -12,6 +12,25 @@ public sealed class AppSettingsTests
 
         Assert.Equal(100, settings.SpeechVolume);
         Assert.Equal(100, settings.ReaderSpeechVolume);
+        Assert.Equal(
+            ModerationModelPreference.BuiltInHybrid,
+            settings.ModerationModel);
+    }
+
+    [Fact]
+    public void OptionalModerationModelChoicePersists()
+    {
+        var settings = new AppSettings
+        {
+            ModerationModel = ModerationModelPreference.Qwen3Guard06BCompressed
+        };
+
+        string json = JsonSerializer.Serialize(settings);
+        AppSettings reloaded = JsonSerializer.Deserialize<AppSettings>(json)!;
+
+        Assert.Equal(
+            ModerationModelPreference.Qwen3Guard06BCompressed,
+            reloaded.ModerationModel);
     }
 
     [Fact]
