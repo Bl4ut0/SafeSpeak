@@ -407,14 +407,14 @@ public sealed class MainShellAccessibilityContractTests
     }
 
     [Fact]
-    public void MainWindow_UsesCompactGrowableSizeAndPrimaryDeckNeverScrolls()
+    public void MainWindow_UsesTwoColumnLiveWorkspace()
     {
         XDocument document = LoadMainWindow();
         XElement window = document.Root!;
 
-        Assert.Equal("720", window.Attribute("Width")?.Value);
+        Assert.Equal("1080", window.Attribute("Width")?.Value);
         Assert.Equal("700", window.Attribute("Height")?.Value);
-        Assert.Equal("640", window.Attribute("MinWidth")?.Value);
+        Assert.Equal("760", window.Attribute("MinWidth")?.Value);
         Assert.Equal("620", window.Attribute("MinHeight")?.Value);
         Assert.Null(window.Attribute("MaxWidth"));
         Assert.Null(window.Attribute("MaxHeight"));
@@ -422,18 +422,34 @@ public sealed class MainShellAccessibilityContractTests
         XElement liveTab = document
             .Descendants(Presentation + "TabItem")
             .Single(element => element.Attribute("Header")?.Value == "Live");
-        XElement[] primaryActions = TabStops(document)
-            .Where(element => !element.Ancestors(Presentation + "TabItem").Any())
-            .Concat(liveTab.Descendants().Where(element =>
-                element.Attribute("TabIndex") is not null &&
-                int.Parse(element.Attribute("TabIndex")!.Value) <= 8))
+        XElement liveGrid = liveTab.Elements(Presentation + "Grid").Single();
+        XElement[] columns = liveGrid
+            .Element(Presentation + "Grid.ColumnDefinitions")!
+            .Elements(Presentation + "ColumnDefinition")
             .ToArray();
+        Assert.Equal(new[] { "2*", "12", "3*" },
+            columns.Select(column => column.Attribute("Width")?.Value));
 
-        Assert.All(
-            primaryActions,
-            action => Assert.DoesNotContain(
-                action.Ancestors(),
-                ancestor => ancestor.Name.LocalName == "ScrollViewer"));
+        XElement feed = NamedElement(document, "ListView", "LiveFeedListView");
+        Assert.Equal("2", feed.Parent?.Attribute("Grid.Column")?.Value);
+        XElement arm = NamedElement(document, "ToggleButton", "ArmToggle");
+        Assert.Empty(liveTab.Descendants(Presentation + "ScrollViewer"));
+        Assert.Contains(arm.Ancestors(), ancestor =>
+            ancestor.Name.LocalName == "StackPanel" &&
+            ancestor.Attribute("Grid.Column")?.Value == "0");
+
+        XElement sourceStatus = liveTab.Descendants(Presentation + "TextBlock")
+            .Single(element =>
+                Attribute(element, "AutomationProperties.Name") ==
+                "{Binding ConnectionStatusText}");
+        Assert.Equal("{Binding ConnectionSummaryText}",
+            sourceStatus.Attribute("Text")?.Value);
+        Assert.Equal("CharacterEllipsis", sourceStatus.Attribute("TextTrimming")?.Value);
+        XElement compactValueStyle = document.Descendants(Presentation + "Style")
+            .Single(element => element.Attribute(Xaml + "Key")?.Value == "LiveStatusValue");
+        Assert.Contains(compactValueStyle.Descendants(Presentation + "Setter"), setter =>
+            setter.Attribute("Property")?.Value == "TextWrapping" &&
+            setter.Attribute("Value")?.Value == "NoWrap");
     }
 
     [Fact]
@@ -939,13 +955,9 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("MainNavigation.SelectedItem is TabItem", navigationHandlers, StringComparison.Ordinal);
         Assert.Contains("pageEntryControl.IsKeyboardFocusWithin", navigationHandlers, StringComparison.Ordinal);
         Assert.Contains("0 => ArmToggle", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains("AreSafetyGuideControlsAtTop: true", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains("? ReadModerationGuideButton", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains(": SafetyModerationChapterHeading", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains("2 => VoiceCombo", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains("AreSettingsGuideControlsAtTop: true", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains("? SettingsGuideButton", navigationHandlers, StringComparison.Ordinal);
-        Assert.Contains(": SettingsSourceChapterHeading", navigationHandlers, StringComparison.Ordinal);
+        Assert.Contains("1 => SafetyModerationChapterHeading", navigationHandlers, StringComparison.Ordinal);
+        Assert.Contains("2 => VoiceSelectionChapterHeading", navigationHandlers, StringComparison.Ordinal);
+        Assert.Contains("3 => SettingsSourceChapterHeading", navigationHandlers, StringComparison.Ordinal);
         Assert.Contains("FocusElement(reverse ? HearStatusButton", navigationHandlers, StringComparison.Ordinal);
         Assert.Contains("e.Handled = true", navigationHandlers, StringComparison.Ordinal);
     }
@@ -975,7 +987,7 @@ public sealed class MainShellAccessibilityContractTests
             Attribute(navigation, "AutomationProperties.Name"),
             StringComparison.Ordinal);
         Assert.Contains(
-            "only fixed SafeSpeak shortcuts",
+            "Alt plus a number jumps directly to that chapter",
             Attribute(navigation, "AutomationProperties.HelpText"),
             StringComparison.Ordinal);
 
@@ -1209,9 +1221,7 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("control.IsVisible", codeBehind);
         Assert.Contains("control.IsEnabled", codeBehind);
         Assert.Contains("FocusElement(HearStatusButton)", codeBehind);
-        Assert.Contains("AreSettingsGuideControlsAtTop: true", codeBehind);
-        Assert.Contains("? SettingsGuideButton", codeBehind);
-        Assert.Contains(": SettingsSourceChapterHeading", codeBehind);
+        Assert.Contains("3 => SettingsSourceChapterHeading", codeBehind);
         Assert.Contains("GuidePlacementButton_Click", codeBehind);
         Assert.Contains("Focus is now on {focusName}", codeBehind);
         Assert.Contains("Move controls to bottom", shortcutsViewModel);
@@ -1243,20 +1253,28 @@ public sealed class MainShellAccessibilityContractTests
     }
 
     [Fact]
-    public void SafetyAndSettingsExposeFocusableNumberedChapterHeadings()
+    public void SecondaryPagesExposeFocusableNumberedChapterHeadings()
     {
         XDocument document = LoadMainWindow();
         XDocument appResources = XDocument.Load(
             RepositoryFile("src", "SafeSpeak.App", "App.xaml"));
+        XElement liveTab = document.Descendants(Presentation + "TabItem")
+            .Single(element => element.Attribute("Header")?.Value == "Live");
         XElement safetyTab = document.Descendants(Presentation + "TabItem")
             .Single(element => element.Attribute("Header")?.Value == "Safety");
+        XElement voiceTab = document.Descendants(Presentation + "TabItem")
+            .Single(element => element.Attribute("Header")?.Value == "Voice");
         XElement settingsTab = document.Descendants(Presentation + "TabItem")
             .Single(element => element.Attribute("Header")?.Value == "Settings");
 
+        XElement[] liveChapters = ChapterHeadings(liveTab);
         XElement[] safetyChapters = ChapterHeadings(safetyTab);
+        XElement[] voiceChapters = ChapterHeadings(voiceTab);
         XElement[] settingsChapters = ChapterHeadings(settingsTab);
 
+        Assert.Empty(liveChapters);
         Assert.Equal(4, safetyChapters.Length);
+        Assert.Equal(4, voiceChapters.Length);
         Assert.Equal(9, settingsChapters.Length);
         XElement chapterStyle = appResources.Descendants(Presentation + "Style")
             .Single(element => element.Attribute(Xaml + "Key")?.Value == "ChapterHeading");
@@ -1267,12 +1285,17 @@ public sealed class MainShellAccessibilityContractTests
             setter.Attribute("Property")?.Value == "Focusable" &&
             setter.Attribute("Value")?.Value == "True");
         Assert.True(HasFocusVisualSetter(chapterStyle));
-        Assert.All(safetyChapters.Concat(settingsChapters), heading =>
+        Assert.All(safetyChapters.Concat(voiceChapters).Concat(settingsChapters), heading =>
         {
             Assert.Equal("{StaticResource ChapterHeading}", heading.Attribute("Style")?.Value);
             Assert.StartsWith("Chapter ", heading.Attribute("Content")?.Value, StringComparison.Ordinal);
             Assert.Contains("chapter", Attribute(heading, "AutomationProperties.Name"), StringComparison.OrdinalIgnoreCase);
-            Assert.False(string.IsNullOrWhiteSpace(Attribute(heading, "AutomationProperties.HelpText")));
+            Assert.Contains("Press Tab to enter this chapter",
+                Attribute(heading, "AutomationProperties.HelpText"),
+                StringComparison.Ordinal);
+            Assert.Contains("Alt plus",
+                Attribute(heading, "AutomationProperties.HelpText"),
+                StringComparison.Ordinal);
         });
 
         string narrator = File.ReadAllText(
@@ -1398,7 +1421,7 @@ public sealed class MainShellAccessibilityContractTests
     }
 
     [Fact]
-    public void LiveFeedUsesOnlyModeratedSafeDisplayBindings()
+    public void LiveFeedRequiresDeliberateActivationBeforeShowingFilteredText()
     {
         XDocument document = LoadMainWindow();
         XElement feed = document
@@ -1414,11 +1437,28 @@ public sealed class MainShellAccessibilityContractTests
             .ToArray();
 
         Assert.Contains("SafeAuthorDisplayName", boundProperties);
-        Assert.Contains("SafeDisplayText", boundProperties);
+        Assert.Contains("ReviewDisplayText", boundProperties);
         Assert.Contains("SafeReasonDescription", boundProperties);
+        Assert.Contains("RevealInstruction", boundProperties);
         Assert.DoesNotContain("AuthorDisplayName", boundProperties);
         Assert.DoesNotContain("DisplayText", boundProperties);
         Assert.DoesNotContain("RawText", boundProperties);
+
+        Assert.Equal("LiveFeedListView_MouseDoubleClick",
+            feed.Attribute("MouseDoubleClick")?.Value);
+        Assert.Equal("LiveFeedListView_PreviewKeyDown",
+            feed.Attribute("PreviewKeyDown")?.Value);
+        Assert.Contains("double-click or press Enter",
+            Attribute(feed, "AutomationProperties.HelpText"),
+            StringComparison.Ordinal);
+
+        string entryViewModel = File.ReadAllText(
+            RepositoryFile("src", "SafeSpeak.App", "ViewModels", "LiveFeedEntryViewModel.cs"));
+        Assert.Contains("IsFiltered && IsFilteredContentRevealed", entryViewModel,
+            StringComparison.Ordinal);
+        Assert.Contains("_decision.Message.RawText", entryViewModel,
+            StringComparison.Ordinal);
+        Assert.Contains("if (!IsFiltered)", entryViewModel, StringComparison.Ordinal);
 
         XElement feedItemStyle = document
             .Descendants(Presentation + "Style")

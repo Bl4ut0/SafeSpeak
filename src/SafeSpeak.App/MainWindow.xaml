@@ -5,8 +5,8 @@
         xmlns:c="clr-namespace:SafeSpeak.App.Converters"
         xmlns:a11y="clr-namespace:SafeSpeak.App.Accessibility"
         Title="SafeSpeak — Accessible TTS Safety"
-        Height="700" Width="720"
-        MinHeight="620" MinWidth="640"
+        Height="700" Width="1080"
+        MinHeight="620" MinWidth="760"
         WindowStartupLocation="CenterScreen"
         KeyboardNavigation.TabNavigation="Cycle"
         AutomationProperties.Name="SafeSpeak main window">
@@ -25,6 +25,17 @@
             <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleSummary}" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+        </Style>
+        <Style x:Key="LiveStatusCard" TargetType="Border"
+               BasedOn="{StaticResource StatusCard}">
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="BorderThickness" Value="3,1,1,1" />
+        </Style>
+        <Style x:Key="LiveStatusValue" TargetType="TextBlock"
+               BasedOn="{StaticResource StatusValue}">
+            <Setter Property="Margin" Value="0,1,0,0" />
+            <Setter Property="FontSize" Value="{DynamicResource SafeSpeakFont13}" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
         </Style>
     </Window.Resources>
 
@@ -55,8 +66,8 @@
             <TabControl x:Name="MainNavigation"
                     Grid.ColumnSpan="2" TabIndex="2"
                     KeyboardNavigation.TabNavigation="Local"
-                    AutomationProperties.Name="SafeSpeak main navigation tabs. Use Left and Right Arrow keys, or Control plus 1 through 4, to switch between Live, Safety, Voice, and Settings tabs."
-                    AutomationProperties.HelpText="Use Left and Right Arrow keys to select a tab, then press Tab to move into that tab's controls. The only fixed SafeSpeak shortcuts are Control plus 1, 2, 3, and 4 for opening the four pages. Action shortcuts are customizable in Settings.">
+                    AutomationProperties.Name="SafeSpeak main navigation tabs. Use Left and Right Arrow keys, or Control plus 1 through 4, to switch between the Live, Safety, Voice, and Settings pages."
+                    AutomationProperties.HelpText="Select Live, then press Tab to enter its controls. On Safety, Voice, or Settings, press Tab to reach chapter 1; each chapter heading is a Tab stop, and Alt plus a number jumps directly to that chapter. Control plus 1, 2, 3, or 4 opens a main page.">
             <TabControl.Template>
                 <ControlTemplate TargetType="TabControl">
                     <Grid KeyboardNavigation.TabNavigation="Local">
@@ -86,207 +97,234 @@
 
             <!-- Tab 1: Live Feed -->
             <TabItem Header="Live" AutomationProperties.Name="Live tab, one of four">
-                <Grid Margin="10,10,10,8" MaxWidth="900"
+                <Grid Margin="10,10,10,8"
                       KeyboardNavigation.TabNavigation="Local">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" MinWidth="300" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="3*" MinWidth="360" />
+                    </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock Text="SafeSpeak" Style="{StaticResource PageTitle}"
-                                   FontSize="{DynamicResource SafeSpeakFont24}"
-                                   VerticalAlignment="Center" />
-                        <UniformGrid Columns="4" Margin="0,6,0,0">
-                            <Border Style="{StaticResource StatusCard}" Margin="0,0,6,0">
+                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                            <TextBlock Text="SafeSpeak" Style="{StaticResource PageTitle}"
+                                       FontSize="{DynamicResource SafeSpeakFont24}"
+                                       VerticalAlignment="Center" />
+
+                            <UniformGrid Columns="2" Margin="0,4,0,0">
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,4,4">
+                                    <StackPanel>
+                                        <TextBlock Text="SOURCE" Style="{StaticResource StatusLabel}" />
+                                        <TextBlock Text="{Binding ConnectionSummaryText}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   AutomationProperties.Name="{Binding ConnectionStatusText}"
+                                                   AutomationProperties.LiveSetting="Polite"
+                                                   a11y:LiveRegion.Announcement="{Binding ConnectionStatusText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="TTS SAFETY" Style="{StaticResource StatusLabel}" />
+                                        <TextBlock Text="{Binding ArmedStatusText}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Text to speech {0}}"
+                                                   AutomationProperties.LiveSetting="Polite"
+                                                   a11y:LiveRegion.Announcement="{Binding ArmedStatusText, StringFormat=Text to speech {0}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,4,4">
+                                    <StackPanel>
+                                        <TextBlock Text="QUEUE" Style="{StaticResource StatusLabel}" />
+                                        <TextBlock Text="{Binding QueueCount, StringFormat={}{0} messages}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   AutomationProperties.Name="{Binding QueueCount, StringFormat=Queue has {0} messages}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource LiveStatusCard}" Margin="0,0,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="PLAYBACK" Style="{StaticResource StatusLabel}" />
+                                        <TextBlock Text="{Binding PlaybackModeStatus}" Style="{StaticResource LiveStatusValue}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   AutomationProperties.Name="{Binding PlaybackModeStatus, StringFormat=Playback mode {0}}" />
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <Border Style="{StaticResource CommandSurface}" Padding="8" Margin="0,0,0,6">
                                 <StackPanel>
-                                    <TextBlock Text="SOURCE" Style="{StaticResource StatusLabel}" />
-                                    <TextBlock Text="{Binding ConnectionStatusText}" Style="{StaticResource StatusValue}"
-                                               AutomationProperties.Name="{Binding ConnectionStatusText}"
-                                               AutomationProperties.LiveSetting="Polite"
-                                               a11y:LiveRegion.Announcement="{Binding ConnectionStatusText}" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource StatusCard}" Margin="0,0,6,0">
-                                <StackPanel>
-                                    <TextBlock Text="TTS SAFETY" Style="{StaticResource StatusLabel}" />
-                                    <TextBlock Text="{Binding ArmedStatusText}" Style="{StaticResource StatusValue}"
-                                               AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Text to speech {0}}"
-                                               AutomationProperties.LiveSetting="Polite"
-                                               a11y:LiveRegion.Announcement="{Binding ArmedStatusText, StringFormat=Text to speech {0}}" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource StatusCard}" Margin="0,0,6,0">
-                                <StackPanel>
-                                    <TextBlock Text="QUEUE" Style="{StaticResource StatusLabel}" />
-                                    <TextBlock Text="{Binding QueueCount, StringFormat={}{0} messages}" Style="{StaticResource StatusValue}"
-                                               AutomationProperties.Name="{Binding QueueCount, StringFormat=Queue has {0} messages}" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource StatusCard}">
-                                <StackPanel>
-                                    <TextBlock Text="PLAYBACK" Style="{StaticResource StatusLabel}" />
-                                    <TextBlock Text="{Binding PlaybackModeStatus}" Style="{StaticResource StatusValue}"
-                                               AutomationProperties.Name="{Binding PlaybackModeStatus, StringFormat=Playback mode {0}}" />
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
-                    </StackPanel>
+                                    <ToggleButton x:Name="ArmToggle" TabIndex="1"
+                                                  MinHeight="48"
+                                                  Margin="0,0,0,6"
+                                                  Style="{StaticResource ArmToggleButton}"
+                                                  HorizontalAlignment="Stretch"
+                                                  HorizontalContentAlignment="Center"
+                                                  FontSize="{DynamicResource SafeSpeakFont17}"
+                                                  IsChecked="{Binding IsArmed, Mode=OneWay}"
+                                                  Command="{Binding ToggleArmCommand}"
+                                                  Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
+                                                  AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Arm toggle button: currently {0}}"
+                                                  AutomationProperties.HelpText="{Binding ArmToggleHelpText}" />
 
-                    <Border Grid.Row="1" Style="{StaticResource CommandSurface}" Margin="0,0,0,8">
-                        <StackPanel>
-                            <ToggleButton x:Name="ArmToggle" TabIndex="1"
-                                          MinHeight="48"
-                                          Margin="0,0,0,6"
-                                          Style="{StaticResource ArmToggleButton}"
-                                          HorizontalAlignment="Stretch"
-                                          HorizontalContentAlignment="Center"
-                                          FontSize="{DynamicResource SafeSpeakFont17}"
-                                          IsChecked="{Binding IsArmed, Mode=OneWay}"
-                                          Command="{Binding ToggleArmCommand}"
-                                          Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
-                                          AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Arm toggle button: currently {0}}"
-                                          AutomationProperties.HelpText="{Binding ArmToggleHelpText}" />
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Button x:Name="EmergencyStopButton"
-                                        Grid.Row="0" Grid.Column="0" TabIndex="2" Margin="0,0,6,6"
-                                        Style="{StaticResource EmergencyButton}"
-                                        Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
-                                        Command="{Binding EmergencyStopCommand}" Content="Emergency stop"
-                                        AutomationProperties.Name="Emergency stop"
-                                        AutomationProperties.HelpText="{Binding EmergencyStopHelpText}" />
-
-                                <Button x:Name="PauseOrResumeButton"
-                                        Grid.Row="0" Grid.Column="1" TabIndex="3" Margin="0,0,6,6"
-                                        Style="{StaticResource CommandButton}"
-                                        Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Command="{Binding PauseOrResumeTtsCommand}"
-                                        Content="{Binding PauseButtonText}"
-                                        AutomationProperties.Name="{Binding PauseButtonAutomationName}"
-                                        AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
-
-                                <Button x:Name="UseAutomaticPlaybackButton"
-                                        Grid.Row="0" Grid.Column="1" TabIndex="4" Margin="0,0,6,6"
-                                        Style="{StaticResource CommandButton}"
-                                        Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Click="PlaybackModeButton_Click"
-                                        Command="{Binding UseAutomaticPlaybackCommand}" Content="Automatic mode"
-                                        AutomationProperties.Name="Use automatic playback mode button"
-                                        AutomationProperties.HelpText="Approved messages speak automatically while SafeSpeak is armed." />
-
-                                <Button x:Name="UseManualPlaybackButton"
-                                        Grid.Row="0" Grid.Column="2" TabIndex="5" Margin="0,0,0,6"
-                                        Style="{StaticResource CommandButton}"
-                                        Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Click="PlaybackModeButton_Click"
-                                        Command="{Binding UseManualPlaybackCommand}" Content="Manual mode"
-                                        AutomationProperties.Name="Use manual playback mode button"
-                                        AutomationProperties.HelpText="Approved messages wait until Speak next approved message is chosen." />
-
-                                <Button x:Name="SpeakNextApprovedMessageButton"
-                                        Grid.Row="0" Grid.Column="2" TabIndex="6" Margin="0,0,0,6"
-                                        Style="{StaticResource CommandButton}"
-                                        Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Command="{Binding SpeakNextApprovedMessageCommand}" Content="Speak next"
-                                        AutomationProperties.Name="Speak next approved message button"
-                                        AutomationProperties.HelpText="In manual mode, speaks exactly one approved queued message." />
-
-                                <Button Grid.Row="1" Grid.Column="0" TabIndex="7" Margin="0,0,6,0"
-                                        Style="{StaticResource CommandButton}"
-                                        Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Command="{Binding StopCurrentSpeechCommand}" Content="Stop current"
-                                        AutomationProperties.Name="{Binding StopCurrentSpeechAutomationName}"
-                                        AutomationProperties.HelpText="Immediately stops only the message currently speaking." />
-
-                                <Button Grid.Row="1" Grid.Column="1" TabIndex="8" Margin="0,0,6,0"
-                                        Style="{StaticResource CommandButton}"
-                                        Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Command="{Binding ClearQueueCommand}" Content="Clear queue"
-                                        AutomationProperties.Name="Clear pending text to speech queue button"
-                                        AutomationProperties.HelpText="Removes pending approved messages without stopping the current message or disarming SafeSpeak." />
-
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Row="2" Style="{StaticResource StatusCard}" Margin="0,0,0,8" Padding="10">
-                        <DockPanel LastChildFill="False">
-                            <StackPanel DockPanel.Dock="Left">
-                                <TextBlock Text="Live Stream Source" Style="{StaticResource SectionTitle}" />
-                                <TextBlock Text="{Binding SourceDescription}" Style="{StaticResource SecondaryText}" />
-                            </StackPanel>
-                            <Button DockPanel.Dock="Right" TabIndex="9" Margin="12,0,0,0" VerticalAlignment="Center"
-                                     Style="{StaticResource CompactButton}"
-                                     Command="{Binding RetrySourceConnectionCommand}" Content="Reconnect"
-                                     AutomationProperties.Name="Reconnect to live stream source button" />
-                        </DockPanel>
-                    </Border>
-
-                    <DockPanel Grid.Row="3" Margin="0,0,0,5" LastChildFill="True">
-                        <Button DockPanel.Dock="Right" TabIndex="10" Margin="10,0,0,0"
-                                Style="{StaticResource CompactButton}"
-                                Command="{Binding AnnounceLiveFeedReviewStatusCommand}"
-                                Content="Hear review status"
-                                AutomationProperties.Name="Hear live activity review status button"
-                                AutomationProperties.HelpText="Reports whether visual feed updates are paused and how many received messages are retained for review." />
-                        <TextBlock Text="Live activity" Style="{StaticResource SectionTitle}"
-                                   VerticalAlignment="Center" />
-                    </DockPanel>
-
-                    <ListView x:Name="LiveFeedListView"
-                              Grid.Row="4" TabIndex="11" ItemsSource="{Binding LiveFeed}"
-                              ItemContainerStyle="{StaticResource FeedItem}"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              GotKeyboardFocus="LiveFeedListView_GotKeyboardFocus"
-                              LostKeyboardFocus="LiveFeedListView_LostKeyboardFocus"
-                              AutomationProperties.Name="Live moderation activity list. Shows incoming messages, safety dispositions, and moderation reasons. Visual updates pause automatically while keyboard focus is inside this list."
-                              AutomationProperties.ItemStatus="{Binding LiveFeedReviewStatus}"
-                              AutomationProperties.HelpText="Use Arrow keys to review entries. New visual entries are held while this list has keyboard focus; moderation and text to speech continue. Leave the list to show held entries and resume visual updates.">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Border Style="{StaticResource StatusCard}" Padding="14" Margin="0,0,0,4">
                                     <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
-                                        <!-- Header line: Status badge + Author -->
-                                        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,6">
-                                            <Border CornerRadius="4" Padding="8,2" Margin="0,0,10,0"
-                                                    Background="{Binding Disposition, Converter={StaticResource DispositionToBackgroundBrushConverter}}">
-                                                <TextBlock Text="{Binding Disposition}" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}"
-                                                           Foreground="{Binding Disposition, Converter={StaticResource DispositionToForegroundBrushConverter}}" />
-                                            </Border>
-                                            <TextBlock Text="{Binding SafeAuthorDisplayName}" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont15}" VerticalAlignment="Center" />
-                                        </StackPanel>
 
-                                        <!-- Message content -->
-                                        <TextBlock Grid.Row="1" Text="{Binding SafeDisplayText}" FontSize="{DynamicResource SafeSpeakFont15}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                        <Button x:Name="EmergencyStopButton"
+                                                Grid.Row="0" Grid.Column="0" TabIndex="2" Margin="0,0,6,6"
+                                                Style="{StaticResource EmergencyButton}"
+                                                Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
+                                                Command="{Binding EmergencyStopCommand}" Content="Emergency stop"
+                                                AutomationProperties.Name="Emergency stop"
+                                                AutomationProperties.HelpText="{Binding EmergencyStopHelpText}" />
 
-                                        <!-- Moderation reason note -->
-                                        <TextBlock Grid.Row="2" Text="{Binding SafeReasonDescription}"
-                                                   Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont13}" />
+                                        <Button x:Name="PauseOrResumeButton"
+                                                Grid.Row="0" Grid.Column="1" TabIndex="3" Margin="0,0,0,6"
+                                                Style="{StaticResource CommandButton}"
+                                                Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Command="{Binding PauseOrResumeTtsCommand}"
+                                                Content="{Binding PauseButtonText}"
+                                                AutomationProperties.Name="{Binding PauseButtonAutomationName}"
+                                                AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
+
+                                        <Button x:Name="UseAutomaticPlaybackButton"
+                                                Grid.Row="0" Grid.Column="1" TabIndex="4" Margin="0,0,0,6"
+                                                Style="{StaticResource CommandButton}"
+                                                Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Click="PlaybackModeButton_Click"
+                                                Command="{Binding UseAutomaticPlaybackCommand}" Content="Automatic mode"
+                                                AutomationProperties.Name="Use automatic playback mode button"
+                                                AutomationProperties.HelpText="Approved messages speak automatically while SafeSpeak is armed." />
+
+                                        <Button x:Name="UseManualPlaybackButton"
+                                                Grid.Row="1" Grid.Column="0" TabIndex="5" Margin="0,0,6,6"
+                                                Style="{StaticResource CommandButton}"
+                                                Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Click="PlaybackModeButton_Click"
+                                                Command="{Binding UseManualPlaybackCommand}" Content="Manual mode"
+                                                AutomationProperties.Name="Use manual playback mode button"
+                                                AutomationProperties.HelpText="Approved messages wait until Speak next approved message is chosen." />
+
+                                        <Button x:Name="SpeakNextApprovedMessageButton"
+                                                Grid.Row="1" Grid.Column="0" TabIndex="6" Margin="0,0,6,6"
+                                                Style="{StaticResource CommandButton}"
+                                                Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Command="{Binding SpeakNextApprovedMessageCommand}" Content="Speak next"
+                                                AutomationProperties.Name="Speak next approved message button"
+                                                AutomationProperties.HelpText="In manual mode, speaks exactly one approved queued message." />
+
+                                        <Button Grid.Row="1" Grid.Column="1" TabIndex="7" Margin="0,0,0,6"
+                                                Style="{StaticResource CommandButton}"
+                                                Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Command="{Binding StopCurrentSpeechCommand}" Content="Stop current"
+                                                AutomationProperties.Name="{Binding StopCurrentSpeechAutomationName}"
+                                                AutomationProperties.HelpText="Immediately stops only the message currently speaking." />
+
+                                        <Button Grid.Row="2" Grid.ColumnSpan="2" TabIndex="8"
+                                                Style="{StaticResource CommandButton}"
+                                                Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Command="{Binding ClearQueueCommand}" Content="Clear queue"
+                                                AutomationProperties.Name="Clear pending text to speech queue button"
+                                                AutomationProperties.HelpText="Removes pending approved messages without stopping the current message or disarming SafeSpeak." />
                                     </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource StatusCard}" Padding="8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Live Stream Source" Style="{StaticResource SectionTitle}" />
+                                    <TextBlock Grid.Row="1" Text="{Binding SourceDescription}" Style="{StaticResource SecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,2,8,0" />
+                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" TabIndex="9"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource CompactButton}"
+                                            Command="{Binding RetrySourceConnectionCommand}" Content="Reconnect"
+                                            AutomationProperties.Name="Reconnect to live stream source button" />
+                                </Grid>
+                            </Border>
+                    </StackPanel>
+
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,5" LastChildFill="True">
+                            <Button DockPanel.Dock="Right" TabIndex="10" Margin="10,0,0,0"
+                                    Style="{StaticResource CompactButton}"
+                                    Command="{Binding AnnounceLiveFeedReviewStatusCommand}"
+                                    Content="Hear review status"
+                                    AutomationProperties.Name="Hear live activity review status button"
+                                    AutomationProperties.HelpText="Reports whether visual feed updates are paused and how many received messages are retained for review." />
+                            <TextBlock Text="Live activity" Style="{StaticResource SectionTitle}"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+
+                        <ListView x:Name="LiveFeedListView"
+                                  Grid.Row="1" TabIndex="11" ItemsSource="{Binding LiveFeed}"
+                                  ItemContainerStyle="{StaticResource FeedItem}"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  GotKeyboardFocus="LiveFeedListView_GotKeyboardFocus"
+                                  LostKeyboardFocus="LiveFeedListView_LostKeyboardFocus"
+                                  MouseDoubleClick="LiveFeedListView_MouseDoubleClick"
+                                  PreviewKeyDown="LiveFeedListView_PreviewKeyDown"
+                                  AutomationProperties.Name="Live moderation activity list. Shows incoming messages, safety dispositions, and moderation reasons. Visual updates pause automatically while keyboard focus is inside this list."
+                                  AutomationProperties.ItemStatus="{Binding LiveFeedReviewStatus}"
+                                  AutomationProperties.HelpText="Use Arrow keys to review entries. On a filtered entry, double-click or press Enter to reveal or hide its original text. New visual entries are held while this list has keyboard focus; moderation and text to speech continue. Leave the list to show held entries and resume visual updates.">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource StatusCard}" Padding="14" Margin="0,0,0,4">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,6">
+                                                <Border CornerRadius="4" Padding="8,2" Margin="0,0,10,0"
+                                                        Background="{Binding Disposition, Converter={StaticResource DispositionToBackgroundBrushConverter}}">
+                                                    <TextBlock Text="{Binding Disposition}" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}"
+                                                               Foreground="{Binding Disposition, Converter={StaticResource DispositionToForegroundBrushConverter}}" />
+                                                </Border>
+                                                <TextBlock Text="{Binding SafeAuthorDisplayName}" FontWeight="SemiBold"
+                                                           FontSize="{DynamicResource SafeSpeakFont15}" VerticalAlignment="Center" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="1" Text="{Binding ReviewDisplayText}"
+                                                       FontSize="{DynamicResource SafeSpeakFont15}"
+                                                       TextWrapping="Wrap" Margin="0,0,0,4" />
+
+                                            <TextBlock Grid.Row="2" Text="{Binding SafeReasonDescription}"
+                                                       Style="{StaticResource SecondaryText}"
+                                                       FontSize="{DynamicResource SafeSpeakFont13}" />
+
+                                            <TextBlock Grid.Row="3" Text="{Binding RevealInstruction}"
+                                                       Visibility="{Binding IsFiltered, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                       Style="{StaticResource SecondaryText}"
+                                                       FontSize="{DynamicResource SafeSpeakFont13}"
+                                                       TextWrapping="Wrap" Margin="0,4,0,0" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
                 </Grid>
             </TabItem>
 
@@ -338,7 +376,7 @@
                         <Label x:Name="SafetyModerationChapterHeading" TabIndex="5" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 1 — Moderation strength and model"
                                AutomationProperties.Name="Safety chapter 1 of 4, moderation strength and model"
-                               AutomationProperties.HelpText="The following controls choose the moderation level and contextual filtering model." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose the moderation level and contextual filtering model. Use Alt plus 1 to return here." />
                         <Grid Margin="0,8,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -460,7 +498,7 @@
                         <Label TabIndex="11" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 2 — Custom word filtering"
                                AutomationProperties.Name="Safety chapter 2 of 4, custom word filtering"
-                               AutomationProperties.HelpText="The following controls manage custom banned and allowed words and phrases." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls manage custom banned and allowed words and phrases. Use Alt plus 2 to return here." />
                         <TextBlock Text="Banned words and phrases" FontWeight="SemiBold" Margin="0,0,0,4" />
                         <DockPanel Margin="0,0,0,6">
                             <Button DockPanel.Dock="Right" TabIndex="13" Margin="8,0,0,0"
@@ -526,7 +564,7 @@
                         <Label TabIndex="20" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 3 — Test the current filter"
                                AutomationProperties.Name="Safety chapter 3 of 4, test the current filter"
-                               AutomationProperties.HelpText="The following controls test one message without broadcasting, queueing, or logging it." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls test one message without broadcasting, queueing, or logging it. Use Alt plus 3 to return here." />
                         <TextBlock Text="Test a message" FontWeight="SemiBold" Margin="0,0,0,4" />
                         <DockPanel>
                             <Button DockPanel.Dock="Right" TabIndex="22" Margin="8,0,0,0"
@@ -565,7 +603,7 @@
                         <Label TabIndex="23" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 4 — Safety guide and examples"
                                AutomationProperties.Name="Safety chapter 4 of 4, safety guide and examples"
-                               AutomationProperties.HelpText="The following reference explains the slider, contextual signals, examples, and always-on protections." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following reference explains the slider, contextual signals, examples, and always-on protections. Use Alt plus 4 to return here." />
                         <Border x:Name="ModerationGuidePanel"
                                 Style="{StaticResource ContentPanel}" Margin="0,14,0,10">
                             <StackPanel>
@@ -690,13 +728,18 @@
                                 KeyboardNavigation.TabNavigation="Local">
                         <TextBlock Text="Voice" Style="{StaticResource PageTitle}" FontSize="{DynamicResource SafeSpeakFont26}" />
 
+                        <Label x:Name="VoiceSelectionChapterHeading" TabIndex="1"
+                               Style="{StaticResource ChapterHeading}"
+                               Content="Chapter 1 — Voice selection"
+                               AutomationProperties.Name="Voice chapter 1 of 4, voice selection"
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls select and preview the speech voice. Use Alt plus 1 to return here." />
                         <TextBlock Text="Current voice" FontWeight="SemiBold" Margin="0,9,0,4" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <ComboBox x:Name="VoiceCombo" TabIndex="1"
+                            <ComboBox x:Name="VoiceCombo" TabIndex="2"
                                       ItemsSource="{Binding Voices}"
                                       SelectedValuePath="Id" SelectedValue="{Binding SelectedVoice}"
                                       PreviewKeyDown="SelectionComboBox_PreviewKeyDown"
@@ -715,12 +758,16 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <Button Grid.Column="1" TabIndex="2" Margin="8,0,0,0"
+                            <Button Grid.Column="1" TabIndex="3" Margin="8,0,0,0"
                                     Command="{Binding TestSelectedVoiceCommand}" Content="Preview"
                                     AutomationProperties.Name="Preview selected voice button. Plays a test phrase using the current voice settings." />
                         </Grid>
 
-                        <Border Style="{StaticResource ContentPanel}" Margin="0,10,0,10">
+                        <Label TabIndex="4" Style="{StaticResource ChapterHeading}"
+                               Content="Chapter 2 — Speech timing and volume"
+                               AutomationProperties.Name="Voice chapter 2 of 4, speech timing and volume"
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls adjust speech speed, volume, and spacing. Use Alt plus 2 to return here." />
+                        <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -729,7 +776,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <Label Target="{Binding ElementName=RateSlider}" Content="Speech speed" Padding="0" FontWeight="SemiBold" />
-                                    <Slider x:Name="RateSlider" Grid.Column="1" TabIndex="3"
+                                    <Slider x:Name="RateSlider" Grid.Column="1" TabIndex="5"
                                             Minimum="-5" Maximum="5" Margin="14,0"
                                             Value="{Binding SpeechRate}" TickFrequency="1" IsSnapToTickEnabled="True"
                                             AutomationProperties.Name="Voice speed slider from -5 slow to +5 fast"
@@ -744,7 +791,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <Label Target="{Binding ElementName=VolumeSlider}" Content="Volume" Padding="0" FontWeight="SemiBold" />
-                                    <Slider x:Name="VolumeSlider" Grid.Column="1" TabIndex="4"
+                                    <Slider x:Name="VolumeSlider" Grid.Column="1" TabIndex="6"
                                             Minimum="0" Maximum="150" Margin="14,0"
                                             Value="{Binding SpeechVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             TickFrequency="5" SmallChange="5" LargeChange="10" IsSnapToTickEnabled="True"
@@ -761,7 +808,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Label Target="{Binding ElementName=InterMessageGapSlider}"
                                            Content="Maximum time between queued voices" Padding="0" FontWeight="SemiBold" />
-                                    <Slider x:Name="InterMessageGapSlider" Grid.Column="1" TabIndex="5"
+                                    <Slider x:Name="InterMessageGapSlider" Grid.Column="1" TabIndex="7"
                                             Minimum="0" Maximum="50" Margin="14,0"
                                             Value="{Binding InterMessageGapTenths, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             TickFrequency="1" SmallChange="1" LargeChange="5" IsSnapToTickEnabled="True"
@@ -773,7 +820,7 @@
                                                AutomationProperties.LiveSetting="Polite"
                                                a11y:LiveRegion.Announcement="{Binding InterMessageGapAccessibleText}" />
                                 </Grid>
-                                <CheckBox TabIndex="6" Margin="0,8,0,0"
+                                <CheckBox TabIndex="8" Margin="0,8,0,0"
                                           IsChecked="{Binding AdaptiveInterMessageGap, Mode=TwoWay}"
                                           Content="Shorten the delay automatically when the queue is busy"
                                           AutomationProperties.Name="Adaptive queued-voice spacing"
@@ -781,14 +828,18 @@
                             </StackPanel>
                         </Border>
 
+                        <Label TabIndex="9" Style="{StaticResource ChapterHeading}"
+                               Content="Chapter 3 — Broadcast output"
+                               AutomationProperties.Name="Voice chapter 3 of 4, broadcast output"
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable stream output and select its audio device. Use Alt plus 3 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
                                 <TextBlock Text="Broadcast output" Style="{StaticResource SectionTitle}" FontSize="{DynamicResource SafeSpeakFont17}" />
-                                <CheckBox TabIndex="7" IsChecked="{Binding BroadcastOutputEnabled}" Margin="0,7,0,7"
+                                <CheckBox TabIndex="10" IsChecked="{Binding BroadcastOutputEnabled}" Margin="0,7,0,7"
                                           Content="Send approved speech to the stream output"
                                           AutomationProperties.HelpText="When checked, approved TTS audio plays through the selected broadcast output device." />
                                 <Label Target="{Binding ElementName=OutputCombo}" Content="Output device" Padding="0,0,0,4" />
-                                <ComboBox x:Name="OutputCombo" TabIndex="8"
+                                <ComboBox x:Name="OutputCombo" TabIndex="11"
                                           ItemsSource="{Binding AudioEndpoints}"
                                           SelectedValuePath="Id" SelectedValue="{Binding SelectedAudioEndpoint}"
                                           PreviewKeyDown="SelectionComboBox_PreviewKeyDown"
@@ -810,13 +861,17 @@
                             </StackPanel>
                         </Border>
 
+                        <Label TabIndex="12" Style="{StaticResource ChapterHeading}"
+                               Content="Chapter 4 — Local neural voices"
+                               AutomationProperties.Name="Voice chapter 4 of 4, local neural voices"
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following control installs the optional local neural voices when they are not present. Use Alt plus 4 to return here." />
                         <Border Style="{StaticResource ContentPanel}">
                             <StackPanel>
                                 <TextBlock Text="Local neural voices" Style="{StaticResource SectionTitle}" FontSize="{DynamicResource SafeSpeakFont17}" />
                                 <TextBlock Text="{Binding KokoroInstallationStatus}" Style="{StaticResource SecondaryText}"
                                            TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid Visibility="{Binding ShowKokoroInstallAction, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <Button TabIndex="9" HorizontalAlignment="Stretch"
+                                    <Button TabIndex="13" HorizontalAlignment="Stretch"
                                             Command="{Binding InstallKokoroCommand}"
                                             IsEnabled="{Binding IsDownloadingVoice, Converter={StaticResource InverseBoolConverter}}"
                                             Content="Install 27 local neural voices"
@@ -882,7 +937,7 @@
                                 <Label x:Name="SettingsSourceChapterHeading" TabIndex="5" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 1 — Live stream source"
                                        AutomationProperties.Name="Settings chapter 1 of 9, live stream source"
-                                       AutomationProperties.HelpText="The following controls choose and connect the livestream source." />
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose and connect the livestream source. Use Alt plus 1 to return here." />
                                 <TextBlock Text="Choose TikFinity or test a direct connection to a public TikTok LIVE stream. Saving a source disarms SafeSpeak and clears queued speech."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Label Target="{Binding ElementName=SourceConnectorSelector}"
@@ -917,7 +972,7 @@
                         <Label TabIndex="9" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 2 — Theme and spoken accessibility"
                                AutomationProperties.Name="Settings chapter 2 of 9, theme and spoken accessibility"
-                               AutomationProperties.HelpText="The following controls choose the visual theme and configure SafeSpeak built-in spoken guidance." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose the visual theme and configure SafeSpeak built-in spoken guidance. Use Alt plus 2 to return here." />
                         <Label Target="{Binding ElementName=ThemeSelector}" Content="Theme" Padding="0" Margin="0,9,0,5" FontWeight="SemiBold" />
                         <ListBox x:Name="ThemeSelector" TabIndex="10" Focusable="True" IsTabStop="True"
                                  ItemsSource="{Binding ThemeChoices}"
@@ -1108,7 +1163,7 @@
                                 <Label TabIndex="19" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 3 — Global keyboard shortcuts"
                                        AutomationProperties.Name="Settings chapter 3 of 9, global keyboard shortcuts"
-                                       AutomationProperties.HelpText="The following controls configure actions that work system-wide while SafeSpeak is running." />
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls configure actions that work system-wide while SafeSpeak is running. Use Alt plus 3 to return here." />
                                 <TextBlock Text="Shortcuts work system-wide while SafeSpeak is running, even when another application has focus. Tab to Enter keybind group, press Enter, then Tab through the action boxes. Activate an action, press the complete key combination once, and repeat the same combination to confirm it. Save and close activates the verified shortcut. Press Escape or choose Exit keybind group when finished. Function keys can be used alone; other non-modifier keys require Control, Alt, Shift, or Windows. Alt plus 1 through 9 opens that chapter on the current page; Alt plus 0 opens chapter 10. If an Alt-number is assigned as a custom global shortcut, that action takes priority and the matching chapter shortcut is unavailable until the binding is changed or disabled."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Button x:Name="GlobalShortcutGroupEntry" TabIndex="20"
@@ -1241,7 +1296,7 @@
                         <Label TabIndex="23" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 4 — Queue and message-rate limits"
                                AutomationProperties.Name="Settings chapter 4 of 9, queue and message-rate limits"
-                               AutomationProperties.HelpText="The following controls set the pending queue size and per-viewer and whole-stream spam limits." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls set the pending queue size and per-viewer and whole-stream spam limits. Use Alt plus 4 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
                                 <Grid>
@@ -1354,7 +1409,7 @@
                                     <Label TabIndex="29" Style="{StaticResource ChapterHeading}"
                                            Content="Chapter 5 — Language and audience"
                                            AutomationProperties.Name="Settings chapter 5 of 9, language and audience"
-                                           AutomationProperties.HelpText="The following controls choose writing-system protection and who may send messages to speech." />
+                                           AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose writing-system protection and who may send messages to speech. Use Alt plus 5 to return here." />
                                     <CheckBox TabIndex="30" IsChecked="{Binding EnglishOnly}" Margin="0,7,0,3"
                                               Content="Filter to English and Latin-script chat"
                                               AutomationProperties.Name="Filter chat to English and Latin script"
@@ -1403,7 +1458,7 @@
                                         <Label TabIndex="34" Style="{StaticResource ChapterHeading}"
                                                Content="Chapter 6 — Stream announcements"
                                                AutomationProperties.Name="Settings chapter 6 of 9, stream announcements"
-                                               AutomationProperties.HelpText="The following controls choose which stream events may enter speech, including behavior while paused." />
+                                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose which stream events may enter speech, including behavior while paused. Use Alt plus 6 to return here." />
                                         <UniformGrid Columns="2" Margin="0,5,0,0">
                                             <CheckBox TabIndex="35" IsChecked="{Binding AnnounceChatMessages}" Margin="0,3"
                                                       Content="Chat" AutomationProperties.Name="Announce chat messages"
@@ -1466,7 +1521,7 @@
                         <Label TabIndex="47" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 7 — Privacy and audit logs"
                                AutomationProperties.Name="Settings chapter 7 of 9, privacy and audit logs"
-                               AutomationProperties.HelpText="The following controls enable local moderation logs and open their folder." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable local moderation logs and open their folder. Use Alt plus 7 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
                                 <CheckBox TabIndex="48" IsChecked="{Binding EnableStreamAuditLogging}"
@@ -1490,7 +1545,7 @@
                         <Label TabIndex="50" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 8 — Interface and setup"
                                AutomationProperties.Name="Settings chapter 8 of 9, interface and setup"
-                               AutomationProperties.HelpText="The following controls change interface text size or run the accessibility setup again." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls change interface text size or run the accessibility setup again. Use Alt plus 8 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
                                 <Grid>
@@ -1524,7 +1579,7 @@
                         <Label TabIndex="53" Style="{StaticResource ChapterHeading}"
                                Content="Chapter 9 — Settings guide reference"
                                AutomationProperties.Name="Settings chapter 9 of 9, Settings guide reference"
-                               AutomationProperties.HelpText="The following visible reference contains the complete Settings guide. Guide playback controls may be at the top or bottom of this page." />
+                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following visible reference contains the complete Settings guide. Guide playback controls may be at the top or bottom of this page. Use Alt plus 9 to return here." />
                         <Border x:Name="SettingsGuidePanel" Style="{StaticResource ContentPanel}" Margin="0,10,0,10">
                             <StackPanel>
                                 <TextBlock Text="Settings guide" FontWeight="SemiBold"

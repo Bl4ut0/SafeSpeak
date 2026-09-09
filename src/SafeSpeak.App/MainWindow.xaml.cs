@@ -858,13 +858,9 @@ public partial class MainWindow : Window
     private UIElement GetSelectedPageEntryControl() => MainNavigation.SelectedIndex switch
     {
         0 => ArmToggle,
-        1 => DataContext is MainViewModel { AreSafetyGuideControlsAtTop: true }
-            ? ReadModerationGuideButton
-            : SafetyModerationChapterHeading,
-        2 => VoiceCombo,
-        3 => DataContext is MainViewModel { AreSettingsGuideControlsAtTop: true }
-            ? SettingsGuideButton
-            : SettingsSourceChapterHeading,
+        1 => SafetyModerationChapterHeading,
+        2 => VoiceSelectionChapterHeading,
+        3 => SettingsSourceChapterHeading,
         _ => ArmToggle
     };
 
@@ -952,6 +948,57 @@ public partial class MainWindow : Window
                 viewModel.ResumeLiveFeedReview();
             }
         }, DispatcherPriority.Input);
+    }
+
+    private void LiveFeedListView_MouseDoubleClick(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left ||
+            e.OriginalSource is not DependencyObject source ||
+            ItemsControl.ContainerFromElement(LiveFeedListView, source) is not ListViewItem item)
+        {
+            return;
+        }
+
+        item.IsSelected = true;
+        e.Handled = ToggleSelectedFilteredFeedEntry();
+    }
+
+    private void LiveFeedListView_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || Keyboard.Modifiers != ModifierKeys.None)
+        {
+            return;
+        }
+
+        e.Handled = ToggleSelectedFilteredFeedEntry();
+    }
+
+    private bool ToggleSelectedFilteredFeedEntry()
+    {
+        if (LiveFeedListView.SelectedItem is not LiveFeedEntryViewModel entry)
+        {
+            return false;
+        }
+
+        if (DataContext is MainViewModel viewModel)
+        {
+            if (entry.ToggleFilteredContent())
+            {
+                viewModel.AnnounceState(entry.RevealAnnouncement, interrupt: true);
+            }
+            else
+            {
+                viewModel.AnnounceState(
+                    "This message was approved, so it has no hidden filtered text.",
+                    interrupt: true);
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private void EmergencyStopButton_IsVisibleChanged(
