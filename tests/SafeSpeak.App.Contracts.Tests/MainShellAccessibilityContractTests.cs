@@ -1591,6 +1591,9 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("CommitInlineShortcut(normalized, enabled: true)", codeBehind);
         Assert.Contains("Key.LeftAlt or Key.RightAlt => ModifierKeys.Alt", codeBehind);
         Assert.Contains("viewModel.TryApplyGlobalShortcuts()", codeBehind);
+        Assert.Contains("_hotkeyService.UnregisterHotkeys()", codeBehind);
+        Assert.Contains("ResumeGlobalHotkeysAfterShortcutCapture()", codeBehind);
+        Assert.Contains("is already saved for", codeBehind);
         Assert.Contains("could not be saved", codeBehind);
         Assert.Contains("Windows could not activate it", codeBehind);
         Assert.Contains("GlobalShortcutNavigationGroup.IsKeyboardFocusWithin", codeBehind);

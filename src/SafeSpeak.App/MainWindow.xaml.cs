@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private IntegratedFocusNarrator? _focusNarrator;
     private bool _shutdownCleanupStarted;
     private bool _globalShortcutGroupActive;
+    private bool _hotkeysSuspendedForShortcutCapture;
     private GlobalShortcutEditorViewModel? _capturingShortcutEditor;
     private string? _firstCapturedShortcut;
     private ModifierKeys _shortcutCaptureModifiers;
@@ -208,6 +209,8 @@ public partial class MainWindow : Window
         }
 
         viewModel.SelectedGlobalShortcut = editor;
+        _hotkeyService.UnregisterHotkeys();
+        _hotkeysSuspendedForShortcutCapture = true;
         _capturingShortcutEditor = editor;
         _firstCapturedShortcut = null;
         ResetShortcutCaptureKeys();
@@ -360,6 +363,8 @@ public partial class MainWindow : Window
 
         string previousGesture = editor.Gesture;
         bool previousEnabled = editor.IsEnabled;
+        bool wasAlreadySaved = previousEnabled == enabled &&
+            string.Equals(previousGesture, gesture, StringComparison.OrdinalIgnoreCase);
         editor.Gesture = gesture;
         editor.IsEnabled = enabled && !string.IsNullOrEmpty(gesture);
         editor.Status = editor.IsEnabled
@@ -378,9 +383,13 @@ public partial class MainWindow : Window
         bool active = editor.IsEnabled &&
             editor.Status.StartsWith("Active globally:", StringComparison.OrdinalIgnoreCase);
         string result = !editor.IsEnabled
-            ? $"Verified and saved. The shortcut for {editor.DisplayName} is disabled. Focus returned to {editor.DisplayName} in the keybind menu."
+            ? wasAlreadySaved
+                ? $"Verified. The shortcut for {editor.DisplayName} was already disabled. Focus returned to {editor.DisplayName} in the keybind menu."
+                : $"Verified and saved. The shortcut for {editor.DisplayName} is disabled. Focus returned to {editor.DisplayName} in the keybind menu."
             : active
-                ? $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The shortcut is active system-wide. Focus returned to {editor.DisplayName} in the keybind menu."
+                ? wasAlreadySaved
+                    ? $"Verified. {SpeakableShortcut(editor.Gesture)} is already saved for {editor.DisplayName} and is active system-wide. Focus returned to {editor.DisplayName} in the keybind menu."
+                    : $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The shortcut is active system-wide. Focus returned to {editor.DisplayName} in the keybind menu."
                 : $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}, but Windows could not activate it. {editor.Status} Focus returned to {editor.DisplayName} in the keybind menu.";
         CloseInlineShortcutCapture();
         SetShortcutGroupStatus(result);
@@ -427,6 +436,21 @@ public partial class MainWindow : Window
         _capturingShortcutEditor = null;
         _firstCapturedShortcut = null;
         ResetShortcutCaptureKeys();
+        ResumeGlobalHotkeysAfterShortcutCapture();
+    }
+
+    private void ResumeGlobalHotkeysAfterShortcutCapture()
+    {
+        if (!_hotkeysSuspendedForShortcutCapture)
+        {
+            return;
+        }
+
+        _hotkeysSuspendedForShortcutCapture = false;
+        if (DataContext is MainViewModel viewModel && _windowHandle != nint.Zero)
+        {
+            RegisterCurrentGlobalShortcuts(viewModel, announce: false);
+        }
     }
 
     private IEnumerable<Button> ShortcutActionButtons() =>
@@ -1065,6 +1089,7 @@ public partial class MainWindow : Window
     {
         if (sender is MainViewModel viewModel)
         {
+            _hotkeysSuspendedForShortcutCapture = false;
             RegisterCurrentGlobalShortcuts(viewModel, announce: true);
         }
     }
