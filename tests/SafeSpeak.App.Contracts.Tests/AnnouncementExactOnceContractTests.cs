@@ -88,6 +88,21 @@ public sealed class AnnouncementExactOnceContractTests
     }
 
     [Fact]
+    public void ExplicitOnDemandSpeechBypassesAutomaticGuidanceToggle()
+    {
+        string announcer = Source(
+            "src", "SafeSpeak.Core", "Accessibility",
+            "ScreenReaderAnnouncer.cs");
+        string onDemand = Method(
+            announcer,
+            "public void AnnounceOnDemand(string text, bool interrupt = false)");
+
+        Assert.DoesNotContain("IsEnhancedAccessibilityEnabled", onDemand);
+        Assert.Contains("AnnouncementRequested?.Invoke", onDemand);
+        Assert.Contains("SpeakWithSystemVoice(text, interrupt)", onDemand);
+    }
+
+    [Fact]
     public void VoiceSelection_AnnouncesOptionButNeverSynthesizesAFullPreview()
     {
         string main = Source(
@@ -101,6 +116,22 @@ public sealed class AnnouncementExactOnceContractTests
         Assert.DoesNotContain("TestSelectedVoice", selection);
         Assert.DoesNotContain("Synthesize", selection, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("sample", selection, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ShortcutArrowNavigationDoesNotRepeatTheSelectorLabel()
+    {
+        string shortcuts = Source(
+            "src", "SafeSpeak.App", "ViewModels", "MainViewModel.Shortcuts.cs");
+
+        Assert.DoesNotContain(
+            "return $\"Shortcut action:",
+            shortcuts,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "return $\"{SelectedGlobalShortcut.DisplayName}{position}.",
+            shortcuts,
+            StringComparison.Ordinal);
     }
 
     [Fact]

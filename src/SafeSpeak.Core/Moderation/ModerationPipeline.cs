@@ -143,8 +143,16 @@ public sealed class ModerationPipeline : IDisposable
             };
         }
 
-        // 5. Script & Language Validation
-        if (Config.RejectMixedScripts && ScriptValidator.ContainsMixedScriptWords(message.RawText))
+        // 5. Multi-layer Deobfuscation for Security Inspection
+        string normalizedForInspection = UnicodeNormalizer.NormalizeForInspection(message.RawText);
+        string decomposedForScriptInspection = UnicodeNormalizer.RemoveDiacritics(
+            UnicodeNormalizer.StripInvisibleCharacters(message.RawText));
+
+        // 6. Script & Language Validation
+        if (Config.RejectMixedScripts &&
+            (ScriptValidator.ContainsMixedScriptWords(message.RawText) ||
+             ScriptValidator.ContainsMixedScriptWords(decomposedForScriptInspection) ||
+             ScriptValidator.ContainsMixedScriptWords(normalizedForInspection)))
         {
             return new ModerationDecision
             {
@@ -153,11 +161,14 @@ public sealed class ModerationPipeline : IDisposable
                 ReasonCode = ModerationReasonCode.DisallowedScript,
                 ReasonDescription = "Mixed writing systems detected in single word (homoglyph spoofing attempt)",
                 SpokenText = string.Empty,
-                NormalizedText = message.RawText
+                NormalizedText = normalizedForInspection
             };
         }
 
-        if (Config.EnglishOnly && !ScriptValidator.IsLatinOrEmojiOnly(message.RawText))
+        if (Config.EnglishOnly &&
+            (!ScriptValidator.IsLatinOrEmojiOnly(message.RawText) ||
+             !ScriptValidator.IsLatinOrEmojiOnly(decomposedForScriptInspection) ||
+             !ScriptValidator.IsLatinOrEmojiOnly(normalizedForInspection)))
         {
             return new ModerationDecision
             {
@@ -166,12 +177,9 @@ public sealed class ModerationPipeline : IDisposable
                 ReasonCode = ModerationReasonCode.DisallowedScript,
                 ReasonDescription = "Non-Latin script detected while English-only mode is active",
                 SpokenText = string.Empty,
-                NormalizedText = message.RawText
+                NormalizedText = normalizedForInspection
             };
         }
-
-        // 5. Multi-layer Deobfuscation for Security Inspection
-        string normalizedForInspection = UnicodeNormalizer.NormalizeForInspection(message.RawText);
 
         // 6. Blocklist / Prohibited Rule Matching
         if (_ruleEngine.MatchesBlockedTerms(
@@ -257,7 +265,7 @@ public sealed class ModerationPipeline : IDisposable
             message.AuthorDisplayName,
             cancellationToken);
         string finalSpokenText = message.AttributionStyle == SpokenAttributionStyle.LeadingName
-            ? $"{safeDisplayName} {speechCleaned}"
+            ? $"{safeDisplayName}, {speechCleaned}"
             : $"{safeDisplayName} says: {speechCleaned}";
 
         return new ModerationDecision
@@ -283,13 +291,23 @@ public sealed class ModerationPipeline : IDisposable
             return "A viewer";
         }
 
+        string normalized = UnicodeNormalizer.NormalizeForInspection(displayName);
+        string decomposedForScriptInspection = UnicodeNormalizer.RemoveDiacritics(
+            UnicodeNormalizer.StripInvisibleCharacters(displayName));
+
+        // Validate both compatibility decomposition and inspection output. The
+        // original form may use mathematical/decorative Latin glyphs that are
+        // not directly speakable but safely decompose to ordinary Latin text.
         if (ScriptValidator.ContainsMixedScriptWords(displayName) ||
-            (Config.EnglishOnly && !ScriptValidator.IsLatinOrEmojiOnly(displayName)))
+            ScriptValidator.ContainsMixedScriptWords(decomposedForScriptInspection) ||
+            ScriptValidator.ContainsMixedScriptWords(normalized) ||
+            (Config.EnglishOnly &&
+             (!ScriptValidator.IsLatinOrEmojiOnly(decomposedForScriptInspection) ||
+              !ScriptValidator.IsLatinOrEmojiOnly(normalized))))
         {
             return "A viewer";
         }
 
-        string normalized = UnicodeNormalizer.NormalizeForInspection(displayName);
         if (_ruleEngine.MatchesBlockedTerms(
                 normalized,
                 Config.CustomBlockedTerms,
@@ -320,7 +338,7 @@ public sealed class ModerationPipeline : IDisposable
             return "A viewer";
         }
 
-        string cleaned = UnicodeNormalizer.CleanForSpeech(displayName, stripUrls: true);
+        string cleaned = UnicodeNormalizer.CleanDisplayNameForSpeech(displayName);
         return string.IsNullOrWhiteSpace(cleaned) ? "A viewer" : cleaned;
     }
 

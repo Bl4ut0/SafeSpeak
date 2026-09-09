@@ -275,6 +275,28 @@ public sealed class ReleaseEntryPointContractTests
     }
 
     [Fact]
+    public void ReleasePackages_IncludeVerifiedCpuOnlyPrivateModelRuntime()
+    {
+        string script = ReleaseScript();
+        string prepare = Source("installer", "Prepare-OllamaRuntime.ps1");
+        string project = Source("src", "SafeSpeak.App", "SafeSpeak.App.csproj");
+
+        Assert.Contains("Prepare-OllamaRuntime.ps1", script);
+        Assert.Contains("-p:OllamaRuntimeDirectory", script);
+        Assert.Contains("Join-Path $publishDirectory 'Runtime\\Ollama'", script);
+        Assert.Contains("Join-Path $ollamaRuntimeDirectoryPublished 'ollama.exe'", script);
+        Assert.Contains("LLAMA_CPP_LICENSE", script);
+        Assert.Contains("optionalModerationRuntime", script);
+        Assert.Contains("v0.33.3", prepare);
+        Assert.Contains("52CB36A62E7E501F61514F60212DEC7117B6C098811357585E02FFFE32D2FCD7", prepare);
+        Assert.Contains("98B9DDAAB6BAECE0418C6D1231526EB1E4E66944985E0A8EEB7D6171BCD7B6D8", prepare);
+        Assert.Contains("--exclude=lib/ollama/cuda_v12/*", prepare);
+        Assert.Contains("--exclude=lib/ollama/vulkan/*", prepare);
+        Assert.Contains("$(OllamaRuntimeDirectory)\\**\\*", project);
+        Assert.Contains("Runtime\\Ollama", project);
+    }
+
+    [Fact]
     public void HashVerifiedModerationAssets_UseDeterministicGitAttributes()
     {
         string attributes = Source(".gitattributes");
@@ -302,7 +324,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("'unbundle', '/p'", script);
         Assert.Contains("Microsoft Store reserves the fourth package version component", script);
         Assert.Contains("SafeSpeakStoreVersion", script);
-        Assert.Contains("<SafeSpeakStoreVersion>1.0.4.0</SafeSpeakStoreVersion>", properties);
+        Assert.Contains("<SafeSpeakStoreVersion>1.0.5.0</SafeSpeakStoreVersion>", properties);
         Assert.Contains("requires the assigned Partner Center identity and publisher", script);
         Assert.DoesNotContain("Start-Process", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TikFinityEmulator", script, StringComparison.OrdinalIgnoreCase);
@@ -336,7 +358,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("default: false", workflow);
-        Assert.Contains("default: 1.0.4.0", workflow);
+        Assert.Contains("default: 1.0.5.0", workflow);
         Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
         Assert.Contains("SafeSpeakStoreVersion", workflow);
         Assert.Contains("steps.store-version.outputs.version", workflow);

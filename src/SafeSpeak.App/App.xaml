@@ -502,6 +502,18 @@
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
         </Style>
+        <Style x:Key="ChapterHeading" TargetType="Label"
+               BasedOn="{StaticResource {x:Type Label}}">
+            <Setter Property="FontSize" Value="{DynamicResource SafeSpeakFont18}" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="4,5" />
+            <Setter Property="Margin" Value="0,4,0,5" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="True" />
+            <Setter Property="IsTabStop" Value="True" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="AutomationProperties.HeadingLevel" Value="Level2" />
+        </Style>
         <Style x:Key="BodyText" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />

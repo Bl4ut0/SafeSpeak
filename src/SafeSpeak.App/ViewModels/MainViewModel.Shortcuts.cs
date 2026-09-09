@@ -30,17 +30,37 @@ public sealed class GlobalShortcutEditorViewModel : ObservableObject
     public string Description => Definition.Description;
     public string EnabledAutomationName => $"Enable global shortcut for {DisplayName}";
     public string GestureAutomationName => $"Global shortcut keys for {DisplayName}";
+    public string GestureDisplay => IsEnabled && !string.IsNullOrWhiteSpace(Gesture)
+        ? Gesture
+        : "Not assigned";
+    public string CardAutomationName =>
+        $"{DisplayName}. Current shortcut: {GestureDisplay}. Press Enter to change.";
+    public string CardHelpText => $"{Description} Opens a shortcut listener and requires confirmation before replacing the saved key.";
 
     public bool IsEnabled
     {
         get => _isEnabled;
-        set => SetProperty(ref _isEnabled, value);
+        set
+        {
+            if (SetProperty(ref _isEnabled, value))
+            {
+                OnPropertyChanged(nameof(GestureDisplay));
+                OnPropertyChanged(nameof(CardAutomationName));
+            }
+        }
     }
 
     public string Gesture
     {
         get => _gesture;
-        set => SetProperty(ref _gesture, value ?? string.Empty);
+        set
+        {
+            if (SetProperty(ref _gesture, value ?? string.Empty))
+            {
+                OnPropertyChanged(nameof(GestureDisplay));
+                OnPropertyChanged(nameof(CardAutomationName));
+            }
+        }
     }
 
     public string Status
@@ -95,14 +115,16 @@ public sealed partial class MainViewModel
         "Control+1: Live page",
         "Control+2: Safety page",
         "Control+3: Voice page",
-        "Control+4: Settings page"
+        "Control+4: Settings page",
+        "Alt+1 through Alt+9: chapter 1 through chapter 9 on the open page",
+        "Alt+0: chapter 10 on the open page, when present. A custom global shortcut using the same Alt-number takes priority and disables that chapter shortcut until changed or disabled."
     ];
 
     public IReadOnlyList<string> SettingsGuidePages { get; } =
     [
         "Page 1, theme. The Theme selector is one keyboard stop. Use Left or Right Arrow to choose Light, Dark, or High Contrast. The selected theme is announced immediately; Tab continues without changing it.",
-        "Page 2, built-in guidance. Choose whether SafeSpeak speaks focused controls, its private output device, volume from zero to one hundred fifty percent, speech speed, detailed or short descriptions, and typed-character echo. Test guidance and Shut up affect only SafeSpeak guidance, never livestream text to speech.",
-        "Page 3, keyboard shortcuts. Global shortcuts work outside SafeSpeak while it is running. Choose an action, enable it, record the desired key combination, and apply it. The only fixed application shortcuts are Control plus 1, 2, 3, or 4 to open the four main pages.",
+        "Page 2, built-in guidance. Choose whether SafeSpeak speaks focused controls, its private output device, volume from zero to one hundred fifty percent, speech speed, detailed or short descriptions, and typed-character echo. A focused selection box does not change with Arrow keys until you open it with Enter, Space, Alt plus Down Arrow, or F4. Test guidance and Shut up affect only SafeSpeak guidance, never livestream text to speech.",
+        "Page 3, keyboard shortcuts. Global shortcuts work outside SafeSpeak while it is running. Tab to Enter keybind group and press Enter or Space. The action boxes then become tabbable and can also be reached with Arrow keys. Press Enter on an action, press the complete shortcut once, and then press the same shortcut again to verify it. Save and close remains unavailable until both entries match. Escape exits the group without saving an unfinished change. Control plus 1, 2, 3, or 4 always cancels unfinished capture, exits the group, and opens the selected main page. Alt plus 1 through 9 opens that numbered chapter on the current page, and Alt plus 0 opens chapter 10. Assigning an Alt-number to a custom global action gives that action priority and disables the matching chapter shortcut until the binding is changed or disabled.",
         "Page 4, queue and spam limits. The queue limit sets how many approved messages may wait. Optional rolling spam limits separately control messages from one viewer and messages across the whole stream, counted per one second or per ten seconds. Their saved values remain adjustable while the limits are off.",
         "Page 5, language and audience. These controls decide which writing systems and viewer groups are eligible before a message can enter speech. Moderation still applies to every eligible message.",
         "Page 6, stream announcements and pause behavior. Choose which event types may speak and which events may continue when chat speech is paused. Emergency Stop always stops and clears all livestream speech.",
@@ -172,7 +194,7 @@ public sealed partial class MainViewModel
         AnnounceNarration(
             "Fixed SafeSpeak application shortcuts. " +
             string.Join(". ", ApplicationKeyboardShortcuts) + ".",
-            "Reading the four fixed page shortcuts.",
+            "Reading SafeSpeak page and chapter navigation shortcuts.",
             interrupt: true);
 
     public event EventHandler? GlobalShortcutsChanged;
@@ -197,13 +219,13 @@ public sealed partial class MainViewModel
             string position = index >= 0
                 ? $", option {index + 1} of {GlobalShortcutEditors.Count}"
                 : string.Empty;
-            return $"Shortcut action: {SelectedGlobalShortcut.DisplayName}{position}. " +
+            return $"{SelectedGlobalShortcut.DisplayName}{position}. " +
                    SelectedGlobalShortcutDescription;
         }
     }
 
     public string HearStatusHelpText =>
-        "First control in the window and always available on every page. Announces source connection, armed and playback state, queue, current speech, and broadcast output through SafeSpeak built-in guidance on its selected audio device. " +
+        "First control in the window and always available on every page. Announces source connection, armed and playback state, queue, current speech, and broadcast output through SafeSpeak's private guidance device. This explicit status request speaks even when automatic built-in guidance is turned off. " +
         ShortcutSentence(HotkeyAction.AnnounceStatus);
 
     public string ArmToggleHelpText =>
@@ -275,6 +297,11 @@ public sealed partial class MainViewModel
     public IReadOnlyList<GlobalShortcutBinding> GetGlobalShortcutBindings() =>
         _settings.GlobalShortcuts.Select(binding => binding.Clone()).ToArray();
 
+    public bool IsGlobalShortcutConfigured(string gesture) =>
+        GlobalShortcutEditors.Any(editor =>
+            editor.IsEnabled &&
+            string.Equals(editor.Gesture, gesture, StringComparison.OrdinalIgnoreCase));
+
     [RelayCommand]
     public void ApplyGlobalShortcuts()
     {
@@ -332,9 +359,10 @@ public sealed partial class MainViewModel
         }
 
         GlobalShortcutStatus =
-            "All shortcut defaults restored. Choose Apply shortcut changes.";
+            "All shortcut defaults restored. Saving and activating them now.";
         OnPropertyChanged(nameof(SelectedGlobalShortcutDescription));
         OnPropertyChanged(nameof(SelectedGlobalShortcutAccessibleText));
+        ApplyGlobalShortcuts();
     }
 
     public void ReportGlobalShortcutRegistration(

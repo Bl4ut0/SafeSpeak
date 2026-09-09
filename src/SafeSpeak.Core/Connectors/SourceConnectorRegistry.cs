@@ -50,12 +50,15 @@ public sealed class SourceConnectorRegistry
         return connector;
     }
 
-    public static SourceConnectorRegistry CreateDefault()
+    public static SourceConnectorRegistry CreateDefault(string tikTokUsername = "")
     {
         var registry = new SourceConnectorRegistry();
         registry.Register(
             TikFinityWebSocketClient.ConnectorDescriptor,
             static () => new TikFinityWebSocketClient());
+        registry.Register(
+            TikTokLiveConnector.ConnectorDescriptor,
+            () => new TikTokLiveConnector(tikTokUsername));
         return registry;
     }
 }

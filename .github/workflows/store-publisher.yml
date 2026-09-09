@@ -13,7 +13,7 @@ on:
       package_version:
         description: Store package version (four parts; final component must be 0)
         required: true
-        default: 1.0.4.0
+        default: 1.0.5.0
         type: string
       verify_connection:
         description: Authenticate and verify access to the SafeSpeak Partner Center product
@@ -66,6 +66,12 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+
+      - name: Cache verified private model runtime archives
+        uses: actions/cache@v5
+        with:
+          path: .build-cache\ollama\downloads\v0.33.3
+          key: ollama-runtime-v0.33.3-${{ runner.os }}-store-52CB36A62E7E501F61514F60212DEC7117B6C098811357585E02FFFE32D2FCD7-98B9DDAAB6BAECE0418C6D1231526EB1E4E66944985E0A8EEB7D6171BCD7B6D8
 
       - name: Cache pinned Kokoro smoke-test model
         uses: actions/cache@v5

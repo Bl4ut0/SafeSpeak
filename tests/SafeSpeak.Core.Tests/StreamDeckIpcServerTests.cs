@@ -53,6 +53,27 @@ public sealed class StreamDeckIpcServerTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("file://")]
+    [InlineData("null")]
+    [InlineData("http://127.0.0.1:5000")]
+    public async Task AllowedOrigins_CanReadState(string origin)
+    {
+        int port = ReservePort();
+        using var server = new StreamDeckIpcServer(
+            () => new IpcStateBroadcast { IsArmed = true },
+            (_, _) => Task.FromResult("ok"),
+            port);
+        server.Start();
+        using var client = new HttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{port}/state");
+        request.Headers.Add("Origin", origin);
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private static int ReservePort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);

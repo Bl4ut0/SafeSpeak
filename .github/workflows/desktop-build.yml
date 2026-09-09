@@ -33,6 +33,12 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Cache verified private model runtime archive
+        uses: actions/cache@v5
+        with:
+          path: .build-cache\ollama\downloads\v0.33.3
+          key: ollama-runtime-v0.33.3-${{ runner.os }}-${{ matrix.architecture }}-${{ matrix.architecture == 'x64' && '52CB36A62E7E501F61514F60212DEC7117B6C098811357585E02FFFE32D2FCD7' || '98B9DDAAB6BAECE0418C6D1231526EB1E4E66944985E0A8EEB7D6171BCD7B6D8' }}
+
       - name: Import release code-signing certificate
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh

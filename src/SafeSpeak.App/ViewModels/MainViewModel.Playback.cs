@@ -82,7 +82,7 @@ public sealed partial class MainViewModel
     {
         if (_incomingEventCts.IsCancellationRequested) return;
 
-        Application.Current?.Dispatcher.BeginInvoke(() =>
+        void ApplyState()
         {
             if (_incomingEventCts.IsCancellationRequested) return;
             IsArmed = e.IsArmed;
@@ -94,7 +94,16 @@ public sealed partial class MainViewModel
             {
                 Interlocked.Exchange(ref _queueSaturationAnnounced, 0);
             }
-        });
+        }
+
+        if (Application.Current?.Dispatcher.CheckAccess() == true)
+        {
+            ApplyState();
+        }
+        else
+        {
+            Application.Current?.Dispatcher.BeginInvoke(ApplyState);
+        }
     }
 
     private void TtsQueue_PlaybackStarted(

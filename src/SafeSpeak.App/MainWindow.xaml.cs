@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -20,6 +21,11 @@ public partial class MainWindow : Window
     private HwndSource? _hwndSource;
     private IntegratedFocusNarrator? _focusNarrator;
     private bool _shutdownCleanupStarted;
+    private bool _globalShortcutGroupActive;
+    private GlobalShortcutEditorViewModel? _capturingShortcutEditor;
+    private string? _firstCapturedShortcut;
+    private string _verifiedShortcut = string.Empty;
+    private bool _shortcutCaptureVerified;
     private ModifierKeys _shortcutCaptureModifiers;
     private bool _shortcutCapturedNonModifier;
 
@@ -37,68 +43,12 @@ public partial class MainWindow : Window
         }
         Closing += MainWindow_Closing;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+        PreviewMouseWheel += MainWindow_PreviewMouseWheel;
         Loaded += (_, _) => Dispatcher.BeginInvoke(() =>
         {
             HearStatusButton.Focus();
             Keyboard.Focus(HearStatusButton);
         }, DispatcherPriority.Input);
-    }
-
-    private void GlobalShortcutGestureInput_PreviewKeyDown(
-        object sender,
-        KeyEventArgs e)
-    {
-        if (e.Handled || sender is not TextBox input)
-        {
-            return;
-        }
-
-        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
-        ModifierKeys keyModifier = GetShortcutModifier(key);
-        if (keyModifier != ModifierKeys.None)
-        {
-            if (_shortcutCaptureModifiers == ModifierKeys.None)
-            {
-                _shortcutCapturedNonModifier = false;
-            }
-
-            _shortcutCaptureModifiers |= keyModifier;
-            e.Handled = true;
-            return;
-        }
-
-        ModifierKeys modifiers = Keyboard.Modifiers;
-        bool isKeyboardNavigation = key == Key.Tab &&
-            modifiers is ModifierKeys.None or ModifierKeys.Shift;
-        if (isKeyboardNavigation)
-        {
-            return;
-        }
-
-        if (key is Key.Back or Key.Delete && modifiers == ModifierKeys.None)
-        {
-            SetCapturedGlobalShortcut(input, string.Empty);
-            _shortcutCapturedNonModifier = true;
-            e.Handled = true;
-            return;
-        }
-
-        if (!TryGetShortcutKeyName(key, out string keyName))
-        {
-            if (DataContext is MainViewModel unsupportedViewModel)
-            {
-                unsupportedViewModel.Announcer.AnnounceFocus(
-                    $"{key} cannot be used as a global shortcut key.");
-            }
-
-            e.Handled = true;
-            return;
-        }
-
-        string gesture = FormatShortcutGesture(modifiers, keyName);
-        SetCapturedGlobalShortcut(input, gesture);
-        _shortcutCapturedNonModifier = true;
-        e.Handled = true;
     }
 
     private void ThemeSelector_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -126,6 +76,510 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void GlobalShortcutGroupEntry_Click(object sender, RoutedEventArgs e) =>
+        EnterGlobalShortcutGroup(focusFirstAction: true);
+
+    private void EnterGlobalShortcutGroup(bool focusFirstAction)
+    {
+        _globalShortcutGroupActive = true;
+        ExitGlobalShortcutGroupButton.Visibility = Visibility.Visible;
+        ExitGlobalShortcutGroupButton.IsTabStop = true;
+        Button[] actionButtons = ShortcutActionButtons().ToArray();
+        foreach (Button button in actionButtons)
+        {
+            button.IsTabStop = true;
+        }
+
+        SetShortcutGroupStatus(
+            "Keybind group entered. Action boxes are now tabbable. Use Tab or Arrow keys to navigate. Press Enter to edit an action. Press Escape or choose Exit keybind group when finished.");
+        if (focusFirstAction && actionButtons.FirstOrDefault() is Button first)
+        {
+            Dispatcher.BeginInvoke(() => FocusElement(first), DispatcherPriority.Input);
+        }
+    }
+
+    private void ExitGlobalShortcutGroupButton_Click(object sender, RoutedEventArgs e) =>
+        ExitGlobalShortcutGroup();
+
+    private void ExitGlobalShortcutGroup()
+    {
+        DeactivateGlobalShortcutGroup(
+            announce: true,
+            restoreEntryFocus: true,
+            "Keybind group exited. Focus returned to the Enter keybind group button. Tab continues through Settings.");
+    }
+
+    private void DeactivateGlobalShortcutGroup(
+        bool announce,
+        bool restoreEntryFocus,
+        string status)
+    {
+        CancelInlineShortcutCapture(announce: false, restoreActionFocus: false);
+        _globalShortcutGroupActive = false;
+        foreach (Button button in ShortcutActionButtons())
+        {
+            button.IsTabStop = false;
+        }
+
+        ExitGlobalShortcutGroupButton.IsTabStop = false;
+        ExitGlobalShortcutGroupButton.Visibility = Visibility.Collapsed;
+        if (announce)
+        {
+            SetShortcutGroupStatus(status);
+        }
+        else
+        {
+            GlobalShortcutGroupStatus.Text = status;
+        }
+
+        if (restoreEntryFocus)
+        {
+            Dispatcher.BeginInvoke(
+                () => FocusElement(GlobalShortcutGroupEntry),
+                DispatcherPriority.Input);
+        }
+    }
+
+    private void GlobalShortcutNavigationGroup_PreviewKeyDown(
+        object sender,
+        KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            ExitGlobalShortcutGroup();
+            e.Handled = true;
+            return;
+        }
+
+        if (_capturingShortcutEditor is not null ||
+            e.Key is not (Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End) ||
+            Keyboard.FocusedElement is not Button focused ||
+            !Equals(focused.Tag, "GlobalShortcutActionCard"))
+        {
+            return;
+        }
+
+        Button[] buttons = ShortcutActionButtons().ToArray();
+        int current = Array.IndexOf(buttons, focused);
+        if (current < 0)
+        {
+            return;
+        }
+
+        int target = e.Key switch
+        {
+            Key.Left => current - 1,
+            Key.Right => current + 1,
+            Key.Up => current - 2,
+            Key.Down => current + 2,
+            Key.Home => 0,
+            Key.End => buttons.Length - 1,
+            _ => current
+        };
+        target = Math.Clamp(target, 0, buttons.Length - 1);
+        if (target != current)
+        {
+            buttons[target].BringIntoView();
+            FocusElement(buttons[target]);
+        }
+
+        e.Handled = true;
+    }
+
+    private void GlobalShortcutActionCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: GlobalShortcutEditorViewModel editor })
+        {
+            return;
+        }
+
+        if (!_globalShortcutGroupActive)
+        {
+            EnterGlobalShortcutGroup(focusFirstAction: false);
+        }
+
+        BeginInlineShortcutCapture(editor);
+    }
+
+    private void BeginInlineShortcutCapture(GlobalShortcutEditorViewModel editor)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        viewModel.SelectedGlobalShortcut = editor;
+        _capturingShortcutEditor = editor;
+        _firstCapturedShortcut = null;
+        _verifiedShortcut = string.Empty;
+        _shortcutCaptureVerified = false;
+        ResetShortcutCaptureKeys();
+
+        InlineShortcutCaptureHeading.Text = $"Change shortcut: {editor.DisplayName}";
+        InlineShortcutCaptureDescription.Text = editor.Description;
+        InlinePendingShortcutText.Text = "Press the shortcut once";
+        InlineShortcutEnabledCheckBox.IsChecked = editor.IsEnabled;
+        InlineSaveShortcutButton.IsEnabled = false;
+        InlineShortcutCapturePanel.Visibility = Visibility.Visible;
+        SetInlineShortcutStatus(
+            $"Listening for {editor.DisplayName}. Press the complete shortcut combination once.");
+        InlineShortcutCapturePanel.BringIntoView();
+        Dispatcher.BeginInvoke(
+            () => FocusElement(InlineShortcutCaptureButton),
+            DispatcherPriority.Input);
+    }
+
+    private void InlineShortcutCaptureButton_PreviewKeyDown(
+        object sender,
+        KeyEventArgs e)
+    {
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        ModifierKeys keyModifier = GetShortcutModifier(key);
+        if (keyModifier != ModifierKeys.None)
+        {
+            if (_shortcutCaptureModifiers == ModifierKeys.None)
+            {
+                _shortcutCapturedNonModifier = false;
+            }
+
+            _shortcutCaptureModifiers |= keyModifier;
+            e.Handled = true;
+            return;
+        }
+
+        ModifierKeys modifiers = Keyboard.Modifiers;
+        if (key == Key.Tab && modifiers is ModifierKeys.None or ModifierKeys.Shift)
+        {
+            return;
+        }
+
+        if (!TryGetShortcutKeyName(key, out string keyName))
+        {
+            SetInlineShortcutStatus(
+                $"{key} cannot be used as a global shortcut trigger. Try another combination.");
+            e.Handled = true;
+            return;
+        }
+
+        ProcessShortcutCapture(FormatShortcutGesture(modifiers, keyName));
+        _shortcutCapturedNonModifier = true;
+        e.Handled = true;
+    }
+
+    private void InlineShortcutCaptureButton_PreviewKeyUp(
+        object sender,
+        KeyEventArgs e)
+    {
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        ModifierKeys releasedModifier = GetShortcutModifier(key);
+        if (releasedModifier == ModifierKeys.None)
+        {
+            return;
+        }
+
+        _shortcutCaptureModifiers |= releasedModifier;
+        ModifierKeys remainingModifiers = Keyboard.Modifiers & ~releasedModifier;
+        if (remainingModifiers == ModifierKeys.None)
+        {
+            if (!_shortcutCapturedNonModifier)
+            {
+                ProcessShortcutCapture(
+                    FormatShortcutGesture(_shortcutCaptureModifiers, null));
+            }
+
+            ResetShortcutCaptureKeys();
+        }
+
+        e.Handled = true;
+    }
+
+    private void InlineShortcutCaptureButton_LostKeyboardFocus(
+        object sender,
+        KeyboardFocusChangedEventArgs e) => ResetShortcutCaptureKeys();
+
+    private void ProcessShortcutCapture(string candidate)
+    {
+        if (!GlobalShortcutGesture.TryParse(
+                candidate,
+                out GlobalShortcutGesture parsed,
+                out string error))
+        {
+            SetInlineShortcutStatus($"That shortcut cannot be used. {error}");
+            return;
+        }
+
+        string normalized = parsed.DisplayText;
+        string spoken = SpeakableShortcut(normalized);
+        string chapterWarning = IsChapterNavigationGesture(normalized)
+            ? " This will override the matching SafeSpeak chapter-navigation shortcut while this global binding is enabled."
+            : string.Empty;
+        if (_firstCapturedShortcut is null)
+        {
+            _firstCapturedShortcut = normalized;
+            _shortcutCaptureVerified = false;
+            InlineSaveShortcutButton.IsEnabled = false;
+            InlinePendingShortcutText.Text = $"First entry: {normalized}. Repeat it to confirm.";
+            SetInlineShortcutStatus(
+                $"Captured {spoken}.{chapterWarning} Now press the same complete shortcut again to confirm it.");
+            return;
+        }
+
+        if (!string.Equals(_firstCapturedShortcut, normalized, StringComparison.OrdinalIgnoreCase))
+        {
+            _shortcutCaptureVerified = false;
+            InlineSaveShortcutButton.IsEnabled = false;
+            SetInlineShortcutStatus(
+                $"The confirmation did not match. First entry was {SpeakableShortcut(_firstCapturedShortcut)}; second entry was {spoken}. Press {SpeakableShortcut(_firstCapturedShortcut)} again, or choose Cancel and start over.");
+            return;
+        }
+
+        _verifiedShortcut = normalized;
+        _shortcutCaptureVerified = true;
+        InlineShortcutEnabledCheckBox.IsChecked = true;
+        InlineSaveShortcutButton.IsEnabled = true;
+        InlinePendingShortcutText.Text = $"Verified: {normalized}";
+        SetInlineShortcutStatus(
+            $"Verified {spoken}.{chapterWarning} Tab to Save and close to replace the saved shortcut.");
+    }
+
+    private void InlineClearShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        _firstCapturedShortcut = string.Empty;
+        _verifiedShortcut = string.Empty;
+        _shortcutCaptureVerified = true;
+        InlineShortcutEnabledCheckBox.IsChecked = false;
+        InlineSaveShortcutButton.IsEnabled = true;
+        InlinePendingShortcutText.Text = "Verified: no shortcut";
+        SetInlineShortcutStatus(
+            "Shortcut removal verified by the Clear button. Choose Save and close to disable it.");
+    }
+
+    private void InlineSaveShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_shortcutCaptureVerified ||
+            _capturingShortcutEditor is not { } editor ||
+            DataContext is not MainViewModel viewModel)
+        {
+            SetInlineShortcutStatus(
+                "The shortcut has not been verified. Press the same key combination twice before saving.");
+            return;
+        }
+
+        editor.Gesture = _verifiedShortcut;
+        editor.IsEnabled = !string.IsNullOrEmpty(_verifiedShortcut) &&
+            InlineShortcutEnabledCheckBox.IsChecked == true;
+        editor.Status = editor.IsEnabled
+            ? $"Verified {editor.Gesture}; saving and registering with Windows."
+            : "Verified cleared and disabled; saving now.";
+        viewModel.ApplyGlobalShortcuts();
+        string result = editor.IsEnabled
+            ? $"Saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The inline listener is closed."
+            : $"Disabled the shortcut for {editor.DisplayName}. The inline listener is closed.";
+        CloseInlineShortcutCapture();
+        SetShortcutGroupStatus(result + " Continue through the action boxes, or exit the keybind group.");
+    }
+
+    private void InlineCancelShortcutButton_Click(object sender, RoutedEventArgs e) =>
+        CancelInlineShortcutCapture(announce: true, restoreActionFocus: true);
+
+    private void CancelInlineShortcutCapture(bool announce, bool restoreActionFocus)
+    {
+        GlobalShortcutEditorViewModel? editor = _capturingShortcutEditor;
+        if (editor is null)
+        {
+            return;
+        }
+
+        CloseInlineShortcutCapture();
+        if (announce)
+        {
+            SetShortcutGroupStatus(
+                $"Shortcut change cancelled for {editor.DisplayName}. The saved shortcut was not changed.");
+        }
+
+        if (restoreActionFocus)
+        {
+            Button? action = ShortcutActionButtons()
+                .FirstOrDefault(button => ReferenceEquals(button.DataContext, editor));
+            if (action is not null)
+            {
+                Dispatcher.BeginInvoke(() => FocusElement(action), DispatcherPriority.Input);
+            }
+        }
+    }
+
+    private void CloseInlineShortcutCapture()
+    {
+        InlineShortcutCapturePanel.Visibility = Visibility.Collapsed;
+        _capturingShortcutEditor = null;
+        _firstCapturedShortcut = null;
+        _verifiedShortcut = string.Empty;
+        _shortcutCaptureVerified = false;
+        InlineSaveShortcutButton.IsEnabled = false;
+        ResetShortcutCaptureKeys();
+    }
+
+    private IEnumerable<Button> ShortcutActionButtons() =>
+        EnumerateVisualDescendants(GlobalShortcutGrid)
+            .OfType<Button>()
+            .Where(button => Equals(button.Tag, "GlobalShortcutActionCard"));
+
+    private void SetShortcutGroupStatus(string message)
+    {
+        GlobalShortcutGroupStatus.Text = message;
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.Announcer.AnnounceFocus(message);
+        }
+    }
+
+    private void SetInlineShortcutStatus(string message)
+    {
+        InlineShortcutCaptureStatus.Text = message;
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.Announcer.AnnounceFocus(message);
+        }
+    }
+
+    private void ResetShortcutCaptureKeys()
+    {
+        _shortcutCaptureModifiers = ModifierKeys.None;
+        _shortcutCapturedNonModifier = false;
+    }
+
+    private static string SpeakableShortcut(string gesture) =>
+        gesture.Replace("+", " plus ", StringComparison.Ordinal);
+
+    private static bool IsChapterNavigationGesture(string gesture) =>
+        gesture.Length == 5 &&
+        gesture.StartsWith("Alt+", StringComparison.OrdinalIgnoreCase) &&
+        char.IsAsciiDigit(gesture[4]);
+
+    private static ModifierKeys GetShortcutModifier(Key key) => key switch
+    {
+        Key.LeftCtrl or Key.RightCtrl => ModifierKeys.Control,
+        Key.LeftAlt or Key.RightAlt => ModifierKeys.Alt,
+        Key.LeftShift or Key.RightShift => ModifierKeys.Shift,
+        Key.LWin or Key.RWin => ModifierKeys.Windows,
+        _ => ModifierKeys.None
+    };
+
+    private static string FormatShortcutGesture(
+        ModifierKeys modifiers,
+        string? keyName)
+    {
+        var parts = new List<string>(5);
+        if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Control");
+        if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
+        if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
+        if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add("Windows");
+        if (!string.IsNullOrEmpty(keyName)) parts.Add(keyName);
+        return string.Join('+', parts);
+    }
+
+    private static bool TryGetShortcutKeyName(Key key, out string keyName)
+    {
+        int keyValue = (int)key;
+        if (keyValue >= (int)Key.A && keyValue <= (int)Key.Z)
+        {
+            keyName = key.ToString();
+            return true;
+        }
+
+        if (keyValue >= (int)Key.D0 && keyValue <= (int)Key.D9)
+        {
+            keyName = (keyValue - (int)Key.D0).ToString();
+            return true;
+        }
+
+        if (keyValue >= (int)Key.NumPad0 && keyValue <= (int)Key.NumPad9)
+        {
+            keyName = $"Numpad{keyValue - (int)Key.NumPad0}";
+            return true;
+        }
+
+        if (keyValue >= (int)Key.F1 && keyValue <= (int)Key.F24)
+        {
+            keyName = key.ToString();
+            return true;
+        }
+
+        keyName = key switch
+        {
+            Key.Space => "Space",
+            Key.Enter or Key.Return => "Enter",
+            Key.Escape => "Escape",
+            Key.Tab => "Tab",
+            Key.Back => "Backspace",
+            Key.Left => "Left",
+            Key.Up => "Up",
+            Key.Right => "Right",
+            Key.Down => "Down",
+            Key.Insert => "Insert",
+            Key.Delete => "Delete",
+            Key.Home => "Home",
+            Key.End => "End",
+            Key.PageUp => "PageUp",
+            Key.PageDown => "PageDown",
+            Key.NumLock => "NumLock",
+            Key.Scroll => "ScrollLock",
+            _ => string.Empty
+        };
+        return keyName.Length > 0;
+    }
+
+    private void ThemeSelector_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox selector ||
+            e.OriginalSource is not DependencyObject source ||
+            ItemsControl.ContainerFromElement(selector, source) is not ListBoxItem item)
+        {
+            return;
+        }
+
+        object selected = selector.ItemContainerGenerator.ItemFromContainer(item);
+        if (selected == DependencyProperty.UnsetValue)
+        {
+            return;
+        }
+
+        selector.SelectedItem = selected;
+        selector.Focus();
+        e.Handled = true;
+    }
+
+    private void SelectionComboBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || sender is not ComboBox comboBox || comboBox.IsDropDownOpen)
+        {
+            return;
+        }
+
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        bool openRequested = key is Key.Enter or Key.Space or Key.F4 ||
+            (key == Key.Down && (Keyboard.Modifiers & ModifierKeys.Alt) != 0);
+        if (openRequested)
+        {
+            comboBox.IsDropDownOpen = true;
+            e.Handled = true;
+            return;
+        }
+
+        if ((Keyboard.Modifiers &
+             (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Windows)) == 0 &&
+            key is Key.Left or Key.Right or Key.Up or Key.Down or
+                Key.Home or Key.End or Key.PageUp or Key.PageDown)
+        {
+            // A focused, collapsed selector is read-only. This prevents Tab
+            // followed by an exploratory Arrow key from silently changing a
+            // consequential setting. Open the list before navigating choices.
+            e.Handled = true;
+        }
+    }
+
     private void SettingsPanel_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Handled ||
@@ -133,6 +587,14 @@ public partial class MainWindow : Window
             (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Windows)) != 0 ||
             !SettingsPanel.IsKeyboardFocusWithin)
         {
+            return;
+        }
+
+        if (_globalShortcutGroupActive &&
+            GlobalShortcutNavigationGroup.IsKeyboardFocusWithin)
+        {
+            // Let the contained cycle manage Tab while the user has explicitly
+            // entered the group. Escape or Control+1/2/3/4 exits the group.
             return;
         }
 
@@ -198,145 +660,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void GlobalShortcutGestureInput_PreviewKeyUp(
-        object sender,
-        KeyEventArgs e)
-    {
-        if (sender is not TextBox input)
-        {
-            return;
-        }
-
-        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
-        ModifierKeys releasedModifier = GetShortcutModifier(key);
-        if (releasedModifier == ModifierKeys.None)
-        {
-            return;
-        }
-
-        _shortcutCaptureModifiers |= releasedModifier;
-        ModifierKeys remainingModifiers = Keyboard.Modifiers & ~releasedModifier;
-        if (remainingModifiers == ModifierKeys.None)
-        {
-            if (!_shortcutCapturedNonModifier)
-            {
-                string gesture = FormatShortcutGesture(_shortcutCaptureModifiers, null);
-                SetCapturedGlobalShortcut(input, gesture);
-            }
-
-            ResetGlobalShortcutCapture();
-        }
-
-        e.Handled = true;
-    }
-
-    private void GlobalShortcutGestureInput_LostKeyboardFocus(
-        object sender,
-        KeyboardFocusChangedEventArgs e) => ResetGlobalShortcutCapture();
-
-    private void SetCapturedGlobalShortcut(TextBox input, string gesture)
-    {
-        if (DataContext is not MainViewModel viewModel ||
-            viewModel.SelectedGlobalShortcut is not { } editor)
-        {
-            return;
-        }
-
-        editor.Gesture = gesture;
-        editor.Status = string.IsNullOrEmpty(gesture)
-            ? "Shortcut cleared; record another shortcut or turn this action off before applying."
-            : $"Recorded {gesture}; choose Apply shortcut changes.";
-        input.CaretIndex = gesture.Length;
-
-        string spokenGesture = string.IsNullOrEmpty(gesture)
-            ? "cleared"
-            : gesture.Replace("+", " plus ", StringComparison.Ordinal);
-        viewModel.Announcer.AnnounceFocus(
-            $"Shortcut keys for {editor.DisplayName}: {spokenGesture}. " +
-            "Choose Apply shortcut changes to activate it.");
-    }
-
-    private void ResetGlobalShortcutCapture()
-    {
-        _shortcutCaptureModifiers = ModifierKeys.None;
-        _shortcutCapturedNonModifier = false;
-    }
-
-    private static ModifierKeys GetShortcutModifier(Key key) => key switch
-    {
-        Key.LeftCtrl or Key.RightCtrl => ModifierKeys.Control,
-        Key.LeftAlt or Key.RightAlt => ModifierKeys.Alt,
-        Key.LeftShift or Key.RightShift => ModifierKeys.Shift,
-        Key.LWin or Key.RWin => ModifierKeys.Windows,
-        _ => ModifierKeys.None
-    };
-
-    private static string FormatShortcutGesture(
-        ModifierKeys modifiers,
-        string? keyName)
-    {
-        var parts = new List<string>(5);
-        if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Control");
-        if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
-        if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
-        if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add("Windows");
-        if (!string.IsNullOrEmpty(keyName)) parts.Add(keyName);
-        return string.Join('+', parts);
-    }
-
-    private static bool TryGetShortcutKeyName(Key key, out string keyName)
-    {
-        int keyValue = (int)key;
-        if (keyValue >= (int)Key.A && keyValue <= (int)Key.Z)
-        {
-            keyName = key.ToString();
-            return true;
-        }
-
-        if (keyValue >= (int)Key.D0 && keyValue <= (int)Key.D9)
-        {
-            keyName = (keyValue - (int)Key.D0).ToString();
-            return true;
-        }
-
-        if (keyValue >= (int)Key.NumPad0 && keyValue <= (int)Key.NumPad9)
-        {
-            keyName = $"Numpad{keyValue - (int)Key.NumPad0}";
-            return true;
-        }
-
-        if (keyValue >= (int)Key.F1 && keyValue <= (int)Key.F24)
-        {
-            keyName = key.ToString();
-            return true;
-        }
-
-        keyName = key switch
-        {
-            Key.Back => "Backspace",
-            Key.Tab => "Tab",
-            Key.Return => "Enter",
-            Key.Pause => "Pause",
-            Key.Capital => "CapsLock",
-            Key.Escape => "Escape",
-            Key.Space => "Space",
-            Key.PageUp => "PageUp",
-            Key.PageDown => "PageDown",
-            Key.End => "End",
-            Key.Home => "Home",
-            Key.Left => "Left",
-            Key.Up => "Up",
-            Key.Right => "Right",
-            Key.Down => "Down",
-            Key.Insert => "Insert",
-            Key.Delete => "Delete",
-            Key.NumLock => "NumLock",
-            Key.Scroll => "ScrollLock",
-            _ => string.Empty
-        };
-        return keyName.Length > 0;
-    }
-
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Handled)
@@ -344,17 +667,21 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Do not steal combinations while the user is recording a custom
-        // global shortcut. That editor owns its complete key sequence.
-        if (ReferenceEquals(Keyboard.FocusedElement, GlobalShortcutGestureInput))
+        ModifierKeys modifiers = Keyboard.Modifiers;
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        bool controlOnly = (modifiers & ModifierKeys.Control) != 0 &&
+            (modifiers & (ModifierKeys.Alt | ModifierKeys.Shift | ModifierKeys.Windows)) == 0;
+        if (controlOnly && TryHandleDirectNavigationShortcut(key))
         {
+            e.Handled = true;
             return;
         }
 
-        ModifierKeys modifiers = Keyboard.Modifiers;
-        bool controlOnly = (modifiers & ModifierKeys.Control) != 0 &&
-            (modifiers & (ModifierKeys.Alt | ModifierKeys.Windows)) == 0;
-        if (controlOnly && TryHandleDirectNavigationShortcut(e.Key))
+        bool altOnly = (modifiers & ModifierKeys.Alt) != 0 &&
+            (modifiers & (ModifierKeys.Control | ModifierKeys.Shift | ModifierKeys.Windows)) == 0;
+        if (altOnly &&
+            _capturingShortcutEditor is null &&
+            TryHandleChapterNavigationShortcut(key))
         {
             e.Handled = true;
             return;
@@ -396,6 +723,32 @@ public partial class MainWindow : Window
         }
     }
 
+    private void MainWindow_PreviewMouseWheel(
+        object sender,
+        MouseWheelEventArgs e)
+    {
+        ScrollViewer? pageScroller = MainNavigation.SelectedIndex switch
+        {
+            1 => SafetyPageScrollViewer,
+            2 => VoicePageScrollViewer,
+            3 => SettingsPageScrollViewer,
+            _ => null
+        };
+        if (pageScroller is null)
+        {
+            return;
+        }
+
+        // The wheel always belongs to the active page, not whichever selector,
+        // slider, or nested list happens to be under the pointer. Controls are
+        // changed only through deliberate click/touch or keyboard interaction.
+        int configuredLines = SystemParameters.WheelScrollLines;
+        double linesPerNotch = configuredLines < 0 ? 8 : Math.Max(1, configuredLines);
+        double distance = (e.Delta / 120.0) * linesPerNotch * 16.0;
+        pageScroller.ScrollToVerticalOffset(pageScroller.VerticalOffset - distance);
+        e.Handled = true;
+    }
+
     private bool TryHandleDirectNavigationShortcut(Key key)
     {
         int? tabIndex = key switch
@@ -408,11 +761,76 @@ public partial class MainWindow : Window
         };
         if (tabIndex is not null)
         {
+            if (_globalShortcutGroupActive)
+            {
+                DeactivateGlobalShortcutGroup(
+                    announce: false,
+                    restoreEntryFocus: false,
+                    $"Keybind group exited by Control plus {tabIndex.Value + 1}. Any unfinished shortcut capture was cancelled.");
+            }
+
             SelectNavigationTab(tabIndex.Value);
             return true;
         }
 
         return false;
+    }
+
+    private bool TryHandleChapterNavigationShortcut(Key key)
+    {
+        int? chapterNumber = key switch
+        {
+            Key.D1 or Key.NumPad1 => 1,
+            Key.D2 or Key.NumPad2 => 2,
+            Key.D3 or Key.NumPad3 => 3,
+            Key.D4 or Key.NumPad4 => 4,
+            Key.D5 or Key.NumPad5 => 5,
+            Key.D6 or Key.NumPad6 => 6,
+            Key.D7 or Key.NumPad7 => 7,
+            Key.D8 or Key.NumPad8 => 8,
+            Key.D9 or Key.NumPad9 => 9,
+            Key.D0 or Key.NumPad0 => 10,
+            _ => null
+        };
+        if (chapterNumber is null)
+        {
+            return false;
+        }
+
+        string gesture = $"Alt+{chapterNumber.Value % 10}";
+        MainViewModel? viewModel = DataContext as MainViewModel;
+        if (viewModel?.IsGlobalShortcutConfigured(gesture) == true)
+        {
+            // The user's system-wide action owns this combination. Its WM_HOTKEY
+            // handler remains authoritative even while SafeSpeak has focus.
+            return false;
+        }
+
+        Label[] chapters = EnumerateVisualDescendants(GetSelectedTab())
+            .OfType<Label>()
+            .Where(label =>
+                label.IsVisible &&
+                AutomationProperties.GetHeadingLevel(label) == AutomationHeadingLevel.Level2)
+            .ToArray();
+        if (chapterNumber.Value > chapters.Length)
+        {
+            viewModel?.Announcer.AnnounceFocus(
+                $"Chapter {chapterNumber.Value} is not available on this page. This page has {chapters.Length} chapters.");
+            return true;
+        }
+
+        if (_globalShortcutGroupActive)
+        {
+            DeactivateGlobalShortcutGroup(
+                announce: false,
+                restoreEntryFocus: false,
+                $"Keybind group exited by Alt plus {chapterNumber.Value % 10}. Any unfinished shortcut capture was cancelled.");
+        }
+
+        Label target = chapters[chapterNumber.Value - 1];
+        target.BringIntoView();
+        FocusElement(target);
+        return true;
     }
 
     private void SelectNavigationTab(int index)
@@ -442,11 +860,11 @@ public partial class MainWindow : Window
         0 => ArmToggle,
         1 => DataContext is MainViewModel { AreSafetyGuideControlsAtTop: true }
             ? ReadModerationGuideButton
-            : ModerationSlider,
+            : SafetyModerationChapterHeading,
         2 => VoiceCombo,
         3 => DataContext is MainViewModel { AreSettingsGuideControlsAtTop: true }
             ? SettingsGuideButton
-            : ThemeSelector,
+            : SettingsSourceChapterHeading,
         _ => ArmToggle
     };
 
@@ -464,9 +882,9 @@ public partial class MainWindow : Window
         UIElement focusTarget = (isSafety, movedToTop) switch
         {
             (true, true) => ReadModerationGuideButton,
-            (true, false) => ModerationSlider,
+            (true, false) => SafetyModerationChapterHeading,
             (false, true) => SettingsGuideButton,
-            _ => ThemeSelector
+            _ => SettingsSourceChapterHeading
         };
         string page = isSafety ? "Safety" : "Settings";
         string destination = movedToTop ? "top" : "bottom";

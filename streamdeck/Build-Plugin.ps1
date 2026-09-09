@@ -15,10 +15,16 @@ if (-not $stagingRootFull.StartsWith($artifactRootFull, [StringComparison]::Ordi
 
 & (Join-Path $PSScriptRoot 'Generate-Assets.ps1')
 
-$schema = (Invoke-WebRequest -Uri 'https://schemas.elgato.com/streamdeck/plugins/manifest.json' -UseBasicParsing).Content
 $manifestPath = Join-Path $PSScriptRoot 'manifest.json'
-$isValid = Get-Content -Raw -LiteralPath $manifestPath | Test-Json -Schema $schema -ErrorAction Stop
-if (-not $isValid) { throw 'Stream Deck manifest validation failed.' }
+$hasTestJson = [bool](Get-Command Test-Json -ErrorAction SilentlyContinue)
+if ($hasTestJson) {
+    $schema = (Invoke-WebRequest -Uri 'https://schemas.elgato.com/streamdeck/plugins/manifest.json' -UseBasicParsing).Content
+    $isValid = Get-Content -Raw -LiteralPath $manifestPath | Test-Json -Schema $schema -ErrorAction Stop
+    if (-not $isValid) { throw 'Stream Deck manifest validation failed.' }
+} else {
+    $manifestContent = Get-Content -Raw -LiteralPath $manifestPath
+    $null = ConvertFrom-Json $manifestContent -ErrorAction Stop
+}
 
 New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
 if (Test-Path -LiteralPath $stagingRoot) {

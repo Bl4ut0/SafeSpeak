@@ -175,4 +175,75 @@ public static partial class UnicodeNormalizer
 
         return text;
     }
+
+    /// <summary>
+    /// Produces a display name that an English TTS voice can pronounce reliably.
+    /// Compatibility-styled Latin letters are converted to their ordinary forms,
+    /// decorative symbols and emoji are removed, and visual separators become spaces.
+    /// </summary>
+    public static string CleanDisplayNameForSpeech(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+
+        string normalized = StripInvisibleCharacters(input)
+            .Normalize(NormalizationForm.FormKC);
+        var result = new StringBuilder(normalized.Length);
+        bool separatorPending = false;
+
+        for (int index = 0; index < normalized.Length; index++)
+        {
+            int codePoint;
+            string character;
+            if (char.IsHighSurrogate(normalized[index]) &&
+                index + 1 < normalized.Length &&
+                char.IsLowSurrogate(normalized[index + 1]))
+            {
+                codePoint = char.ConvertToUtf32(normalized, index);
+                character = normalized.Substring(index, 2);
+                index++;
+            }
+            else
+            {
+                codePoint = normalized[index];
+                character = normalized[index].ToString();
+            }
+
+            UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(
+                char.ConvertFromUtf32(codePoint),
+                0);
+            bool isSpeakable = ScriptValidator.GetScriptType(codePoint) == ScriptType.Latin ||
+                category == UnicodeCategory.DecimalDigitNumber;
+            if (isSpeakable)
+            {
+                if (separatorPending && result.Length > 0 && result[^1] != ' ')
+                {
+                    result.Append(' ');
+                }
+
+                result.Append(character);
+                separatorPending = false;
+                continue;
+            }
+
+            if (codePoint is '\'' or 0x2019 or '-')
+            {
+                if (result.Length > 0 && result[^1] != ' ')
+                {
+                    result.Append(codePoint == 0x2019 ? '\'' : (char)codePoint);
+                }
+
+                separatorPending = false;
+                continue;
+            }
+
+            // Symbols, emoji, punctuation, and whitespace separate adjacent name
+            // fragments so removing decoration cannot accidentally join words.
+            separatorPending = result.Length > 0;
+        }
+
+        string cleaned = MultipleWhitespaceRegex()
+            .Replace(result.ToString(), " ")
+            .Trim(' ', '\'', '-');
+        return CollapseRepeats(cleaned);
+    }
 }

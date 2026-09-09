@@ -84,6 +84,12 @@ public sealed class IntegratedFocusNarrator : IDisposable
 
         switch (element)
         {
+            case Label heading when
+                AutomationProperties.GetHeadingLevel(heading) != AutomationHeadingLevel.None:
+                parts.Add("chapter heading");
+                if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(heading));
+                break;
+
             case TabItem tab:
                 parts.Add(tab.IsSelected ? "selected tab" : "tab");
                 if (includeHelpText) parts.Add("Use Left and Right Arrow keys to change sections");
@@ -119,7 +125,7 @@ public sealed class IntegratedFocusNarrator : IDisposable
                         parts,
                         GetHelpTextOrDefault(
                             comboBox,
-                            "Use Up and Down Arrow keys to change the selection"));
+                            "Press Enter or Alt plus Down Arrow to open the choices, then use Arrow keys and Enter to select"));
                 }
                 break;
 

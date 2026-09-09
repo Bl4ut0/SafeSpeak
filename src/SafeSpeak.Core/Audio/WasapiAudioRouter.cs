@@ -1,5 +1,6 @@
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace SafeSpeak.Core.Audio;
 
@@ -8,10 +9,12 @@ namespace SafeSpeak.Core.Audio;
 /// </summary>
 public sealed class WasapiAudioRouter : IAudioRouter
 {
+    private static readonly TimeSpan PlaybackLeadIn = TimeSpan.FromMilliseconds(100);
     private string? _selectedEndpointId;
     private WasapiOut? _wasapiOut;
     private WaveFileReader? _currentFileReader;
     private WaveChannel32? _currentVolumeProvider;
+    private IWaveProvider? _currentPlaybackProvider;
     private readonly object _lock = new();
 
     public string? SelectedEndpointId => _selectedEndpointId;
@@ -79,6 +82,15 @@ public sealed class WasapiAudioRouter : IAudioRouter
                         Volume = Math.Clamp(volume, 0f, 1.5f),
                         PadWithZeroes = false
                     };
+                    var delayedSamples = new OffsetSampleProvider(
+                        new WaveToSampleProvider(_currentVolumeProvider))
+                    {
+                        // Some physical and virtual endpoints suppress the first
+                        // syllable while their stream wakes. A short silent lead-in
+                        // lets the endpoint settle before the viewer name begins.
+                        DelayBy = PlaybackLeadIn
+                    };
+                    _currentPlaybackProvider = new SampleToWaveProvider(delayedSamples);
 
                     MMDevice? targetDevice = null;
                     using var enumerator = new MMDeviceEnumerator();
@@ -94,7 +106,7 @@ public sealed class WasapiAudioRouter : IAudioRouter
                     // responsive while retaining enough headroom for stable playback.
                     var output = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 30);
                     _wasapiOut = output;
-                    output.Init(_currentVolumeProvider);
+                    output.Init(_currentPlaybackProvider);
 
                     void OnPlaybackStopped(object? sender, StoppedEventArgs e)
                     {
@@ -152,6 +164,7 @@ public sealed class WasapiAudioRouter : IAudioRouter
 
             _currentVolumeProvider?.Dispose();
             _currentVolumeProvider = null;
+            _currentPlaybackProvider = null;
             _currentFileReader?.Dispose();
             _currentFileReader = null;
         }

@@ -26,7 +26,7 @@ public sealed class RuleEngine
     private static readonly HashSet<string> DefaultProhibitedTerms = new(StringComparer.OrdinalIgnoreCase)
     {
         // Severe hate speech, slurs, and malicious exploits
-        "nigger", "nigga", "faggot", "fag", "kike", "chink", "spic", "wetback", "retard", "cunt",
+        "nigger", "nigga", "faggot", "fagot", "fag", "kike", "chink", "spic", "wetback", "retard", "cunt",
         "kys", "kill yourself", "kill urself", "hang yourself", "die in a fire", "hope you die",
         "suicide", "childporn", "pedo", "pedophile", "rape", "rapist"
     };

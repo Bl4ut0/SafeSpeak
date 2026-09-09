@@ -4,8 +4,9 @@ SafeSpeak is proprietary source-visible software, but it redistributes the
 third-party components below under their own licenses. The SafeSpeak license
 does not replace, restrict, or relicense these components.
 
-The release builder includes this notice, the Apache-2.0 text, and the exact
-ONNX Runtime license and third-party notice files in every ZIP and MSIX.
+The release builder includes this notice, the Apache-2.0 text, the exact ONNX
+Runtime license and third-party notice files, and the private Ollama runtime's
+license directory in every ZIP and MSIX.
 
 ## MIT-licensed components
 
@@ -26,6 +27,10 @@ ONNX Runtime license and third-party notice files in every ZIP and MSIX.
   <https://github.com/naudio/NAudio>
 - OpenTK.Audio.OpenAL, OpenTK.Core, and OpenTK.Mathematics 5.0.0-pre.13 -
   the OpenTK team - <https://github.com/opentk/opentk>
+- Ollama command-line/server runtime 0.33.3 - Ollama -
+  <https://github.com/ollama/ollama/tree/v0.33.3>. SafeSpeak packages only
+  the CPU runtime from the official architecture-specific standalone archive,
+  not the separately licensed Ollama desktop application.
 
 ### MIT License text
 
@@ -48,7 +53,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The exact ONNX Runtime and NAudio copyright/license files are also included
-in the packaged `ThirdPartyNotices` directory.
+in the packaged `ThirdPartyNotices` directory. The exact Ollama MIT license
+and its retained dependency licenses are included under `Runtime/Ollama`.
 
 ## Apache-2.0 components
 
@@ -57,6 +63,9 @@ in the packaged `ThirdPartyNotices` directory.
 - NumSharp 0.30.0 - SciSharp - <https://github.com/SciSharp/NumSharp>
 - The bundled local moderation model and its accompanying files, identified
   in `src/SafeSpeak.Core/AI/Models/LocalModeration/MODEL-NOTICE.md`.
+- Qwen3Guard-Gen-0.6B by QwenLM, downloaded only after user consent in the
+  Safety page. Its official model declares Apache-2.0. SafeSpeak verifies the
+  selected compressed model blob by SHA-256 before activation.
 
 The complete Apache License 2.0 text is distributed as
 `ThirdPartyNotices/Apache-2.0.txt` and with the moderation model as
