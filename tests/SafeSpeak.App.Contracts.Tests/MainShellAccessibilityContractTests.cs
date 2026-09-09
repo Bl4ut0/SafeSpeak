@@ -559,6 +559,30 @@ public sealed class MainShellAccessibilityContractTests
     }
 
     [Fact]
+    public void SpokenAttributionIncludesPlatformOnlyWhenMultipleConnectorsAreEnabled()
+    {
+        string main = File.ReadAllText(
+            RepositoryFile("src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs"));
+
+        Assert.Contains(
+            "_connectorSessions.Count(connector =>",
+            main,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "connector.IsConfigured && connector.IsEnabled) > 1",
+            main,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "IncludePlatformInSpeech\n                        ? SpokenAttributionStyle.SaysOnPlatform\n                        : SpokenAttributionStyle.Says",
+            main.Replace("\r\n", "\n", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "IncludePlatformInSpeech\n                    ? SpokenAttributionStyle.LeadingNameOnPlatform\n                    : SpokenAttributionStyle.LeadingName",
+            main.Replace("\r\n", "\n", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ComboBoxesOwnTheirSemanticDarkModeTemplates()
     {
         XDocument appResources = XDocument.Load(

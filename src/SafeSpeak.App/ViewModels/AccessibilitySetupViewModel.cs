@@ -27,7 +27,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 {
     private readonly AppSettings _settings;
     private readonly ScreenReaderAnnouncer _announcer;
-    private readonly LocalConnectorDetector _connectorDetector = new();
     private readonly Action _onCompleted;
     private readonly bool _changeExistingProfile;
     private readonly bool _confirmationOnly;
@@ -93,9 +92,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             TikTokLiveConnector.ConnectorDescriptor.Id,
             StringComparer.OrdinalIgnoreCase);
         TikTokUsername = _settings.TikTokUsername;
-        AutoDetectLocalConnectors =
-            _settings.LocalConnectorAutoDetectConsent;
-        RestorePersistedDetectionResult();
 
         AccessibilitySetupPage initialPage = _changeExistingProfile
             ? AccessibilitySetupPage.Reader
@@ -107,7 +103,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     public ScreenReaderAnnouncer Announcer => _announcer;
     public ObservableCollection<ThemeChoiceOption> ThemeOptions { get; }
-    public ObservableCollection<LocalConnectorDetectionResult> DetectionResults { get; } = [];
     public ObservableCollection<string> ReviewItems { get; } = [];
 
     [ObservableProperty]
@@ -127,9 +122,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     [ObservableProperty]
     private string _tikTokUsername = string.Empty;
-
-    [ObservableProperty]
-    private bool _autoDetectLocalConnectors;
 
     [ObservableProperty]
     private string _stepProgress = string.Empty;
@@ -200,7 +192,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 CompleteThemeStep();
                 break;
             case AccessibilitySetupPage.Platform:
-                await CompletePlatformStepAsync();
+                CompletePlatformStep();
                 break;
             case AccessibilitySetupPage.Filtering:
                 CompleteFilteringStep();
@@ -330,7 +322,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         NavigateTo(AccessibilitySetupPage.Platform);
     }
 
-    private async Task CompletePlatformStepAsync()
+    private void CompletePlatformStep()
     {
         string previousConnector = _settings.SelectedSourceConnectorId;
         bool previousAutoConnect = _settings.AutoConnectSource;
@@ -361,34 +353,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             return;
         }
 
-        DetectionResults.Clear();
-        if (UseTikFinity && AutoDetectLocalConnectors)
-        {
-            IsBusy = true;
-            StatusText =
-                "Checking only approved local TikFinity process names and the local test connector port.";
-            _announcer.Announce(
-                "Checking for TikFinity on this computer. SafeSpeak will not sign in, open a connection, or scan files.",
-                interrupt: true);
-            try
-            {
-                IReadOnlyList<LocalConnectorDetectionResult> results =
-                    await _connectorDetector.DetectAsync(
-                        userConsented: true,
-                        _lifetimeCancellation.Token);
-                foreach (LocalConnectorDetectionResult result in results)
-                    DetectionResults.Add(result);
-            }
-            catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
-            {
-                return;
-            }
-            finally
-            {
-                IsBusy = false;
-            }
-        }
-
         _settings.SelectedSourceConnectorId =
             UseTikFinity
                 ? TikFinityWebSocketClient.ConnectorDescriptor.Id
@@ -401,10 +365,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         _settings.ActiveSourceConnectorIds = [.. _settings.ConfiguredSourceConnectorIds];
         _settings.AutoConnectSource = _settings.ActiveSourceConnectorIds.Count > 0;
         _settings.TikTokUsername = directUsername;
-        _settings.LocalConnectorAutoDetectConsent =
-            AutoDetectLocalConnectors;
-        ApplyDetectionResultToSettings(
-            DetectionResults.FirstOrDefault());
+        _settings.LocalConnectorAutoDetectConsent = false;
+        _settings.LocalConnectorDetectionStatus =
+            OnboardingConnectorDetectionStatus.NotChecked;
+        _settings.LocalConnectorDetectionSummary =
+            "Local connector detection is not used during setup.";
         _settings.OnboardingStage = OnboardingStage.Filtering;
         if (!_settings.TrySave(out string? error))
         {
@@ -496,7 +461,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 PrimaryButtonText = "Continue (Y)";
                 PrimaryButtonAutomationName = "Save streaming connection and continue";
                 KeyboardHelpText =
-                    "Keyboard: Tab through the connector choices, username, and detection checkbox. Space changes a checkbox. Press Y to save and continue.";
+                    "Keyboard: Tab through the connector choices and username. Space changes a checkbox. Press Y to save and continue.";
                 break;
             case AccessibilitySetupPage.Filtering:
                 StepProgress = "Step 4 of 5";
@@ -650,70 +615,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 UseTikFinity ? "TikFinity" : null,
                 UseTikTokDirect ? "TikTok Direct" : null
             }.Where(name => name is not null))}. Each can be turned on or off from Live.");
-        ReviewItems.Add(
-            _settings.LocalConnectorAutoDetectConsent
-                ? _settings.LocalConnectorDetectionStatus ==
-                  OnboardingConnectorDetectionStatus.NotChecked
-                    ? "Local connector detection: permission saved; no check was needed because automatic TikFinity connection is off."
-                    : $"Local connector detection: {_settings.LocalConnectorDetectionSummary}"
-                : "Local connector detection: not requested");
         ReviewItems.Add($"Language filtering: {ModelStatus}");
         ReviewItems.Add(
             "Safety startup: SafeSpeak opens disarmed and does not process chat until you arm it.");
-    }
-
-    private void ApplyDetectionResultToSettings(
-        LocalConnectorDetectionResult? result)
-    {
-        if (!AutoDetectLocalConnectors || result is null)
-        {
-            _settings.LocalConnectorDetectionStatus =
-                OnboardingConnectorDetectionStatus.NotChecked;
-            _settings.LocalConnectorDetectionSummary =
-                "Local connector detection was not requested.";
-            return;
-        }
-
-        _settings.LocalConnectorDetectionStatus = result.Status switch
-        {
-            LocalConnectorDetectionStatus.Detected =>
-                OnboardingConnectorDetectionStatus.Detected,
-            LocalConnectorDetectionStatus.NotDetected =>
-                OnboardingConnectorDetectionStatus.NotDetected,
-            LocalConnectorDetectionStatus.TimedOut =>
-                OnboardingConnectorDetectionStatus.TimedOut,
-            LocalConnectorDetectionStatus.Failed =>
-                OnboardingConnectorDetectionStatus.Failed,
-            _ => OnboardingConnectorDetectionStatus.NotChecked
-        };
-        _settings.LocalConnectorDetectionSummary = result.SafeDescription;
-    }
-
-    private void RestorePersistedDetectionResult()
-    {
-        if (!_settings.LocalConnectorAutoDetectConsent ||
-            _settings.LocalConnectorDetectionStatus ==
-            OnboardingConnectorDetectionStatus.NotChecked)
-        {
-            return;
-        }
-
-        LocalConnectorDetectionStatus status =
-            _settings.LocalConnectorDetectionStatus switch
-            {
-                OnboardingConnectorDetectionStatus.Detected =>
-                    LocalConnectorDetectionStatus.Detected,
-                OnboardingConnectorDetectionStatus.NotDetected =>
-                    LocalConnectorDetectionStatus.NotDetected,
-                OnboardingConnectorDetectionStatus.TimedOut =>
-                    LocalConnectorDetectionStatus.TimedOut,
-                _ => LocalConnectorDetectionStatus.Failed
-            };
-        DetectionResults.Add(new LocalConnectorDetectionResult(
-            TikFinityWebSocketClient.ConnectorDescriptor.Id,
-            TikFinityWebSocketClient.ConnectorDescriptor.DisplayName,
-            status,
-            _settings.LocalConnectorDetectionSummary));
     }
 
     private void ReportSaveFailure(string? error)

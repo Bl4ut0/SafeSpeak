@@ -1643,7 +1643,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             if (AnnounceChatMessages)
             {
-                ChatMessage chatMessage = liveEvent.ToChatMessage();
+                ChatMessage chatMessage = liveEvent.ToChatMessage() with
+                {
+                    AttributionStyle = IncludePlatformInSpeech
+                        ? SpokenAttributionStyle.SaysOnPlatform
+                        : SpokenAttributionStyle.Says
+                };
                 if (IsSessionDonor(
                         chatMessage.Platform,
                         chatMessage.Author,
@@ -1703,7 +1708,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 AuthorDisplayName = liveEvent.AuthorDisplayName,
                 RawText = spoken,
                 Platform = liveEvent.Platform,
-                AttributionStyle = SpokenAttributionStyle.LeadingNameOnPlatform,
+                AttributionStyle = IncludePlatformInSpeech
+                    ? SpokenAttributionStyle.LeadingNameOnPlatform
+                    : SpokenAttributionStyle.LeadingName,
                 AuthorTier = liveEvent.AuthorTier,
                 IsSubscriber = liveEvent.IsSubscriber,
                 IsModerator = liveEvent.IsModerator,
@@ -1803,6 +1810,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private bool IsMonitoringGenerationActive(int monitoringGeneration) =>
         _ttsQueue.IsArmed &&
         monitoringGeneration == Volatile.Read(ref _monitoringGeneration);
+
+    private bool IncludePlatformInSpeech =>
+        _connectorSessions.Count(connector =>
+            connector.IsConfigured && connector.IsEnabled) > 1;
 
     private void TrackSessionDonor(string platform, string author, string displayName)
     {

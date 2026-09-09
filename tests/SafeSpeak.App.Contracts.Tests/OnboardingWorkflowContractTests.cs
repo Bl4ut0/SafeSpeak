@@ -70,45 +70,24 @@ public sealed class OnboardingWorkflowContractTests
     }
 
     [Fact]
-    public void ConnectorDetection_IsExplicitlyConsentedAndLimitedToApprovedLocalSignals()
+    public void ConnectorSetup_UsesExplicitTikFinityOrTikTokDirectChoicesWithoutAutoDetection()
     {
         XDocument xaml = LoadWizard();
         string wizard = WizardViewModel();
-        string detector = Source(
-            "src", "SafeSpeak.Core", "Connectors", "LocalConnectorDetector.cs");
 
-        XElement consent = xaml.Descendants(Presentation + "CheckBox")
-            .Single(element =>
-                Attribute(element, "AutomationProperties.Name") ==
-                "Allow local TikFinity auto-detection, recommended");
-        Assert.Equal("{Binding AutoDetectLocalConnectors}", consent.Attribute("IsChecked")?.Value);
-        string help = Attribute(consent, "AutomationProperties.HelpText") ?? string.Empty;
-        Assert.Contains("explicit consent", help);
-        Assert.Contains("approved TikFinity process names", help);
-        Assert.Contains("local port 21213", help);
-        Assert.Contains("does not connect, authenticate, arm SafeSpeak, or scan files", help);
-
-        string platform = Method(wizard, "private async Task CompletePlatformStepAsync()");
-        int consentGuard = platform.IndexOf(
-            "if (UseTikFinity && AutoDetectLocalConnectors)",
-            StringComparison.Ordinal);
-        int detectionCall = platform.IndexOf("_connectorDetector.DetectAsync(", StringComparison.Ordinal);
-        Assert.True(consentGuard >= 0 && detectionCall > consentGuard);
-        Assert.Contains("userConsented: true", platform);
-
-        int refusal = detector.IndexOf("if (!userConsented)", StringComparison.Ordinal);
-        int firstProbe = detector.IndexOf(
-            "_probe.IsAnyApprovedProcessRunningAsync",
-            StringComparison.Ordinal);
-        Assert.True(refusal >= 0 && firstProbe > refusal);
-        Assert.Contains("[\"TikFinity\", \"TikFinityApp\"]", detector);
-        Assert.Contains("[21213]", detector);
-        Assert.Contains("TimeSpan.FromSeconds(1)", detector);
-        Assert.DoesNotContain("HttpClient", detector);
-        Assert.DoesNotContain("TcpClient", detector);
-        Assert.DoesNotContain("ConnectAsync", detector);
-        Assert.DoesNotContain("File.", detector);
-        Assert.DoesNotContain("Directory.", detector);
+        string[] connectorNames = xaml.Descendants(Presentation + "CheckBox")
+            .Select(element => Attribute(element, "AutomationProperties.Name"))
+            .Where(name => name is not null)
+            .Cast<string>()
+            .ToArray();
+        Assert.Contains("Use TikFinity for TikTok chat", connectorNames);
+        Assert.Contains("Use TikTok Direct by username", connectorNames);
+        Assert.DoesNotContain(connectorNames, name =>
+            name.Contains("detect", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("AutoDetectLocalConnectors", wizard);
+        Assert.DoesNotContain("DetectionResults", wizard);
+        Assert.DoesNotContain("LocalConnectorDetector", wizard);
+        Assert.DoesNotContain("DetectAsync", wizard);
     }
 
     [Fact]
@@ -147,7 +126,6 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("Built-in spoken guidance:", review);
         Assert.Contains("Visual theme:", review);
         Assert.Contains("Configured connectors:", review);
-        Assert.Contains("Local connector detection:", review);
         Assert.Contains("Language filtering:", review);
         Assert.Contains("SafeSpeak opens disarmed", review);
 
@@ -239,7 +217,7 @@ public sealed class OnboardingWorkflowContractTests
     {
         string wizard = WizardViewModel();
         AssertPersistsBeforeNavigation(
-            Method(wizard, "private async Task CompletePlatformStepAsync()"),
+            Method(wizard, "private void CompletePlatformStep()"),
             "_settings.OnboardingStage = OnboardingStage.Filtering");
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompleteFilteringStep()"),
