@@ -12,7 +12,7 @@ To create a shortcut on the current user's Windows desktop, run `./installer/Cre
 - The .NET SDK selected by `global.json`.
 - Windows 10 or Windows 11 SDK App Packaging tools (`makeappx.exe`) when building MSIX.
 - WiX Toolset SDK 5.0.2, restored automatically from the pinned package reference when building MSI.
-- A trusted Authenticode code-signing certificate when producing public MSI, portable ZIP, or sideloadable MSIX downloads. Microsoft signs the Store-delivered MSIX after certification, but that Store certificate and private key cannot be exported or reused for GitHub downloads. Signing credentials are never stored in this repository.
+- No signing certificate is required for the automated release. Microsoft signs the Store-delivered MSIX after certification. GitHub ZIP and MSI downloads remain unsigned and Windows reports an unknown publisher even though MSI product metadata identifies the manufacturer as `The Project Hub`.
 
 The portable ZIP is self-contained. Its users do not need to install .NET separately.
 
@@ -69,7 +69,7 @@ The repository default publisher (`CN=SafeSpeak`) is a development placeholder. 
 
 The script signs through the current user's certificate store and verifies the signature with `signtool`. It does not create, import, or export certificates. An unsigned package can be structurally tested and submitted to a signing pipeline, but Windows will not accept it for ordinary sideload installation.
 
-Tagged GitHub releases import a separate CA-trusted Authenticode PFX from the encrypted repository secrets `WINDOWS_SIGNING_CERTIFICATE_BASE64` and `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`. The temporary PFX is deleted immediately after import and the certificate is removed from the ephemeral runner after packaging. Tagged builds fail closed if the certificate is missing or if the executable, MSI, or MSIX signature does not verify. A ZIP file has no Authenticode container signature; its included `SafeSpeak.App.exe` is signed and the release publishes a SHA-256 checksum for the ZIP.
+GitHub releases publish the portable ZIP and MSI with SHA-256 checksums. They do not publish the unsigned MSIX because ordinary Windows sideload installation requires a trusted package signature. The workflow retains unsigned MSIX files temporarily as CI diagnostics and sends the Store-specific bundle to Partner Center, where Microsoft applies the trusted Store signature after certification.
 
 ## Microsoft Store submission
 
@@ -129,13 +129,13 @@ The Entra application represented by those credentials must be associated with P
 
 `installer/Build-StoreBundle.ps1` runs the release entry point for x64 and ARM64, performs the full test pass once, creates a neutral `.msixbundle`, unbundles it for structural verification, and records hashes in a Store bundle report. It rejects placeholder identity values and Store-incompatible versions.
 
-`.github/workflows/desktop-build.yml` performs the automatic release after a push to `main`. It signs and packages both desktop architectures, creates the versioned GitHub Release, builds and retains the Store bundle, uses `msstore apps get` to verify access to exactly `STORE_APP_ID`, and commits the bundle for Microsoft certification. Its manual form asks for a fallback release version and release details when inference is unavailable. `.github/workflows/store-publisher.yml` remains a manual connection-check and draft-upload tool; `upload_draft` uses `--noCommit` unless `commit_submission` is deliberately selected.
+`.github/workflows/desktop-build.yml` performs the automatic release after a push to `main`. It packages both desktop architectures, creates the versioned GitHub Release with portable ZIP and unsigned MSI downloads, builds and retains the Store bundle, uses `msstore apps get` to verify access to exactly `STORE_APP_ID`, and commits the bundle for Microsoft certification. The MSI embeds `The Project Hub` as its Windows Installer manufacturer, but Windows security prompts show `Unknown publisher` because it is not Authenticode signed. Microsoft signs the trusted Store MSIX after certification. The workflow's manual form asks for a fallback release version and release details when inference is unavailable. `.github/workflows/store-publisher.yml` remains a manual connection-check and draft-upload tool; `upload_draft` uses `--noCommit` unless `commit_submission` is deliberately selected.
 
 ## Continuous packaging verification
 
 `.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. Every push to `main` creates the stable `v<version>` release after both architecture reports prove valid executable, MSI, and MSIX signatures, then submits the Store bundle. A tag such as `v1.0.5.0-rc.1` remains available for a separate prerelease. `SHA256SUMS.txt` covers every downloadable artifact.
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. Every push to `main` creates the stable `v<version>` release with ZIP and unsigned MSI downloads, then submits the Store bundle. Unsigned MSIX files remain short-lived CI artifacts rather than public GitHub downloads. A tag such as `v1.0.5.0-rc.1` remains available for a separate prerelease. `SHA256SUMS.txt` covers every downloadable artifact.
 
 The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. A successful push build on `main` completes the GitHub and Store publication in the same workflow; `develop` cannot reach Partner Center.
 

@@ -213,7 +213,7 @@ if ($CertificateThumbprint) {
     )
 }
 else {
-    Write-Warning 'The application executable is unsigned. Public ZIP and MSI releases require a trusted Authenticode code-signing certificate.'
+    Write-Warning 'The application executable is unsigned. Windows security prompts will report an unknown publisher; use the Microsoft Store package for a Microsoft-signed installation.'
 }
 $executableInfo = Get-Item -LiteralPath $executablePath
 $executableFileVersion = [string]$executableInfo.VersionInfo.FileVersion

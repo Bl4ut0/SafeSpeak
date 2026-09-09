@@ -13,9 +13,9 @@ builds cannot trigger or publish a Windows package. See
 | --- | --- | --- | --- |
 | Push to `develop` | Development build | Tested unsigned x64 portable ZIP and release report, retained for 7 days | None |
 | Pull request targeting `develop` | Development build | Same development artifact | None |
-| Push to `main` | Main release build | Signed x64 and ARM64 ZIP/MSI/MSIX packages, Stream Deck package, permanent GitHub Release, Store bundle, and committed certification submission | GitHub Releases and `microsoft-store-production` after every required build succeeds |
+| Push to `main` | Main release build | x64 and ARM64 ZIP/unsigned MSI packages, Stream Deck package, permanent GitHub Release, Store bundle, and committed certification submission | GitHub Releases and `microsoft-store-production` after every required build succeeds |
 | Pull request targeting `main` | Main release build | Same release-candidate artifacts | None |
-| Push `v<version>` or `v<version>-rc.N` | Main release build | Signed permanent GitHub release or prerelease with verified ZIP/MSI/MSIX packages, Stream Deck package, reports, and SHA-256 checksums | GitHub Releases only; signing secrets required |
+| Push `v<version>` or `v<version>-rc.N` | Main release build | Permanent GitHub release or prerelease with ZIP/unsigned MSI packages, Stream Deck package, reports, and SHA-256 checksums | GitHub Releases only |
 | Manual Store workflow | Microsoft Store publisher | Store bundle; protected read-only connection check; optional protected draft/commit stages | Protected `microsoft-store-production` environment only |
 | Push/PR to `android/develop` or `android/main` | Android test build | Test APK, retained for 7 or 14 days | None |
 | Push/PR to `ios/develop` or `ios/main` | iOS simulator test build | Unsigned Simulator ZIP, retained for 7 or 14 days | None |
@@ -33,7 +33,7 @@ but requests only `x64` and `Zip` and writes into `artifacts/development`.
 4. Merge into `develop` and use its seven-day artifact for manual testing.
 5. When a release candidate is ready, open a pull request from `develop` to
    `main`. That pull request deliberately runs the full Main release build.
-6. Merge only after review and a successful build. The push to `main` signs and
+6. Merge only after review and a successful build. The push to `main`
    packages both architectures, creates `v<version>` and its GitHub Release,
    builds the Store bundle, and commits it for Microsoft certification. GitHub
    Actions sends the normal failure notification if any stage fails.
@@ -42,7 +42,7 @@ but requests only `x64` and `Zip` and writes into `artifacts/development`.
    version and release-details questions. The supplied version must match both
    version properties in `Directory.Build.props`.
 8. Push a reviewed `v<version>-rc.N` tag only when a separate prerelease is
-   needed. Tagged builds fail closed unless every public package is signed.
+   needed.
 9. Use manual Store dispatch when a read-only connection test or draft-only
    upload is needed without a `main` promotion.
 

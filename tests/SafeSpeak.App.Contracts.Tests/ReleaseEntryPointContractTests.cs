@@ -100,13 +100,12 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("'release', 'create'", workflow);
         Assert.Contains("GH_REPO: ${{ github.repository }}", workflow);
         Assert.Contains("SHA256SUMS.txt", workflow);
-        Assert.Contains("WINDOWS_SIGNING_CERTIFICATE_BASE64", workflow);
-        Assert.Contains("WINDOWS_SIGNING_CERTIFICATE_PASSWORD", workflow);
-        Assert.Contains("Import-PfxCertificate", workflow);
-        Assert.Contains("$buildParameters.CertificateThumbprint", workflow);
-        Assert.Contains("$buildParameters.Publisher", workflow);
-        Assert.Contains("expandedApplication.signatureStatus", workflow);
-        Assert.Contains("Unsigned release packages", workflow);
+        Assert.DoesNotContain("WINDOWS_SIGNING_CERTIFICATE_BASE64", workflow);
+        Assert.DoesNotContain("WINDOWS_SIGNING_CERTIFICATE_PASSWORD", workflow);
+        Assert.DoesNotContain("Import-PfxCertificate", workflow);
+        Assert.DoesNotContain("expandedApplication.signatureStatus", workflow);
+        Assert.Contains("Get-ChildItem -LiteralPath 'release-assets' -Filter '*.msix'", workflow);
+        Assert.Contains("unknown publisher", workflow, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("deploy_release:", workflow);
         Assert.Contains("release_version:", workflow);
         Assert.Contains("release_details:", workflow);
@@ -197,6 +196,8 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("<SuppressIces>ICE61</SuppressIces>", wixProject);
 
         Assert.Contains("<MajorUpgrade AllowSameVersionUpgrades=\"yes\"", package);
+        Assert.Contains("Manufacturer=\"The Project Hub\"", package);
+        Assert.Contains("Name=\"The Project Hub\"", package);
         Assert.Contains("<MediaTemplate EmbedCab=\"yes\"", package);
         Assert.Contains("<ui:WixUI Id=\"WixUI_InstallDir\"", package);
         Assert.Contains("SafeSpeakStartMenuShortcut", package);
@@ -225,6 +226,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("SAFESPEAKAPPDATA", msiScript);
         Assert.Contains("user profile data preserved", msiScript);
         Assert.Contains("unknown-publisher warning", msiScript);
+        Assert.Contains("$manufacturer -ne 'The Project Hub'", msiScript);
         Assert.Contains("automatically installs SafeSpeak shortcuts in both the Start menu and the desktop", Source("installer", "README.md"));
         Assert.Contains("install-managed desktop shortcut", Source("installer", "README.md"));
     }
