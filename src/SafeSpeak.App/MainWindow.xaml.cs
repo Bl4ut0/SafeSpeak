@@ -806,7 +806,7 @@ public partial class MainWindow : Window
             return false;
         }
 
-        Label[] chapters = EnumerateVisualDescendants(GetSelectedTab())
+        Label[] chapters = EnumerateVisualDescendants(GetSelectedPageContent())
             .OfType<Label>()
             .Where(label =>
                 label.IsVisible &&
@@ -850,9 +850,9 @@ public partial class MainWindow : Window
         }, DispatcherPriority.Input);
     }
 
-    private UIElement GetSelectedTab() =>
-        MainNavigation.SelectedItem is TabItem selectedTab
-            ? selectedTab
+    private UIElement GetSelectedPageContent() =>
+        MainNavigation.SelectedContent is UIElement selectedContent
+            ? selectedContent
             : MainNavigation;
 
     private UIElement GetSelectedPageEntryControl() => MainNavigation.SelectedIndex switch

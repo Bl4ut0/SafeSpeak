@@ -256,7 +256,8 @@
                                 <Button DockPanel.Dock="Right" TabIndex="9" Margin="8,0,0,0"
                                         Style="{StaticResource CompactButton}"
                                         Command="{Binding RetrySourceConnectionCommand}" Content="Reconnect all"
-                                        AutomationProperties.Name="Reconnect all enabled live connectors button" />
+                                        AutomationProperties.Name="Reconnect all enabled live connectors button"
+                                        AutomationProperties.HelpText="Reconnects every enabled connector. Press Tab to move through each configured connector toggle." />
                                 <StackPanel>
                                     <TextBlock Text="Live connectors" Style="{StaticResource SectionTitle}" />
                                     <TextBlock Text="{Binding ConnectionSummaryText}" Style="{StaticResource SecondaryText}"
@@ -267,7 +268,10 @@
                                 </StackPanel>
                             </DockPanel>
 
-                            <ItemsControl ItemsSource="{Binding LiveConnectors}" IsTabStop="False">
+                            <ItemsControl ItemsSource="{Binding LiveConnectors}"
+                                          IsTabStop="False"
+                                          KeyboardNavigation.TabNavigation="Local"
+                                          AutomationProperties.Name="Configured live connector controls">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Margin="0,0,0,5" Padding="8,6" CornerRadius="5"
@@ -298,7 +302,8 @@
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel>
-                                                    <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                                    <CheckBox TabIndex="10"
+                                                              IsChecked="{Binding IsEnabled, Mode=OneWay}"
                                                               IsEnabled="{Binding CanToggle}"
                                                               Command="{Binding DataContext.ToggleLiveConnectorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                               CommandParameter="{Binding}"
@@ -324,13 +329,13 @@
                         </Grid.RowDefinitions>
 
                         <DockPanel Grid.Row="0" Margin="0,0,0,5" LastChildFill="True">
-                            <Button DockPanel.Dock="Right" TabIndex="11" Margin="7,0,0,0"
+                            <Button DockPanel.Dock="Right" TabIndex="12" Margin="7,0,0,0"
                                     Style="{StaticResource CompactButton}"
                                     Command="{Binding ToggleFilteredContentVisibilityCommand}"
                                     Content="{Binding FilteredContentToggleText}"
                                     AutomationProperties.Name="{Binding FilteredContentToggleAutomationName}"
                                     AutomationProperties.HelpText="Explicitly reveals or hides both the original username and original text for every filtered entry in the live feed. Filtered content is never sent to broadcast speech." />
-                            <Button DockPanel.Dock="Right" TabIndex="10" Margin="10,0,0,0"
+                            <Button DockPanel.Dock="Right" TabIndex="11" Margin="10,0,0,0"
                                     Style="{StaticResource CompactButton}"
                                     Command="{Binding AnnounceLiveFeedReviewStatusCommand}"
                                     Content="Hear review status"
@@ -341,7 +346,7 @@
                         </DockPanel>
 
                         <ListView x:Name="LiveFeedListView"
-                                  Grid.Row="1" TabIndex="12" ItemsSource="{Binding LiveFeed}"
+                                  Grid.Row="1" TabIndex="13" ItemsSource="{Binding LiveFeed}"
                                   ItemContainerStyle="{StaticResource FeedItem}"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   GotKeyboardFocus="LiveFeedListView_GotKeyboardFocus"

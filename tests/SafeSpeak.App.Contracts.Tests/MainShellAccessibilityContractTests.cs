@@ -459,6 +459,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal(
             "{Binding DataContext.ToggleLiveConnectorCommand, RelativeSource={RelativeSource AncestorType=Window}}",
             connectorToggle.Attribute("Command")?.Value);
+        Assert.Equal("10", connectorToggle.Attribute("TabIndex")?.Value);
+        Assert.Equal("Local", Attribute(connectors, "KeyboardNavigation.TabNavigation"));
         Assert.Contains(connectors.Descendants(Presentation + "DataTrigger"), trigger =>
             trigger.Attribute("Binding")?.Value == "{Binding State}" &&
             trigger.Attribute("Value")?.Value == "Connected");
@@ -514,7 +516,7 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("2", navigation.Attribute("Grid.ColumnSpan")?.Value);
         Assert.Equal(hearStatus, persistentTabStops[0]);
         Assert.Equal(navigation, persistentTabStops[1]);
-        Assert.Equal(Enumerable.Range(1, 12), liveTabStops
+        Assert.Equal(Enumerable.Range(1, 13), liveTabStops
             .Select(element => int.Parse(element.Attribute("TabIndex")!.Value)));
 
         string[] expectedLiveSequence =
@@ -528,6 +530,7 @@ public sealed class MainShellAccessibilityContractTests
             "{Binding StopCurrentSpeechAutomationName}",
             "Clear pending text to speech queue button",
             "Reconnect all enabled live connectors button",
+            "{Binding ToggleName}",
             "Hear live activity review status button",
             "{Binding FilteredContentToggleAutomationName}",
             "LiveFeedListView"
@@ -1569,6 +1572,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("Control plus 1, 2, 3, or 4 always cancels unfinished capture", shortcuts);
         Assert.Contains("TryHandleChapterNavigationShortcut(key)", codeBehind);
         Assert.Contains("Key.D0 or Key.NumPad0 => 10", codeBehind);
+        Assert.Contains("EnumerateVisualDescendants(GetSelectedPageContent())", codeBehind);
+        Assert.Contains("MainNavigation.SelectedContent is UIElement selectedContent", codeBehind);
         Assert.Contains("AutomationProperties.GetHeadingLevel(label) == AutomationHeadingLevel.Level2", codeBehind);
         Assert.Contains("viewModel?.IsGlobalShortcutConfigured(gesture) == true", codeBehind);
         Assert.Contains("This will override the matching SafeSpeak chapter-navigation shortcut", codeBehind);
