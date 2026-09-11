@@ -83,6 +83,7 @@ public sealed class ModerationTestService
         ModerationReasonCode.SpamPattern => "Spam pattern",
         ModerationReasonCode.UnsafeUrl => "Link safety",
         ModerationReasonCode.SystemDisarmed => "System safety",
+        ModerationReasonCode.ChatReply => "Chat @reply filter",
         _ => "Safety check"
     };
 }

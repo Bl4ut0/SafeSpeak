@@ -197,6 +197,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private bool _allowDonorsToSpeak = true;
 
     [ObservableProperty]
+    private bool _ignoreChatReplies;
+
+    [ObservableProperty]
     private bool _pauseAllTtsWhilePaused = true;
 
     [ObservableProperty]
@@ -974,6 +977,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         RejectMixedScripts = Config.RejectMixedScripts;
         SelectedAudienceMode = Config.AudienceMode;
         AllowDonorsToSpeak = Config.AllowDonorsToSpeak;
+        IgnoreChatReplies = Config.IgnoreChatReplies;
         PauseAllTtsWhilePaused = _settings.PauseAllTtsWhilePaused;
         AllowGiftAnnouncementsWhilePaused = _settings.AllowGiftAnnouncementsWhilePaused;
         AllowFollowAnnouncementsWhilePaused = _settings.AllowFollowAnnouncementsWhilePaused;
@@ -1901,6 +1905,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         AnnounceState(value
             ? "Gift senders can speak even when the selected audience would otherwise exclude them."
             : "Gift senders must now meet the selected chat audience requirement.");
+    }
+
+    partial void OnIgnoreChatRepliesChanged(bool value)
+    {
+        if (_pipeline is null) return;
+        Config.IgnoreChatReplies = value;
+        _settings.IgnoreChatReplies = value;
+        if (_isInitializing) return;
+        PersistModerationSettings();
+        AnnounceState(value
+            ? "Chat replies disabled from TTS."
+            : "Chat replies enabled for TTS.");
     }
 
     partial void OnPauseAllTtsWhilePausedChanged(bool value) =>
@@ -3245,6 +3261,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.EnglishOnly = EnglishOnly;
         _settings.RejectMixedScripts = RejectMixedScripts;
         _settings.AllowDonorsToSpeak = AllowDonorsToSpeak;
+        _settings.IgnoreChatReplies = IgnoreChatReplies;
         _settings.AnnounceChatMessages = AnnounceChatMessages;
         _settings.AnnounceGifts = AnnounceGifts;
         _settings.AnnounceFollows = AnnounceFollows;

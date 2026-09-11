@@ -95,6 +95,7 @@ public sealed class AppSettings
     public bool RejectMixedScripts { get; set; } = true;
     public bool StripUrls { get; set; } = true;
     public bool AllowDonorsToSpeak { get; set; } = true;
+    public bool IgnoreChatReplies { get; set; } = false;
     public bool SpeakUsernames { get; set; } = true;
     public bool AiClassificationEnabled { get; set; } = true;
     public double AiToxicityThreshold { get; set; } = 0.65;
@@ -680,6 +681,8 @@ public sealed class AppSettings
         RejectMixedScripts = RejectMixedScripts,
         StripUrls = StripUrls,
         AllowDonorsToSpeak = AllowDonorsToSpeak,
+        IgnoreChatReplies = IgnoreChatReplies,
+        StreamerUsername = TikTokUsername,
         SpeakUsernames = true,
         AiClassificationEnabled = true,
         AiToxicityThreshold = Math.Clamp(AiToxicityThreshold, 0.3, 0.95),
@@ -702,6 +705,7 @@ public sealed class AppSettings
         RejectMixedScripts = config.RejectMixedScripts;
         StripUrls = config.StripUrls;
         AllowDonorsToSpeak = config.AllowDonorsToSpeak;
+        IgnoreChatReplies = config.IgnoreChatReplies;
         SpeakUsernames = true;
         AiClassificationEnabled = true;
         AiToxicityThreshold = Math.Clamp(config.AiToxicityThreshold, 0.3, 0.95);

@@ -149,7 +149,36 @@ public sealed partial class ModerationPipeline : IDisposable
             };
         }
 
-        // 5. Mention Resolution & Sanitization
+        // 5. Chatter @Reply Filtering
+        // When IgnoreChatReplies is true, messages that start with @recipient directed
+        // at other chatters are ignored so viewer-to-viewer conversations are not spoken aloud.
+        // Direct messages to the streamer (matching StreamerUsername) are not considered replies.
+        if (Config.IgnoreChatReplies && !isSystemEvent && message.EventType == LivestreamEventType.Chat)
+        {
+            var replyMatch = ReplyPrefixRegex().Match(message.RawText);
+            if (replyMatch.Success)
+            {
+                string handle = replyMatch.Groups["handle"].Value;
+                string? streamerHandle = Config.StreamerUsername?.Trim().TrimStart('@');
+                bool isDirectToStreamer = !string.IsNullOrWhiteSpace(streamerHandle) &&
+                    string.Equals(handle.TrimStart('@'), streamerHandle, StringComparison.OrdinalIgnoreCase);
+
+                if (!isDirectToStreamer)
+                {
+                    return new ModerationDecision
+                    {
+                        Message = message,
+                        Disposition = ModerationDisposition.Rejected,
+                        ReasonCode = ModerationReasonCode.ChatReply,
+                        ReasonDescription = $"Message is an @reply to @{handle} and chatter-to-chatter replies are disabled",
+                        SpokenText = string.Empty,
+                        NormalizedText = message.RawText
+                    };
+                }
+            }
+        }
+
+        // 6. Mention Resolution & Sanitization
         // Mentions are treated like author display names: if a mentioned name contains
         // mixed scripts, disallowed non-Latin characters, or toxic patterns, it is filtered
         // to "a player" so innocent chat messages are not rejected, provided the message is safe.
@@ -357,6 +386,9 @@ public sealed partial class ModerationPipeline : IDisposable
 
     [GeneratedRegex(@"(?<=^|\s|[(\[{'""/])@(?<handle>[^\s]+)", RegexOptions.Compiled)]
     private static partial Regex MentionRegex();
+
+    [GeneratedRegex(@"^\s*[.(\[{'""/]*@(?<handle>[^\s,:;!?)]+)", RegexOptions.Compiled)]
+    private static partial Regex ReplyPrefixRegex();
 
     private async Task<(string SanitizedText, bool HadUnsafeMentions, bool MatchedBlockedTermInMention, string NonMentionText)> SanitizeMentionsAsync(
         string rawText,

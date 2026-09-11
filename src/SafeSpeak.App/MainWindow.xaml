@@ -1845,28 +1845,31 @@
                                             <CheckBox TabIndex="38" IsChecked="{Binding AnnounceLikes}" Margin="0,3"
                                                       Content="Likes" AutomationProperties.Name="Announce likes"
                                                       AutomationProperties.HelpText="Controls spoken like announcements." />
+                                            <CheckBox TabIndex="39" IsChecked="{Binding IgnoreChatReplies}" Margin="0,3"
+                                                      Content="Ignore @replies" AutomationProperties.Name="Ignore chatter-to-chatter @replies"
+                                                      AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
                                         </UniformGrid>
                                         <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                                                 BorderThickness="0,1,0,0" Margin="0,7,0,5" />
                                         <TextBlock Text="While paused" FontWeight="SemiBold" />
-                                        <CheckBox TabIndex="39" IsChecked="{Binding PauseAllTtsWhilePaused}" Margin="0,5,0,3"
+                                        <CheckBox TabIndex="40" IsChecked="{Binding PauseAllTtsWhilePaused}" Margin="0,5,0,3"
                                                   Content="Pause all TTS, including events"
                                                   AutomationProperties.Name="Pause all text to speech including event announcements"
                                                   AutomationProperties.HelpText="When checked, every approved message and event waits until TTS resumes. Emergency Stop always stops and clears everything." />
                                         <UniformGrid Columns="2" KeyboardNavigation.TabNavigation="Local">
-                                            <CheckBox TabIndex="40" IsChecked="{Binding AllowGiftAnnouncementsWhilePaused}"
+                                            <CheckBox TabIndex="41" IsChecked="{Binding AllowGiftAnnouncementsWhilePaused}"
                                                       Margin="0,3" Content="Allow gifts"
                                                       AutomationProperties.Name="Allow gift announcements while chat TTS is paused"
                                                       AutomationProperties.HelpText="Sets whether gifts may speak while paused when Pause all TTS is unchecked. This option remains keyboard accessible so it can be prepared in advance." />
-                                            <CheckBox TabIndex="41" IsChecked="{Binding AllowFollowAnnouncementsWhilePaused}"
+                                            <CheckBox TabIndex="42" IsChecked="{Binding AllowFollowAnnouncementsWhilePaused}"
                                                       Margin="0,3" Content="Allow follows"
                                                       AutomationProperties.Name="Allow follow announcements while chat TTS is paused"
                                                       AutomationProperties.HelpText="Sets whether follows may speak while paused when Pause all TTS is unchecked. This option remains keyboard accessible so it can be prepared in advance." />
-                                            <CheckBox TabIndex="42" IsChecked="{Binding AllowShareAnnouncementsWhilePaused}"
+                                            <CheckBox TabIndex="43" IsChecked="{Binding AllowShareAnnouncementsWhilePaused}"
                                                       Margin="0,3" Content="Allow shares"
                                                       AutomationProperties.Name="Allow share announcements while chat TTS is paused"
                                                       AutomationProperties.HelpText="Sets whether shares may speak while paused when Pause all TTS is unchecked. This option remains keyboard accessible so it can be prepared in advance." />
-                                            <CheckBox TabIndex="43" IsChecked="{Binding AllowSubscriptionAnnouncementsWhilePaused}"
+                                            <CheckBox TabIndex="44" IsChecked="{Binding AllowSubscriptionAnnouncementsWhilePaused}"
                                                       Margin="0,3" Content="Allow subscriptions"
                                                       AutomationProperties.Name="Allow subscription announcements while chat TTS is paused"
                                                       AutomationProperties.HelpText="Sets whether subscriptions may speak while paused when Pause all TTS is unchecked. This option remains keyboard accessible so it can be prepared in advance." />
@@ -1882,27 +1885,27 @@
                                         <TextBlock Text="Selected events bypass the main queue and play immediately on a dedicated audio track alongside chat. Alerts queue in order on their own track (maximum 2 simultaneous tracks). Chat always plays in the main queue."
                                                    Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,5" />
                                         <UniformGrid Columns="2" KeyboardNavigation.TabNavigation="Local">
-                                            <CheckBox TabIndex="44" IsChecked="{Binding InstantAlertsGifts}" Margin="0,3"
+                                            <CheckBox TabIndex="45" IsChecked="{Binding InstantAlertsGifts}" Margin="0,3"
                                                       Content="Instant gifts"
                                                       AutomationProperties.Name="Play gift announcements instantly on dedicated alert track"
                                                       AutomationProperties.HelpText="When checked, gift announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
-                                            <CheckBox TabIndex="45" IsChecked="{Binding InstantAlertsFollows}" Margin="0,3"
+                                            <CheckBox TabIndex="46" IsChecked="{Binding InstantAlertsFollows}" Margin="0,3"
                                                       Content="Instant follows"
                                                       AutomationProperties.Name="Play follow announcements instantly on dedicated alert track"
                                                       AutomationProperties.HelpText="When checked, follow announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
-                                            <CheckBox TabIndex="46" IsChecked="{Binding InstantAlertsShares}" Margin="0,3"
+                                            <CheckBox TabIndex="47" IsChecked="{Binding InstantAlertsShares}" Margin="0,3"
                                                       Content="Instant shares"
                                                       AutomationProperties.Name="Play share announcements instantly on dedicated alert track"
                                                       AutomationProperties.HelpText="When checked, share announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
-                                            <CheckBox TabIndex="47" IsChecked="{Binding InstantAlertsSubscriptions}" Margin="0,3"
+                                            <CheckBox TabIndex="48" IsChecked="{Binding InstantAlertsSubscriptions}" Margin="0,3"
                                                       Content="Instant subscriptions"
                                                       AutomationProperties.Name="Play subscription announcements instantly on dedicated alert track"
                                                       AutomationProperties.HelpText="When checked, subscription announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
-                                            <CheckBox TabIndex="48" IsChecked="{Binding InstantAlertsJoins}" Margin="0,3"
+                                            <CheckBox TabIndex="49" IsChecked="{Binding InstantAlertsJoins}" Margin="0,3"
                                                       Content="Instant joins"
                                                       AutomationProperties.Name="Play viewer join announcements instantly on dedicated alert track"
                                                       AutomationProperties.HelpText="When checked, viewer join announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
-                                            <CheckBox TabIndex="49" IsChecked="{Binding InstantAlertsLikes}" Margin="0,3"
+                                            <CheckBox TabIndex="50" IsChecked="{Binding InstantAlertsLikes}" Margin="0,3"
                                                       Content="Instant likes"
                                                       AutomationProperties.Name="Play like announcements instantly on dedicated alert track"
                                                       AutomationProperties.HelpText="When checked, like announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
@@ -1912,13 +1915,13 @@
 
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
-                                <Label TabIndex="50" Style="{StaticResource ChapterHeading}"
+                                <Label TabIndex="51" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 7 — Privacy and audit logs"
                                        AutomationProperties.Name="Settings chapter 7 of 9, privacy and audit logs"
                                        AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable local moderation logs and open their folder. Use Alt plus 7 to return here." />
                                 <TextBlock Text="Manage local moderation decision logs for post-stream auditing and transparency."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
-                                <CheckBox TabIndex="51" IsChecked="{Binding EnableStreamAuditLogging}"
+                                <CheckBox TabIndex="52" IsChecked="{Binding EnableStreamAuditLogging}"
                                           Content="Save chat and moderation decisions to a local text log"
                                           AutomationProperties.Name="Save chat and moderation decisions to a local text log"
                                           AutomationProperties.HelpText="When enabled, raw chat, usernames, gifts, and safety decisions are saved locally for post-stream review." />
@@ -1928,7 +1931,7 @@
                                 <TextBlock Text="{Binding AuditLogsDirectoryDisplay, StringFormat=Log folder: {0}}"
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,7"
                                            AutomationProperties.Name="{Binding AuditLogsDirectoryDisplay, StringFormat=SafeSpeak log folder: {0}}" />
-                                <Button TabIndex="52" HorizontalAlignment="Left"
+                                <Button TabIndex="53" HorizontalAlignment="Left"
                                         Command="{Binding OpenAuditLogsFolderCommand}"
                                         Content="Open logs folder"
                                         AutomationProperties.Name="Open stream audit logs folder button"
@@ -1938,7 +1941,7 @@
 
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
-                                <Label TabIndex="53" Style="{StaticResource ChapterHeading}"
+                                <Label TabIndex="54" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 8 — Interface and setup"
                                        AutomationProperties.Name="Settings chapter 8 of 9, interface and setup"
                                        AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls change interface text size or run the accessibility setup again. Use Alt plus 8 to return here." />
@@ -1955,7 +1958,7 @@
                                                FontWeight="SemiBold" VerticalAlignment="Center"
                                                AutomationProperties.Name="{Binding InterfaceTextScaleAccessibleText}" />
                                 </Grid>
-                                <Slider x:Name="TextScaleSlider" TabIndex="54"
+                                <Slider x:Name="TextScaleSlider" TabIndex="55"
                                         Minimum="100" Maximum="200" TickFrequency="10"
                                         IsSnapToTickEnabled="True"
                                         Value="{Binding InterfaceTextScalePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -1969,7 +1972,7 @@
                                 <TextBlock Text="Setup wizard" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,0,0,4" />
                                 <TextBlock Text="Rerun the first-time setup flow to review your streaming platform, moderation strength, visual theme, and screen reader guidance."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                <Button TabIndex="55" HorizontalAlignment="Stretch"
+                                <Button TabIndex="56" HorizontalAlignment="Stretch"
                                         Command="{Binding RerunAccessibilityWizardCommand}"
                                         Content="Run Setup Again"
                                         AutomationProperties.Name="Run SafeSpeak setup again button"
@@ -1979,7 +1982,7 @@
 
                         <Border x:Name="SettingsGuidePanel" Style="{StaticResource ContentPanel}" Margin="0,10,0,10">
                             <StackPanel>
-                                <Label TabIndex="56" Style="{StaticResource ChapterHeading}"
+                                <Label TabIndex="57" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 9 — Settings guide reference"
                                        AutomationProperties.Name="Settings chapter 9 of 9, Settings guide reference"
                                        AutomationProperties.HelpText="Press Tab to enter this chapter. The following visible reference contains the complete Settings guide. Guide playback controls may be at the top or bottom of this page. Use Alt plus 9 to return here." />
@@ -2012,23 +2015,23 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <WrapPanel>
-                                        <Button x:Name="SettingsGuideButtonAtEnd" TabIndex="57" Margin="0,0,7,5"
+                                        <Button x:Name="SettingsGuideButtonAtEnd" TabIndex="58" Margin="0,0,7,5"
                                                 Command="{Binding ReadSettingsGuideCommand}"
                                                 Content="Play whole guide"
                                                 AutomationProperties.Name="Play the whole Settings guide button, at the bottom of the page"
                                                 AutomationProperties.HelpText="Reads all eight Settings guide pages through SafeSpeak built-in guidance." />
-                                        <Button x:Name="ReadSettingsGuidePageButtonAtEnd" TabIndex="58" Margin="0,0,7,5"
+                                        <Button x:Name="ReadSettingsGuidePageButtonAtEnd" TabIndex="59" Margin="0,0,7,5"
                                                 Command="{Binding ReadNextSettingsGuidePageCommand}"
                                                 Content="Play guide page"
                                                 AutomationProperties.Name="Play the next Settings guide page button, at the bottom of the page"
                                                 AutomationProperties.HelpText="Reads one Settings guide page and advances to the next page." />
-                                        <Button x:Name="ResetSettingsGuideButtonAtEnd" TabIndex="59" Margin="0,0,7,5"
+                                        <Button x:Name="ResetSettingsGuideButtonAtEnd" TabIndex="60" Margin="0,0,7,5"
                                                 Command="{Binding RestartSettingsGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Settings guide to page 1 button, at the bottom of the page"
                                                 AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback." />
                                     </WrapPanel>
-                                    <Button x:Name="ToggleSettingsGuideButtonAtEnd" Grid.Column="1" TabIndex="60" Margin="7,0,0,5"
+                                    <Button x:Name="ToggleSettingsGuideButtonAtEnd" Grid.Column="1" TabIndex="61" Margin="7,0,0,5"
                                             Command="{Binding ToggleSettingsGuideVisibilityCommand}"
                                             Click="GuidePlacementButton_Click"
                                             Content="{Binding SettingsGuideVisibilityButtonText}"

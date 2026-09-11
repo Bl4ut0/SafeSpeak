@@ -26,7 +26,8 @@ public enum ModerationReasonCode
     ThreatOrHarassment = 8,
     SpamPattern = 9,
     UnsafeUrl = 10,
-    SystemDisarmed = 11
+    SystemDisarmed = 11,
+    ChatReply = 12
 }
 
 /// <summary>
@@ -59,6 +60,7 @@ public sealed record ModerationDecision
         ModerationReasonCode.SpamPattern => "Message matched a spam pattern.",
         ModerationReasonCode.UnsafeUrl => "Message contains an unsafe link.",
         ModerationReasonCode.SystemDisarmed => "SafeSpeak is disarmed.",
+        ModerationReasonCode.ChatReply => "Message is a chatter-to-chatter @reply and @replies are disabled.",
         _ => "Message was not approved."
     };
     public string AccessibleSummary => Passed

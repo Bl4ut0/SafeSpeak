@@ -603,6 +603,16 @@
                                    a11y:LiveRegion.Announcement="{Binding ModelStatus}" />
                     </StackPanel>
                 </Border>
+
+                <!-- Chat @Reply Filter Toggle -->
+                <CheckBox x:Name="IgnoreChatRepliesCheckBox"
+                          TabIndex="5"
+                          MinHeight="44"
+                          Margin="0,8,0,0"
+                          IsChecked="{Binding IgnoreChatReplies}"
+                          Content="Ignore viewer @replies to other chatters"
+                          AutomationProperties.Name="Ignore chatter-to-chatter @replies"
+                          AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
             </StackPanel>
 
             <!-- STEP 6: KEYBINDS -->

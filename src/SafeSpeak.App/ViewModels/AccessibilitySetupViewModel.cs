@@ -131,6 +131,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
         AiClassificationEnabled = _settings.AiClassificationEnabled;
         SelectedModerationModel = _settings.ModerationModel;
+        IgnoreChatReplies = _settings.IgnoreChatReplies;
 
         LoadVoices();
         PopulateKeybinds();
@@ -183,6 +184,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     [ObservableProperty]
     private bool _aiClassificationEnabled = true;
+
+    [ObservableProperty]
+    private bool _ignoreChatReplies;
 
     [ObservableProperty]
     private ModerationModelPreference _selectedModerationModel = ModerationModelPreference.BuiltInHybrid;
@@ -513,6 +517,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     {
         _settings.AiClassificationEnabled = AiClassificationEnabled;
         _settings.ModerationModel = SelectedModerationModel;
+        _settings.IgnoreChatReplies = IgnoreChatReplies;
         _settings.OnboardingStage = OnboardingStage.Keybinds;
         if (!_settings.TrySave(out string? error))
         {
@@ -990,6 +995,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         {
             ReviewItems.Add($"Contextual AI model: Qwen3Guard 0.6B ({(IsQwenInstalled ? "Installed" : "Not yet installed")})");
         }
+        ReviewItems.Add($"Chat @replies from viewers: {(IgnoreChatReplies ? "Ignored (suppressed from TTS)" : "Allowed (spoken)")}");
         ReviewItems.Add("Global shortcuts: Status (Ctrl+Shift+S), Arm (Ctrl+Shift+A), Emergency Stop (Pause / Ctrl+Shift+X), Silence (Ctrl+Shift+Q).");
         ReviewItems.Add("Navigation: Tabs (Ctrl+1..4), Chapters (Alt+1..0), Setup steps (Ctrl+1..8).");
         ReviewItems.Add("SafeSpeak opens disarmed and does not process chat until you choose Arm SafeSpeak.");
@@ -1077,6 +1083,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnboardingConnectorDetectionStatus LocalConnectorDetectionStatus,
         string LocalConnectorDetectionSummary,
         bool AiClassificationEnabled,
+        bool IgnoreChatReplies,
         string SelectedVoiceName,
         ModerationModelPreference ModerationModel)
     {
@@ -1096,6 +1103,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 settings.LocalConnectorDetectionStatus,
                 settings.LocalConnectorDetectionSummary,
                 settings.AiClassificationEnabled,
+                settings.IgnoreChatReplies,
                 settings.SelectedVoiceName ?? string.Empty,
                 settings.ModerationModel);
 
@@ -1115,6 +1123,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.LocalConnectorDetectionStatus = LocalConnectorDetectionStatus;
             settings.LocalConnectorDetectionSummary = LocalConnectorDetectionSummary;
             settings.AiClassificationEnabled = AiClassificationEnabled;
+            settings.IgnoreChatReplies = IgnoreChatReplies;
             settings.SelectedVoiceName = SelectedVoiceName;
             settings.ModerationModel = ModerationModel;
         }
