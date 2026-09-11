@@ -347,6 +347,22 @@ public sealed class OnboardingAccessibilityContractTests
                 attribute.Name.LocalName == localName)
             ?.Value;
 
+    [Fact]
+    public void Wizard_ControlKeySilencesNarratorDuringStartupGuide()
+    {
+        string codeBehind = File.ReadAllText(
+            RepositoryFile(
+                "src",
+                "SafeSpeak.App",
+                "Views",
+                "AccessibilitySetupDialog.xaml.cs"));
+
+        Assert.Contains("key is Key.LeftCtrl or Key.RightCtrl", codeBehind);
+        Assert.Contains("_viewModel.Announcer.StopSpeaking()", codeBehind);
+        Assert.Contains("HotkeyAction.StopBuiltInGuidance", codeBehind);
+        Assert.Contains("_hotkeyService.RegisterHotkeys", codeBehind);
+    }
+
     private static int Count(string text, string value)
     {
         int count = 0;

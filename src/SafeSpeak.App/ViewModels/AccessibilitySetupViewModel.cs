@@ -682,6 +682,12 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     }
 
     [RelayCommand]
+    public void StopBuiltInGuidance()
+    {
+        _announcer.StopSpeaking();
+    }
+
+    [RelayCommand]
     private void SelectMiniLM()
     {
         SelectedModerationModel = ModerationModelPreference.BuiltInHybrid;

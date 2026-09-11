@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
@@ -45,6 +45,13 @@ public partial class SetupUpdatePromptDialog : Window
 
     private void SetupUpdatePromptDialog_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.LeftCtrl or Key.RightCtrl)
+        {
+            _announcer?.StopSpeaking();
+            return;
+        }
+
         if (Keyboard.Modifiers != ModifierKeys.None)
         {
             return;

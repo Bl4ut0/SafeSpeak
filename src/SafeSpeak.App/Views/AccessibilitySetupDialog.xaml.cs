@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using SafeSpeak.App.Accessibility;
 using SafeSpeak.App.ViewModels;
@@ -15,6 +16,9 @@ public partial class AccessibilitySetupDialog : Window
 {
     private readonly AccessibilitySetupViewModel _viewModel;
     private readonly IntegratedFocusNarrator _focusNarrator;
+    private readonly GlobalHotkeyService _hotkeyService = new();
+    private nint _windowHandle;
+    private HwndSource? _hwndSource;
 
     private string? _modalFirstCapturedShortcut;
     private ModifierKeys _modalShortcutModifiers;
@@ -32,6 +36,12 @@ public partial class AccessibilitySetupDialog : Window
         Closed += AccessibilitySetupDialog_Closed;
         Loaded += (_, _) =>
         {
+            _windowHandle = new WindowInteropHelper(this).Handle;
+            _hwndSource = HwndSource.FromHwnd(_windowHandle);
+            _hwndSource?.AddHook(HwndHook);
+            _hotkeyService.HotkeyTriggered += HotkeyService_HotkeyTriggered;
+            RegisterHotkeys();
+
             FocusPrimaryControl();
             Dispatcher.BeginInvoke(
                 _viewModel.AnnounceInitialPrompt,
@@ -48,6 +58,16 @@ public partial class AccessibilitySetupDialog : Window
     {
         if (e.Handled)
         {
+            return;
+        }
+
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.LeftCtrl or Key.RightCtrl)
+        {
+            if (!_viewModel.IsEditingKeybind)
+            {
+                _viewModel.Announcer.StopSpeaking();
+            }
             return;
         }
 
@@ -484,10 +504,48 @@ public partial class AccessibilitySetupDialog : Window
         return keyName.Length > 0;
     }
 
+    private void RegisterHotkeys()
+    {
+        if (_windowHandle == nint.Zero) return;
+        var bindings = new[]
+        {
+            new GlobalShortcutBinding
+            {
+                Action = HotkeyAction.StopBuiltInGuidance,
+                IsEnabled = true,
+                Gesture = "Control"
+            }
+        };
+        _hotkeyService.RegisterHotkeys(_windowHandle, bindings);
+    }
+
+    private void HotkeyService_HotkeyTriggered(object? sender, HotkeyTriggeredEventArgs e)
+    {
+        if (e.Action == HotkeyAction.StopBuiltInGuidance)
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (!_viewModel.IsEditingKeybind)
+                {
+                    _viewModel.Announcer.StopSpeaking();
+                }
+            });
+        }
+    }
+
+    private nint HwndHook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    {
+        _hotkeyService.ProcessWindowMessage(msg, wParam);
+        return nint.Zero;
+    }
+
     private void AccessibilitySetupDialog_Closed(object? sender, EventArgs e)
     {
         _viewModel.FocusRequested -= ViewModel_FocusRequested;
         PreviewKeyDown -= AccessibilitySetupDialog_PreviewKeyDown;
+        _hotkeyService.HotkeyTriggered -= HotkeyService_HotkeyTriggered;
+        _hwndSource?.RemoveHook(HwndHook);
+        _hotkeyService.Dispose();
         _focusNarrator.Dispose();
         _viewModel.Dispose();
     }
