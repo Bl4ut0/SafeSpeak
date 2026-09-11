@@ -2097,29 +2097,19 @@
 
                     <!-- View C: Shortcut Keybind Editor Modal -->
                     <StackPanel Visibility="{Binding IsEditingKeybind, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <DockPanel LastChildFill="True" Margin="0,0,0,10">
-                            <Button x:Name="KeybindModalCloseButton"
-                                    DockPanel.Dock="Right"
-                                    Padding="10,4"
-                                    MinHeight="36"
-                                    MinWidth="60"
-                                    Command="{Binding CloseKeybindEditorCommand}"
-                                    Content="Close"
-                                    AutomationProperties.Name="Close shortcut editor" />
-                            <StackPanel VerticalAlignment="Center">
-                                <Border Style="{StaticResource StatusPill}"
-                                        HorizontalAlignment="Left"
-                                        Padding="8,2"
-                                        Margin="0,0,0,4">
-                                    <TextBlock Text="Customize Shortcut"
-                                               FontWeight="Bold"
-                                               FontSize="{DynamicResource SafeSpeakFont11}" />
-                                </Border>
-                                <TextBlock Text="{Binding EditingKeybind.DisplayName, StringFormat='Change Shortcut: {0}'}"
+                        <StackPanel Margin="0,0,0,10">
+                            <Border Style="{StaticResource StatusPill}"
+                                    HorizontalAlignment="Left"
+                                    Padding="8,2"
+                                    Margin="0,0,0,4">
+                                <TextBlock Text="Customize Shortcut"
                                            FontWeight="Bold"
-                                           FontSize="{DynamicResource SafeSpeakFont18}" />
-                            </StackPanel>
-                        </DockPanel>
+                                           FontSize="{DynamicResource SafeSpeakFont11}" />
+                            </Border>
+                            <TextBlock Text="{Binding EditingKeybind.DisplayName, StringFormat='Change Shortcut: {0}'}"
+                                       FontWeight="Bold"
+                                       FontSize="{DynamicResource SafeSpeakFont18}" />
+                        </StackPanel>
 
                         <TextBlock Text="{Binding EditingKeybind.Description}"
                                    Style="{StaticResource SecondaryText}"
