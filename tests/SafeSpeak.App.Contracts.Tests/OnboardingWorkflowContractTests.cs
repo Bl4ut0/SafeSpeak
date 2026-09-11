@@ -262,6 +262,39 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("ActiveModalConnectorId = null;", restart);
     }
 
+    [Fact]
+    public void Startup_PromptsExistingUsersOnSetupUpdateWithAccessibleYesAndDeclineActions()
+    {
+        string startup = Source("src", "SafeSpeak.App", "App.xaml.cs");
+        string dialogXaml = Source("src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml");
+        string dialogCode = Source("src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml.cs");
+
+        // App.xaml.cs handles ShouldPromptSetupUpdate
+        Assert.Contains("else if (settings.ShouldPromptSetupUpdate)", startup);
+        Assert.Contains("new SetupUpdatePromptDialog(", startup);
+        Assert.Contains("changeExistingProfile: true", startup);
+
+        // Dialog markup defines Yes and Decline buttons with accessible hotkeys and minimum hit targets
+        XDocument xaml = XDocument.Parse(dialogXaml);
+        XElement yesButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "YesButton");
+        XElement declineButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "DeclineButton");
+
+        Assert.Equal("1", yesButton.Attribute("TabIndex")?.Value);
+        Assert.Equal("2", declineButton.Attribute("TabIndex")?.Value);
+        Assert.True(double.Parse(yesButton.Attribute("MinHeight")!.Value) >= 44);
+        Assert.True(double.Parse(declineButton.Attribute("MinHeight")!.Value) >= 44);
+        Assert.Contains("(Y)", yesButton.Attribute("Content")!.Value);
+        Assert.Contains("(N)", declineButton.Attribute("Content")!.Value);
+
+        // Codebehind handles keyboard Y, N, Enter, Escape, and saves LastAcknowledgedSetupVersion
+        Assert.Contains("e.Key == Key.Y", dialogCode);
+        Assert.Contains("e.Key is Key.N or Key.Escape", dialogCode);
+        Assert.Contains("_settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;", dialogCode);
+        Assert.Contains("_settings.TrySave(out _);", dialogCode);
+    }
+
     private static void AssertPersistsBeforeNavigation(
         string method,
         string stageAssignment,

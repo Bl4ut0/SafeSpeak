@@ -49,8 +49,10 @@ public enum OnboardingConnectorDetectionStatus
 public sealed class AppSettings
 {
     public const int CurrentSettingsSchemaVersion = 12;
+    public const int CurrentSetupGuideVersion = 1;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
+    public int LastAcknowledgedSetupVersion { get; set; } = 0;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
     public SpokenGuidanceMode SpokenGuidance { get; set; } = SpokenGuidanceMode.Unset;
     public ThemePreference Theme { get; set; } = ThemePreference.Unset;
@@ -88,6 +90,12 @@ public sealed class AppSettings
 
     [JsonIgnore]
     public bool HasCompletedOnboarding => OnboardingStage == OnboardingStage.Complete;
+
+    [JsonIgnore]
+    public bool ShouldPromptSetupUpdate =>
+        HasCompletedOnboarding &&
+        !IsAwaitingAccessibilityConfirmation &&
+        LastAcknowledgedSetupVersion < CurrentSetupGuideVersion;
 
     public AudienceMode AudienceMode { get; set; } = AudienceMode.All;
     public ModerationStrictness Strictness { get; set; } = ModerationStrictness.High;

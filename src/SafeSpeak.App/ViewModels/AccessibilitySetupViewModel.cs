@@ -725,10 +725,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private void CompleteOnboarding()
     {
         OnboardingStage previousStage = _settings.OnboardingStage;
+        int previousSetupVersion = _settings.LastAcknowledgedSetupVersion;
         _settings.OnboardingStage = OnboardingStage.Complete;
+        _settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
         if (!_settings.TrySave(out string? error))
         {
             _settings.OnboardingStage = previousStage;
+            _settings.LastAcknowledgedSetupVersion = previousSetupVersion;
             ReportSaveFailure(error);
             return;
         }
@@ -1254,6 +1257,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         SpokenGuidanceMode PendingSpokenGuidance,
         ThemePreference PendingTheme,
         OnboardingStage OnboardingStage,
+        int LastAcknowledgedSetupVersion,
         string SelectedSourceConnectorId,
         string[] ConfiguredSourceConnectorIds,
         string[] ActiveSourceConnectorIds,
@@ -1274,6 +1278,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 settings.PendingSpokenGuidance,
                 settings.PendingTheme,
                 settings.OnboardingStage,
+                settings.LastAcknowledgedSetupVersion,
                 settings.SelectedSourceConnectorId,
                 [.. settings.ConfiguredSourceConnectorIds],
                 [.. settings.ActiveSourceConnectorIds],
@@ -1294,6 +1299,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.PendingSpokenGuidance = PendingSpokenGuidance;
             settings.PendingTheme = PendingTheme;
             settings.OnboardingStage = OnboardingStage;
+            settings.LastAcknowledgedSetupVersion = LastAcknowledgedSetupVersion;
             settings.SelectedSourceConnectorId = SelectedSourceConnectorId;
             settings.ConfiguredSourceConnectorIds = [.. ConfiguredSourceConnectorIds];
             settings.ActiveSourceConnectorIds = [.. ActiveSourceConnectorIds];

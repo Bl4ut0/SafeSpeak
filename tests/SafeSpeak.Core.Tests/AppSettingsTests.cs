@@ -635,6 +635,45 @@ public sealed class AppSettingsTests
         Assert.Null(settingsType.GetProperty("SelectedPrivateEndpointId"));
     }
 
+    [Fact]
+    public void ShouldPromptSetupUpdate_BehavesCorrectlyAcrossLifecycleAndVersionIncrements()
+    {
+        // Fresh settings: onboarding is not complete -> do not prompt
+        var settings = new AppSettings();
+        Assert.False(settings.HasCompletedOnboarding);
+        Assert.False(settings.ShouldPromptSetupUpdate);
+
+        // Existing completed profile with default (version 0) acknowledged -> should prompt
+        settings.OnboardingStage = OnboardingStage.Complete;
+        Assert.True(settings.HasCompletedOnboarding);
+        Assert.Equal(0, settings.LastAcknowledgedSetupVersion);
+        Assert.True(settings.ShouldPromptSetupUpdate);
+
+        // Awaiting accessibility confirmation takes precedence over prompt
+        settings.PendingSpokenGuidance = SpokenGuidanceMode.Enabled;
+        settings.PendingTheme = ThemePreference.Light;
+        settings.SpokenGuidance = SpokenGuidanceMode.Unset;
+        settings.Theme = ThemePreference.Unset;
+        Assert.True(settings.IsAwaitingAccessibilityConfirmation);
+        Assert.False(settings.ShouldPromptSetupUpdate);
+
+        // Restoring confirmation state
+        settings.SpokenGuidance = SpokenGuidanceMode.Enabled;
+        settings.Theme = ThemePreference.Light;
+        Assert.False(settings.IsAwaitingAccessibilityConfirmation);
+        Assert.True(settings.ShouldPromptSetupUpdate);
+
+        // User acknowledges current setup guide version -> should NOT prompt again
+        settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
+        Assert.False(settings.ShouldPromptSetupUpdate);
+
+        // Persists and round-trips via JSON serialization
+        string json = JsonSerializer.Serialize(settings);
+        AppSettings reloaded = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.Equal(AppSettings.CurrentSetupGuideVersion, reloaded.LastAcknowledgedSetupVersion);
+        Assert.False(reloaded.ShouldPromptSetupUpdate);
+    }
+
     private static string CreateTemporarySettingsPath() => Path.Combine(
         Path.GetTempPath(),
         "SafeSpeak.Core.Tests",
