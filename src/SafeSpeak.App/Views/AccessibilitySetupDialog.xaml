@@ -1348,7 +1348,8 @@
                                 MinWidth="180"
                                 Margin="8,0,0,0"
                                 Command="{Binding InstallQwenCommand}"
-                                Content="Install Qwen3Guard"
+                                IsEnabled="{Binding CanInstallQwen}"
+                                Content="{Binding QwenInstallButtonText}"
                                 AutomationProperties.Name="Download and install Qwen3Guard model"
                                 AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
                         <StackPanel VerticalAlignment="Center">
@@ -1389,8 +1390,15 @@
                         <TextBlock Text="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken."
                                    Style="{StaticResource SecondaryText}"
                                    FontSize="{DynamicResource SafeSpeakFont11}"
-                                   Margin="26,2,0,0"
+                                   Margin="26,2,0,4"
                                    TextWrapping="Wrap" />
+                        <TextBlock Style="{StaticResource SecondaryText}"
+                                   FontSize="{DynamicResource SafeSpeakFont11}"
+                                   Margin="26,0,0,0"
+                                   TextWrapping="Wrap">
+                            <Run Text="Tip:" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                            <Run Text=" You can adjust this and fine-tune stream speech rules anytime in Settings (Ctrl+4)." />
+                        </TextBlock>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -1822,8 +1830,9 @@
                 <ListBox x:Name="ReviewList"
                          TabIndex="1"
                          ItemsSource="{Binding ReviewItems}"
-                         MinHeight="250"
-                         Margin="0,0,0,14"
+                         MinHeight="200"
+                         MaxHeight="260"
+                         Margin="0,0,0,10"
                          AutomationProperties.Name="Setup review choices"
                          AutomationProperties.HelpText="Use Up and Down Arrow to hear each setup choice.">
                     <ListBox.ItemContainerStyle>
@@ -1865,6 +1874,15 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,10" Padding="14,10">
+                    <TextBlock Style="{StaticResource SecondaryText}"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
+                               TextWrapping="Wrap">
+                        <Run FontWeight="Bold" Foreground="{DynamicResource SafeSpeakAccentBrush}" Text="Stream speech tip:" />
+                        <Run Text=" Want to change what gets spoken during your stream? You can fine-tune chat narration, viewer @replies, gift and follow announcements, and moderation rules anytime in Settings (Ctrl+4)." />
+                    </TextBlock>
+                </Border>
 
                 <Border Style="{StaticResource StatusCard}" Margin="0,0,0,0" Padding="14,12">
                     <TextBlock Text="Press Y to confirm these settings and open SafeSpeak, or press N to restart setup from Step 1."

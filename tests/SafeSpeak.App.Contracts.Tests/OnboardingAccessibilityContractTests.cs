@@ -218,7 +218,7 @@ public sealed class OnboardingAccessibilityContractTests
     }
 
     [Fact]
-    public void Wizard_FilteringStepIsClearlyEducational()
+    public void Wizard_FilteringStepOffersEngineChoiceAndNarrationPreferences()
     {
         string viewModel = File.ReadAllText(
             RepositoryFile(
@@ -227,8 +227,8 @@ public sealed class OnboardingAccessibilityContractTests
                 "ViewModels",
                 "AccessibilitySetupViewModel.cs"));
 
-        Assert.Contains("This step is educational; there is no choice to make", viewModel);
-        Assert.Contains("Continue after learning how enhanced filtering works", viewModel);
+        Assert.Contains("Choose your on-device AI moderation engine and stream speech rules", viewModel);
+        Assert.Contains("Save AI engine and chat narration rules and continue", viewModel);
     }
 
     [Fact]

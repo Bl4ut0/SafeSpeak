@@ -321,6 +321,15 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public IRelayCommand PreviewVoiceCommand => TestVoiceCommand;
 
     public bool IsQwenInstalled => _qwenRuntime.IsModelInstalled;
+    public bool CanInstallQwen => !IsQwenInstalled && !IsDownloadingQwen;
+    public string QwenInstallButtonText => IsQwenInstalled
+        ? "✓ Qwen3Guard Installed"
+        : (IsDownloadingQwen ? "Installing Qwen3Guard..." : "Install Qwen3Guard");
+    public string QwenInstallStatus => IsQwenInstalled
+        ? "✓ Qwen3Guard 0.6B LLM is installed and ready."
+        : (IsDownloadingQwen
+            ? $"Downloading Qwen3Guard... {QwenDownloadProgress:P0}"
+            : QwenStatusText);
     public bool IsQwenSelected => SelectedModerationModel == ModerationModelPreference.Qwen3Guard06BCompressed;
     public bool IsMiniLmSelected => SelectedModerationModel == ModerationModelPreference.BuiltInHybrid;
     public bool HasAnyConnectorSelected => UseTikFinity || UseTikTokDirect;
@@ -654,6 +663,22 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     {
         OnPropertyChanged(nameof(IsQwenSelected));
         OnPropertyChanged(nameof(IsMiniLmSelected));
+        NotifyQwenStateChanged();
+    }
+
+    partial void OnIsDownloadingQwenChanged(bool value)
+    {
+        NotifyQwenStateChanged();
+    }
+
+    partial void OnQwenDownloadProgressChanged(double value)
+    {
+        OnPropertyChanged(nameof(QwenInstallStatus));
+    }
+
+    partial void OnQwenStatusTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(QwenInstallStatus));
     }
 
     [RelayCommand]
@@ -1118,10 +1143,14 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanInstallQwen))]
     public async Task InstallQwenAsync()
     {
-        if (IsDownloadingQwen || IsQwenInstalled) return;
+        if (!CanInstallQwen)
+        {
+            _announcer.Announce(QwenInstallStatus, interrupt: true);
+            return;
+        }
 
         if (!_qwenRuntime.IsRuntimeAvailable)
         {
@@ -1134,6 +1163,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         _qwenInstallCts = new CancellationTokenSource();
         IsDownloadingQwen = true;
         QwenDownloadProgress = 0;
+        NotifyQwenStateChanged();
         QwenStatusText = "Starting Qwen3Guard download (~484 MB). SafeSpeak remains usable during the download.";
         _announcer.Announce(QwenStatusText, interrupt: true);
 
@@ -1141,29 +1171,42 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         {
             QwenDownloadProgress = update.Percent;
             QwenStatusText = update.Status;
+            NotifyQwenStateChanged();
         });
 
         try
         {
             await _qwenRuntime.InstallModelAsync(progress, _qwenInstallCts.Token);
-            OnPropertyChanged(nameof(IsQwenInstalled));
             QwenStatusText = "The optional Qwen3Guard model is installed and ready.";
+            NotifyQwenStateChanged();
             _announcer.Announce("Qwen3Guard model installed successfully.", interrupt: true);
         }
         catch (OperationCanceledException)
         {
             QwenStatusText = "Qwen3Guard installation was cancelled.";
+            NotifyQwenStateChanged();
             _announcer.Announce(QwenStatusText, interrupt: true);
         }
         catch (Exception ex)
         {
             QwenStatusText = $"Qwen3Guard installation failed: {ex.Message}";
+            NotifyQwenStateChanged();
             _announcer.Announce(QwenStatusText, interrupt: true);
         }
         finally
         {
             IsDownloadingQwen = false;
+            NotifyQwenStateChanged();
         }
+    }
+
+    private void NotifyQwenStateChanged()
+    {
+        OnPropertyChanged(nameof(IsQwenInstalled));
+        OnPropertyChanged(nameof(CanInstallQwen));
+        OnPropertyChanged(nameof(QwenInstallButtonText));
+        OnPropertyChanged(nameof(QwenInstallStatus));
+        InstallQwenCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -1319,11 +1362,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         StepProgress = "Step 5 of 8";
         PromptText = "On-device AI and language safety";
         StatusText =
-            "This step is educational; there is no choice to make. The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required. SafeSpeak runs fully offline.";
+            "Choose your on-device AI moderation engine and stream speech rules. The bundled MiniLM engine is ready immediately with zero setup. You can also filter chatter @replies.";
         PrimaryButtonText = "Continue (Y)";
-        PrimaryButtonAutomationName = "Continue after learning how enhanced filtering works";
+        PrimaryButtonAutomationName = "Save AI engine and chat narration rules and continue";
         KeyboardHelpText =
-            "Keyboard: Press Y or Tab to Continue.";
+            "Keyboard: Tab between AI engine options and chat reply rules. Press Space or Enter to toggle. Press Y to continue.";
         if (!_modelChecked) _ = EnsureModelStatusAsync();
     }
 
@@ -1344,7 +1387,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         StepProgress = "Step 7 of 8";
         PromptText = "How SafeSpeak works and navigation";
         StatusText =
-            "SafeSpeak is divided into 4 primary views: Live chat (Ctrl+1), Safety filtering (Ctrl+2), Voice selection (Ctrl+3), and Settings (Ctrl+4). Inside any page, press Alt+1 through Alt+9 to jump between chapters. SafeSpeak operates quietly in the background while you stream.";
+            "SafeSpeak is divided into 4 primary views: Live chat (Ctrl+1), Safety filtering (Ctrl+2), Voice selection (Ctrl+3), and Settings (Ctrl+4). Inside any page, press Alt+1 through Alt+9 to jump between chapters. Use Settings anytime to adjust what gets spoken on stream.";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Continue after reviewing SafeSpeak interface design and navigation";
         KeyboardHelpText =
@@ -1356,7 +1399,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         StepProgress = "Step 8 of 8";
         PromptText = "Review setup choices";
         StatusText =
-            "Review your setup choices below. Press Y if you agree to save and continue into SafeSpeak, or press N to restart setup from Step 1.";
+            "Review your setup choices below. Press Y to save and open SafeSpeak, or press N to restart setup from Step 1. You can change what's said during stream and tune speech rules anytime in Settings (Ctrl+4).";
         PrimaryButtonText = "Finish setup (Y)";
         PrimaryButtonAutomationName = "Save setup and open SafeSpeak";
         KeyboardHelpText =
@@ -1454,6 +1497,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             ReviewItems.Add($"Contextual AI model: Qwen3Guard 0.6B ({(IsQwenInstalled ? "Installed" : "Not yet installed")})");
         }
         ReviewItems.Add($"Chat @replies from viewers: {(IgnoreChatReplies ? "Ignored (suppressed from TTS)" : "Allowed (spoken)")}");
+        ReviewItems.Add("Stream speech customization: Adjust chat @replies, alerts, and TTS rules anytime in Settings (Ctrl+4).");
         ReviewItems.Add("Global shortcuts: Status (Ctrl+Shift+S), Arm (Ctrl+Shift+A), Emergency Stop (Pause / Ctrl+Shift+X), Silence (Ctrl+Shift+Q).");
         ReviewItems.Add("Navigation: Tabs (Ctrl+1..4), Chapters (Alt+1..0), Setup steps (Ctrl+1..8).");
         ReviewItems.Add("SafeSpeak opens disarmed and does not process chat until you choose Arm SafeSpeak.");
