@@ -211,7 +211,7 @@ public partial class AccessibilitySetupDialog : Window
                 {
                     AccessibilitySetupPage.Reader => ReaderYesButton,
                     AccessibilitySetupPage.Theme => ThemeList,
-                    AccessibilitySetupPage.Platform => TikFinityCheckBox,
+                    AccessibilitySetupPage.Platform => TikFinityButton,
                     AccessibilitySetupPage.Voice => VoiceSelectorComboBox,
                     AccessibilitySetupPage.Filtering => AiClassificationCheckBox,
                     AccessibilitySetupPage.Keybinds => KeybindsList,

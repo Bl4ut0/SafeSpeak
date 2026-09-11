@@ -270,7 +270,7 @@ public sealed class OnboardingAccessibilityContractTests
             "AccessibilitySetupPage.Theme => ThemeList",
             codeBehind);
         Assert.Contains(
-            "AccessibilitySetupPage.Platform => TikFinityCheckBox",
+            "AccessibilitySetupPage.Platform => TikFinityButton",
             codeBehind);
         Assert.Contains(
             "AccessibilitySetupPage.Review => ReviewList",

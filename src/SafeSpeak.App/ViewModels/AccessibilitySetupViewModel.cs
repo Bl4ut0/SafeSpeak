@@ -253,6 +253,8 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool HasAnyConnectorSelected => UseTikFinity || UseTikTokDirect;
     public string TikFinityStatusBadge => UseTikFinity ? "Enabled" : "Disabled";
     public string TikTokDirectStatusBadge => UseTikTokDirect ? (string.IsNullOrWhiteSpace(TikTokUsername) ? "Enabled" : $"@{TikTokUsername}") : "Disabled";
+    public string TikFinityActionText => UseTikFinity ? "✓ Enabled • Press to disable" : "Press to enable";
+    public string TikTokDirectActionText => UseTikTokDirect ? (string.IsNullOrWhiteSpace(TikTokUsername) ? "✓ Enabled • Press to edit" : $"✓ @{TikTokUsername} • Press to edit") : "Configure Username";
 
     [ObservableProperty]
     private string? _activeModalConnectorId;
@@ -297,11 +299,18 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(TikTokStepBadge));
     }
 
+    partial void OnTikTokUsernameChanged(string value)
+    {
+        OnPropertyChanged(nameof(TikTokDirectStatusBadge));
+        OnPropertyChanged(nameof(TikTokDirectActionText));
+    }
+
     partial void OnUseTikFinityChanged(bool value)
     {
         OnPropertyChanged(nameof(HasAnyConnectorSelected));
         OnPropertyChanged(nameof(TikFinityStatusBadge));
         OnPropertyChanged(nameof(IsTikFinityEnabled));
+        OnPropertyChanged(nameof(TikFinityActionText));
     }
 
     partial void OnUseTikTokDirectChanged(bool value)
@@ -309,6 +318,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(HasAnyConnectorSelected));
         OnPropertyChanged(nameof(TikTokDirectStatusBadge));
         OnPropertyChanged(nameof(IsTikTokDirectEnabled));
+        OnPropertyChanged(nameof(TikTokDirectActionText));
         if (_initialized && CurrentPage == AccessibilitySetupPage.Platform && value && string.IsNullOrWhiteSpace(TikTokUsername))
         {
             OpenTikTokDirectConfig();
@@ -321,6 +331,17 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         UseTikFinity = !UseTikFinity;
         StatusText = UseTikFinity ? "TikFinity enabled." : "TikFinity disabled.";
         _announcer.Announce(StatusText, interrupt: true);
+    }
+
+    [RelayCommand]
+    private void DisableTikTokDirect()
+    {
+        UseTikTokDirect = false;
+        TikTokUsername = string.Empty;
+        ActiveModalConnectorId = null;
+        StatusText = "TikTok Direct disabled.";
+        _announcer.Announce(StatusText, interrupt: true);
+        FocusRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

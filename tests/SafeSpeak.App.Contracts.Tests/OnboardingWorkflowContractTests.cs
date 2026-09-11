@@ -75,7 +75,7 @@ public sealed class OnboardingWorkflowContractTests
         XDocument xaml = LoadWizard();
         string wizard = WizardViewModel();
 
-        string[] connectorNames = xaml.Descendants(Presentation + "CheckBox")
+        string[] connectorNames = xaml.Descendants(Presentation + "Button")
             .Select(element => Attribute(element, "AutomationProperties.Name"))
             .Where(name => name is not null)
             .Cast<string>()

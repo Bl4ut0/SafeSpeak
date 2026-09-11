@@ -76,13 +76,15 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="PlaceholderCardButton" TargetType="Button">
+        <Style x:Key="ConnectorCardButton" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="6,5" />
+            <Setter Property="MinHeight" Value="88" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
             <Setter Property="Template">
@@ -110,6 +112,28 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="TikFinityCardStyle" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsTikFinityEnabled}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TikTokDirectCardStyle" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsTikTokDirectEnabled}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PlaceholderCardButton" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}" />
     </Window.Resources>
 
     <Grid Background="{DynamicResource SafeSpeakWindowBrush}"
@@ -628,21 +652,14 @@
                 <!-- 3-Wide Connector Grid (9 Platforms) -->
                 <UniformGrid Columns="3" Margin="0,0,0,10">
                     <!-- 1: TikFinity -->
-                    <Border Margin="3" Padding="10,8" CornerRadius="6">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
-                                <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
-                                <Setter Property="BorderThickness" Value="1" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsTikFinityEnabled}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
-                                        <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                        <Setter Property="BorderThickness" Value="3" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
+                    <Button x:Name="TikFinityButton"
+                            TabIndex="1"
+                            MinHeight="88"
+                            Margin="6,5"
+                            Style="{StaticResource TikFinityCardStyle}"
+                            Command="{Binding ToggleTikFinityCommand}"
+                            AutomationProperties.Name="Use TikFinity for TikTok chat"
+                            AutomationProperties.HelpText="When selected, SafeSpeak connects to your local TikFinity application. Press to toggle.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -668,34 +685,25 @@
                                        FontSize="{DynamicResource SafeSpeakFont11}"
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
-                            <CheckBox x:Name="TikFinityCheckBox"
-                                      Grid.Row="2"
-                                      TabIndex="1"
-                                      MinHeight="44"
-                                      IsChecked="{Binding UseTikFinity}"
-                                      Content="Enable TikFinity"
-                                      FontWeight="SemiBold"
-                                      AutomationProperties.Name="Use TikFinity for TikTok chat"
-                                      AutomationProperties.HelpText="When selected, SafeSpeak connects to your local TikFinity application." />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="20"
+                                       Text="{Binding TikFinityActionText}"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
                         </Grid>
-                    </Border>
+                    </Button>
 
                     <!-- 2: TikTok Direct -->
-                    <Border Margin="3" Padding="10,8" CornerRadius="6">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
-                                <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
-                                <Setter Property="BorderThickness" Value="1" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsTikTokDirectEnabled}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
-                                        <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                        <Setter Property="BorderThickness" Value="3" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
+                    <Button x:Name="TikTokDirectButton"
+                            TabIndex="2"
+                            MinHeight="88"
+                            Margin="6,5"
+                            Style="{StaticResource TikTokDirectCardStyle}"
+                            Command="{Binding OpenTikTokDirectConfigCommand}"
+                            AutomationProperties.Name="Use TikTok Direct by username"
+                            AutomationProperties.HelpText="When selected, SafeSpeak connects directly to TikTok LIVE chat. Press to configure or edit username.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -715,40 +723,26 @@
                                            FontWeight="Bold"
                                            FontSize="{DynamicResource SafeSpeakFont14}" />
                             </DockPanel>
-                            <DockPanel Grid.Row="1" LastChildFill="True" Margin="0,4,0,4">
-                                <Button DockPanel.Dock="Right"
-                                        Padding="0"
-                                        Margin="4,0,0,0"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        VerticalAlignment="Center"
-                                        Command="{Binding OpenTikTokDirectConfigCommand}"
-                                        AutomationProperties.Name="Configure TikTok Direct username">
-                                    <TextBlock Text="Edit"
-                                               FontWeight="SemiBold"
-                                               FontSize="{DynamicResource SafeSpeakFont11}"
-                                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
-                                               TextDecorations="Underline" />
-                                </Button>
-                                <TextBlock Text="Direct LIVE chat."
-                                           Style="{StaticResource SecondaryText}"
-                                           FontSize="{DynamicResource SafeSpeakFont11}"
-                                           TextWrapping="Wrap" />
-                            </DockPanel>
-                            <CheckBox x:Name="TikTokDirectCheckBox"
-                                      Grid.Row="2"
-                                      TabIndex="2"
-                                      MinHeight="44"
-                                      IsChecked="{Binding UseTikTokDirect}"
-                                      Content="Enable TikTok Direct"
-                                      FontWeight="SemiBold"
-                                      AutomationProperties.Name="Use TikTok Direct by username"
-                                      AutomationProperties.HelpText="When selected, SafeSpeak connects directly to TikTok LIVE chat." />
+                            <TextBlock Grid.Row="1"
+                                       Text="Direct LIVE chat connection."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="20"
+                                       Text="{Binding TikTokDirectActionText}"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
                         </Grid>
-                    </Border>
+                    </Button>
 
                     <!-- 3: Twitch -->
-                    <Button Margin="3"
+                    <Button TabIndex="3"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="twitch"
@@ -780,7 +774,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -790,7 +784,9 @@
                     </Button>
 
                     <!-- 4: YouTube Live -->
-                    <Button Margin="3"
+                    <Button TabIndex="4"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="youtube-live"
@@ -822,7 +818,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -832,7 +828,9 @@
                     </Button>
 
                     <!-- 5: Kick -->
-                    <Button Margin="3"
+                    <Button TabIndex="5"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="kick"
@@ -864,7 +862,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -874,7 +872,9 @@
                     </Button>
 
                     <!-- 6: Facebook Live -->
-                    <Button Margin="3"
+                    <Button TabIndex="6"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="facebook-live"
@@ -906,7 +906,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -916,7 +916,9 @@
                     </Button>
 
                     <!-- 7: Instagram Live -->
-                    <Button Margin="3"
+                    <Button TabIndex="7"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="instagram-live"
@@ -948,7 +950,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -958,7 +960,9 @@
                     </Button>
 
                     <!-- 8: X / Twitter Live -->
-                    <Button Margin="3"
+                    <Button TabIndex="8"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="x-live"
@@ -990,7 +994,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -1000,7 +1004,9 @@
                     </Button>
 
                     <!-- 9: Trovo -->
-                    <Button Margin="3"
+                    <Button TabIndex="9"
+                            MinHeight="88"
+                            Margin="6,5"
                             Style="{StaticResource PlaceholderCardButton}"
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="trovo"
@@ -1032,7 +1038,7 @@
                                        Margin="0,4,0,4"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
-                                       MinHeight="44"
+                                       MinHeight="20"
                                        Text="Planned • Details"
                                        Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
@@ -1728,6 +1734,14 @@
                                     Command="{Binding CloseConnectorModalCommand}"
                                     Content="Cancel (Esc)"
                                     AutomationProperties.Name="Cancel TikTok Direct configuration" />
+                            <Button DockPanel.Dock="Right"
+                                    MinHeight="44"
+                                    MinWidth="100"
+                                    Margin="0,0,10,0"
+                                    Command="{Binding DisableTikTokDirectCommand}"
+                                    Content="Disable"
+                                    Visibility="{Binding IsTikTokDirectEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    AutomationProperties.Name="Disable TikTok Direct connector" />
                             <Button MinHeight="44"
                                     MinWidth="160"
                                     Margin="0,0,10,0"
