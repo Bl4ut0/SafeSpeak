@@ -57,7 +57,7 @@ public sealed class OnboardingAccessibilityContractTests
                 .Where(element => element.Attribute("TabIndex") is not null),
             element => Assert.Contains(
                 element.Name.LocalName,
-                new[] { "Button", "CheckBox", "ListBox", "TextBox", "ComboBox" }));
+                new[] { "Button", "CheckBox", "ListBox", "TextBox", "ComboBox", "Slider" }));
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public sealed class OnboardingAccessibilityContractTests
     }
 
     [Fact]
-    public void Wizard_FilteringStepOffersEngineChoiceAndNarrationPreferences()
+    public void Wizard_FilteringStepOffersEngineChoiceAndModerationStrengthSlider()
     {
         string viewModel = File.ReadAllText(
             RepositoryFile(
@@ -226,9 +226,22 @@ public sealed class OnboardingAccessibilityContractTests
                 "SafeSpeak.App",
                 "ViewModels",
                 "AccessibilitySetupViewModel.cs"));
+        XDocument wizard = LoadWizard();
 
-        Assert.Contains("Choose your on-device AI moderation engine and stream speech rules", viewModel);
-        Assert.Contains("Save AI engine and chat narration rules and continue", viewModel);
+        Assert.Contains("Choose your on-device AI moderation engine and filtering strictness", viewModel);
+        Assert.Contains("Save AI engine and moderation settings and continue", viewModel);
+
+        // Slider is present and bound to ModerationLevel with accessible settings
+        XElement slider = wizard.Descendants(Presentation + "Slider")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "ModerationSlider");
+        Assert.Equal("{Binding ModerationLevel, UpdateSourceTrigger=PropertyChanged}", slider.Attribute("Value")?.Value);
+        Assert.Equal("4", slider.Attribute("TabIndex")?.Value);
+        Assert.True(double.Parse(slider.Attribute("MinHeight")!.Value) >= 44);
+
+        // Checkbox for IgnoreChatReplies is removed from wizard Step 5
+        Assert.DoesNotContain(
+            wizard.Descendants(Presentation + "CheckBox"),
+            element => element.Attribute(Xaml + "Name")?.Value == "IgnoreChatRepliesCheckBox");
     }
 
     [Fact]

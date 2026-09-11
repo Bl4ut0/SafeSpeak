@@ -103,7 +103,7 @@ public sealed class AppSettings
     public bool RejectMixedScripts { get; set; } = true;
     public bool StripUrls { get; set; } = true;
     public bool AllowDonorsToSpeak { get; set; } = true;
-    public bool IgnoreChatReplies { get; set; } = false;
+    public bool IgnoreChatReplies { get; set; } = true;
     public bool SpeakUsernames { get; set; } = true;
     public bool AiClassificationEnabled { get; set; } = true;
     public double AiToxicityThreshold { get; set; } = 0.65;
@@ -759,7 +759,7 @@ public sealed class AppSettings
         SelectedVoiceName = string.Empty;
         ModerationModel = ModerationModelPreference.BuiltInHybrid;
         AiClassificationEnabled = true;
-        IgnoreChatReplies = false;
+        IgnoreChatReplies = true;
         GlobalShortcuts = GlobalShortcutCatalog.CreateDefaults();
     }
 }

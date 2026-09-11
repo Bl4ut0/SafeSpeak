@@ -199,6 +199,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         AiClassificationEnabled = _settings.AiClassificationEnabled;
         SelectedModerationModel = _settings.ModerationModel;
         IgnoreChatReplies = _settings.IgnoreChatReplies;
+        ModerationLevel = Math.Clamp(_settings.IntentModerationLevel, 1, 4);
 
         LoadVoices();
         PopulateKeybinds();
@@ -337,6 +338,55 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public string TikTokDirectStatusBadge => UseTikTokDirect ? (string.IsNullOrWhiteSpace(TikTokUsername) ? "Enabled" : $"@{TikTokUsername}") : "Disabled";
     public string TikFinityActionText => UseTikFinity ? "✓ Enabled • Press to disable" : "Press to enable";
     public string TikTokDirectActionText => UseTikTokDirect ? (string.IsNullOrWhiteSpace(TikTokUsername) ? "✓ Enabled • Press to edit" : $"✓ @{TikTokUsername} • Press to edit") : "Configure Username";
+
+    [ObservableProperty]
+    private int _moderationLevel = 3;
+
+    partial void OnModerationLevelChanged(int value)
+    {
+        int clamped = Math.Clamp(value, 1, 4);
+        if (value != clamped)
+        {
+            ModerationLevel = clamped;
+            return;
+        }
+
+        OnPropertyChanged(nameof(ModerationLevelName));
+        OnPropertyChanged(nameof(ModerationLevelDescription));
+        OnPropertyChanged(nameof(ModerationLevelAccessibleText));
+        OnPropertyChanged(nameof(ModerationStrengthSummary));
+
+        if (_initialized)
+        {
+            _announcer.Announce(
+                $"Filtering strictness changed to {ModerationLevelName}, level {ModerationLevel} of 4. {ModerationLevelDescription}",
+                interrupt: true);
+        }
+    }
+
+    public string ModerationLevelName => Math.Clamp(ModerationLevel, 1, 4) switch
+    {
+        1 => "Relaxed",
+        2 => "Balanced",
+        3 => "Strong",
+        4 => "Maximum",
+        _ => "Strong"
+    };
+
+    public string ModerationLevelDescription => Math.Clamp(ModerationLevel, 1, 4) switch
+    {
+        1 => "Contextual wording is blocked only when its hostility score is 90% or higher.",
+        2 => "Contextual wording is blocked when its hostility score is 75% or higher.",
+        3 => "Contextual wording is blocked when its hostility score is 60% or higher. Recommended for most streams.",
+        4 => "Contextual wording is blocked when its hostility score is 45% or higher, increasing false-positive risk.",
+        _ => "Contextual wording is blocked when its hostility score is 60% or higher. Recommended for most streams."
+    };
+
+    public string ModerationStrengthSummary =>
+        $"{ModerationLevelName} ({Math.Clamp(ModerationLevel, 1, 4)} of 4)";
+
+    public string ModerationLevelAccessibleText =>
+        $"Filtering strictness slider: {ModerationLevelName}, level {Math.Clamp(ModerationLevel, 1, 4)} of 4. {ModerationLevelDescription}";
 
     [ObservableProperty]
     private string? _activeModalConnectorId;
@@ -940,6 +990,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     {
         _settings.AiClassificationEnabled = true;
         _settings.ModerationModel = SelectedModerationModel;
+        _settings.IntentModerationLevel = ModerationLevel;
         _settings.IgnoreChatReplies = IgnoreChatReplies;
         _settings.OnboardingStage = OnboardingStage.Keybinds;
         if (!_settings.TrySave(out string? error))
@@ -1366,13 +1417,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private void ConfigureFilteringPage()
     {
         StepProgress = "Step 5 of 8";
-        PromptText = "On-device AI and language safety";
+        PromptText = "On-device AI and filtering strictness";
         StatusText =
-            "Choose your on-device AI moderation engine and stream speech rules. The bundled MiniLM engine is ready immediately with zero setup. You can also filter chatter @replies.";
+            "Choose your on-device AI moderation engine and filtering strictness. Viewer @replies are ignored by default; tune audience rules and pause queue bypasses anytime in Settings.";
         PrimaryButtonText = "Continue (Y)";
-        PrimaryButtonAutomationName = "Save AI engine and chat narration rules and continue";
+        PrimaryButtonAutomationName = "Save AI engine and moderation settings and continue";
         KeyboardHelpText =
-            "Keyboard: Tab between AI engine options and chat reply rules. Press Space or Enter to toggle. Press Y to continue.";
+            "Keyboard: Tab between AI engine options and use Arrow keys on the strictness slider. Press Y to continue.";
         if (!_modelChecked) _ = EnsureModelStatusAsync();
     }
 
@@ -1502,8 +1553,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         {
             ReviewItems.Add($"Contextual AI model: Qwen3Guard 0.6B ({(IsQwenInstalled ? "Installed" : "Not yet installed")})");
         }
-        ReviewItems.Add($"Chat @replies from viewers: {(IgnoreChatReplies ? "Ignored (suppressed from TTS)" : "Allowed (spoken)")}");
-        ReviewItems.Add("Stream speech customization: Adjust chat @replies, alerts, and TTS rules anytime in Settings (Ctrl+4).");
+        ReviewItems.Add($"Filtering strictness: {ModerationStrengthSummary} ({ModerationLevelName} cutoff)");
+        ReviewItems.Add($"Chat @replies from viewers: {(IgnoreChatReplies ? "Ignored by default (suppressed from TTS)" : "Allowed (spoken)")}");
+        ReviewItems.Add("Stream speech customization: Audience rules, pause queue bypasses, and chat @replies can be customized anytime in Settings (Ctrl+4).");
         ReviewItems.Add("Global shortcuts: Status (Ctrl+Shift+S), Arm (Ctrl+Shift+A), Emergency Stop (Pause / Ctrl+Shift+X), Silence (Ctrl+Shift+Q).");
         ReviewItems.Add("Navigation: Tabs (Ctrl+1..4), Chapters (Alt+1..0), Setup steps (Ctrl+1..8).");
         ReviewItems.Add("SafeSpeak opens disarmed and does not process chat until you choose Arm SafeSpeak.");
@@ -1608,6 +1660,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         string LocalConnectorDetectionSummary,
         bool AiClassificationEnabled,
         bool IgnoreChatReplies,
+        int IntentModerationLevel,
         string SelectedVoiceName,
         ModerationModelPreference ModerationModel,
         GlobalShortcutBinding[] GlobalShortcuts)
@@ -1630,6 +1683,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 settings.LocalConnectorDetectionSummary,
                 settings.AiClassificationEnabled,
                 settings.IgnoreChatReplies,
+                settings.IntentModerationLevel,
                 settings.SelectedVoiceName ?? string.Empty,
                 settings.ModerationModel,
                 settings.GlobalShortcuts?.Select(s => new GlobalShortcutBinding
@@ -1657,6 +1711,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.LocalConnectorDetectionSummary = LocalConnectorDetectionSummary;
             settings.AiClassificationEnabled = AiClassificationEnabled;
             settings.IgnoreChatReplies = IgnoreChatReplies;
+            settings.IntentModerationLevel = IntentModerationLevel;
             settings.SelectedVoiceName = SelectedVoiceName;
             settings.ModerationModel = ModerationModel;
             settings.GlobalShortcuts = GlobalShortcuts.Select(s => new GlobalShortcutBinding

@@ -711,7 +711,7 @@ public sealed class AppSettingsTests
         Assert.Equal(string.Empty, settings.SelectedVoiceName);
         Assert.Equal(ModerationModelPreference.BuiltInHybrid, settings.ModerationModel);
         Assert.True(settings.AiClassificationEnabled);
-        Assert.False(settings.IgnoreChatReplies);
+        Assert.True(settings.IgnoreChatReplies);
         Assert.NotNull(settings.GlobalShortcuts);
         Assert.NotEmpty(settings.GlobalShortcuts);
     }
