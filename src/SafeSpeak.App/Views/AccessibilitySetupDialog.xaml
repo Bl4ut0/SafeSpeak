@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:a11y="clr-namespace:SafeSpeak.App.Accessibility"
         xmlns:conv="clr-namespace:SafeSpeak.App.Converters"
-        Title="SafeSpeak — Setup"
+        Title="SafeSpeak &#x2014; Setup"
         Height="760" Width="820"
         MinHeight="620" MinWidth="680"
         MaxHeight="900" MaxWidth="960"
@@ -16,6 +16,13 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+        <Style x:Key="CardPanel" TargetType="Border">
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
     </Window.Resources>
 
     <Grid Background="{DynamicResource SafeSpeakWindowBrush}"

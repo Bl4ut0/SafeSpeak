@@ -302,6 +302,36 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Contains("FocusRequested?.Invoke", method);
     }
 
+    [Fact]
+    public void Wizard_AllStaticResourcesAreDefined()
+    {
+        XDocument wizard = LoadWizard();
+        XDocument app = XDocument.Load(RepositoryFile("src", "SafeSpeak.App", "App.xaml"));
+
+        HashSet<string> definedKeys = wizard.Descendants()
+            .Where(e => e.Ancestors().Any(a => a.Name.LocalName.EndsWith(".Resources", StringComparison.Ordinal)))
+            .Select(e => e.Attribute(Xaml + "Key")?.Value)
+            .Concat(app.Descendants()
+                .Where(e => e.Ancestors().Any(a => a.Name.LocalName.EndsWith(".Resources", StringComparison.Ordinal)))
+                .Select(e => e.Attribute(Xaml + "Key")?.Value))
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Select(k => k!)
+            .ToHashSet();
+
+        System.Text.RegularExpressions.MatchCollection staticResourceMatches =
+            System.Text.RegularExpressions.Regex.Matches(
+                File.ReadAllText(RepositoryFile("src", "SafeSpeak.App", "Views", "AccessibilitySetupDialog.xaml")),
+                @"\{StaticResource\s+([A-Za-z0-9_]+)\}");
+
+        foreach (System.Text.RegularExpressions.Match match in staticResourceMatches)
+        {
+            string resourceKey = match.Groups[1].Value;
+            Assert.True(
+                definedKeys.Contains(resourceKey),
+                $"StaticResource '{resourceKey}' used in AccessibilitySetupDialog.xaml is not defined in Window.Resources or App.xaml.");
+        }
+    }
+
     private static XDocument LoadWizard() =>
         XDocument.Load(
             RepositoryFile(
