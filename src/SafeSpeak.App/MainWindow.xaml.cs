@@ -1106,33 +1106,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SettingsChapterJumpCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is ComboBox combo && combo.SelectedValue is int chapterNumber)
-        {
-            JumpToChapter(chapterNumber);
-        }
-    }
-
-    private void JumpToChapter(int chapterNumber)
-    {
-        Label[] chapters = EnumerateVisualDescendants(GetSelectedPageContent())
-            .OfType<Label>()
-            .Where(label =>
-                label.IsVisible &&
-                AutomationProperties.GetHeadingLevel(label) == AutomationHeadingLevel.Level2)
-            .ToArray();
-        if (chapterNumber >= 1 && chapterNumber <= chapters.Length)
-        {
-            Label target = chapters[chapterNumber - 1];
-            target.BringIntoView();
-            Dispatcher.BeginInvoke(() => FocusElement(target), DispatcherPriority.Input);
-            if (DataContext is MainViewModel vm)
-            {
-                vm.Announcer.AnnounceFocus($"Jumped to Chapter {chapterNumber}. {target.Content}");
-            }
-        }
-    }
 
     private void MainWindow_PreviewMouseWheel(
         object sender,

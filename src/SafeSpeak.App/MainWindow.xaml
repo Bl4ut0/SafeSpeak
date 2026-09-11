@@ -1149,25 +1149,9 @@
                     <StackPanel x:Name="SettingsPanel" Margin="14,12,14,10" MaxWidth="760"
                                 KeyboardNavigation.TabNavigation="Local"
                                 PreviewKeyDown="SettingsPanel_PreviewKeyDown">
-                        <TextBlock Text="Settings" Style="{StaticResource PageTitle}" FontSize="{DynamicResource SafeSpeakFont26}" />
+                        <TextBlock Text="Settings" Style="{StaticResource PageTitle}" FontSize="{DynamicResource SafeSpeakFont26}" Margin="0,0,0,4" />
 
-                        <Border Style="{StaticResource StatusCard}" Padding="10,8" Margin="0,4,0,10"
-                                AutomationProperties.Name="Settings chapter quick navigation">
-                            <DockPanel LastChildFill="True">
-                                <TextBlock Text="Jump to chapter:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <ComboBox x:Name="SettingsChapterJumpCombo"
-                                          ItemsSource="{Binding SettingsChapters}"
-                                          SelectedValuePath="ChapterNumber"
-                                          DisplayMemberPath="DisplayName"
-                                          PreviewKeyDown="SelectionComboBox_PreviewKeyDown"
-                                          DropDownOpened="SelectionComboBox_DropDownOpened"
-                                          SelectionChanged="SettingsChapterJumpCombo_SelectionChanged"
-                                          AutomationProperties.Name="Settings quick jump chapter selector"
-                                          AutomationProperties.HelpText="Press Enter, Space, Alt plus Down Arrow, or F4 to open the chapter list. Then use Arrow keys and Enter to select and jump directly to any chapter from 1 to 9." />
-                            </DockPanel>
-                        </Border>
-
-                        <Border x:Name="SettingsGuideControlsTop" Style="{StaticResource ContentPanel}" Margin="0,7,0,10"
+                        <Border x:Name="SettingsGuideControlsTop" Style="{StaticResource ContentPanel}" Margin="0,6,0,10"
                                 Visibility="{Binding AreSettingsGuideControlsAtTop, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel>
                                 <TextBlock Text="Settings guide controls" FontWeight="SemiBold"
@@ -1348,129 +1332,134 @@
                             </StackPanel>
                         </Border>
 
-                        <Label TabIndex="6" Style="{StaticResource ChapterHeading}"
-                               Content="Chapter 2 — Theme and spoken accessibility"
-                               AutomationProperties.Name="Settings chapter 2 of 9, theme and spoken accessibility"
-                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose the visual theme and configure SafeSpeak built-in spoken guidance. Use Alt plus 2 to return here." />
-                        <Label Target="{Binding ElementName=ThemeSelector}" Content="Theme" Padding="0" Margin="0,9,0,5" FontWeight="SemiBold" />
-                        <ListBox x:Name="ThemeSelector" TabIndex="7" Focusable="True" IsTabStop="True"
-                                 ItemsSource="{Binding ThemeChoices}"
-                                 SelectedValuePath="Value"
-                                 SelectedValue="{Binding SelectedTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 MinHeight="132" Padding="0" BorderThickness="0" Background="Transparent"
-                                 KeyboardNavigation.TabNavigation="Once"
-                                 PreviewKeyDown="ThemeSelector_PreviewKeyDown"
-                                 PreviewMouseLeftButtonDown="ThemeSelector_PreviewMouseLeftButtonDown"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 AutomationProperties.Name="Theme selector"
-                                 AutomationProperties.ItemStatus="{Binding ThemeSelectionAccessibleText}"
-                                 AutomationProperties.HelpText="Use Left and Right or Up and Down Arrow keys to choose Light, Dark, or High Contrast. Each option is announced as it is selected.">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Rows="1" />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                    <Setter Property="Margin" Value="0,0,6,0" />
-                                    <Setter Property="Padding" Value="0" />
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                    <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
-                                    <Setter Property="AutomationProperties.PositionInSet" Value="{Binding Position}" />
-                                    <Setter Property="AutomationProperties.SizeOfSet" Value="3" />
-                                    <Setter Property="Focusable" Value="False" />
-                                    <Setter Property="IsTabStop" Value="False" />
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ListBoxItem">
-                                                <Border x:Name="ThemeCard"
-                                                        Padding="8"
-                                                        Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                                                        BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="4">
-                                                    <ContentPresenter />
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ThemeCard" Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
-                                                        <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                                        <Setter TargetName="ThemeCard" Property="BorderThickness" Value="3" />
-                                                    </Trigger>
-                                                    <MultiDataTrigger>
-                                                        <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
-                                                            <Condition Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True" />
-                                                        </MultiDataTrigger.Conditions>
-                                                        <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                                        <Setter TargetName="ThemeCard" Property="BorderThickness" Value="3" />
-                                                        <Setter TargetName="ThemeCard" Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
-                                                    </MultiDataTrigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel>
-                                        <Border x:Name="ThemePreview" Height="70" Margin="0,0,0,6"
-                                                Background="#FFF7F8FC" BorderBrush="#FFC7D0E0"
-                                                BorderThickness="1" CornerRadius="3">
-                                            <Grid Margin="8">
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="10" />
-                                                    <RowDefinition Height="*" />
-                                                </Grid.RowDefinitions>
-                                                <Border x:Name="PreviewHeader" Background="#FFD7DEEA" CornerRadius="1" />
-                                                <Grid Grid.Row="1" Margin="0,6,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="42" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel VerticalAlignment="Center">
-                                                        <Border x:Name="PreviewLineOne" Height="6" Width="58" HorizontalAlignment="Left" Background="#FF9BA8BA" />
-                                                        <Border x:Name="PreviewLineTwo" Height="6" Width="43" Margin="0,5,0,0" HorizontalAlignment="Left" Background="#FFC7D0E0" />
-                                                    </StackPanel>
-                                                    <Border x:Name="PreviewAction" Grid.Column="1" Height="24" VerticalAlignment="Center" Background="#FF2057D4" CornerRadius="2" />
-                                                </Grid>
-                                            </Grid>
-                                        </Border>
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextAlignment="Center" />
-                                    </StackPanel>
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding DisplayName}" Value="Dark">
-                                            <Setter TargetName="ThemePreview" Property="Background" Value="#FF121C2C" />
-                                            <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FF94A3B8" />
-                                            <Setter TargetName="PreviewHeader" Property="Background" Value="#FF28364B" />
-                                            <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFCBD5E1" />
-                                            <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FF718096" />
-                                            <Setter TargetName="PreviewAction" Property="Background" Value="#FF3B82F6" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding DisplayName}" Value="High Contrast">
-                                            <Setter TargetName="ThemePreview" Property="Background" Value="#FF000000" />
-                                            <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FFFFFF00" />
-                                            <Setter TargetName="PreviewHeader" Property="Background" Value="#FFFFFFFF" />
-                                            <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFFFFF00" />
-                                            <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FFFFFFFF" />
-                                            <Setter TargetName="PreviewAction" Property="Background" Value="#FFFFFF00" />
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <TextBlock Text="{Binding ThemeStatus}" Style="{StaticResource SecondaryText}"
-                                   TextWrapping="Wrap" Margin="0,4,0,10"
-                                   AutomationProperties.Name="{Binding ThemeStatus}"
-                                   AutomationProperties.LiveSetting="Polite"
-                                   a11y:LiveRegion.Announcement="{Binding ThemeStatus}" />
-
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
+                                <Label TabIndex="6" Style="{StaticResource ChapterHeading}"
+                                       Content="Chapter 2 — Theme and spoken accessibility"
+                                       AutomationProperties.Name="Settings chapter 2 of 9, theme and spoken accessibility"
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose the visual theme and configure SafeSpeak built-in spoken guidance. Use Alt plus 2 to return here." />
+                                <TextBlock Text="Choose the visual appearance theme and configure SafeSpeak built-in screen reader guidance and sound cues."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <Label Target="{Binding ElementName=ThemeSelector}" Content="Theme" Padding="0" Margin="0,4,0,5" FontWeight="SemiBold" />
+                                <ListBox x:Name="ThemeSelector" TabIndex="7" Focusable="True" IsTabStop="True"
+                                         ItemsSource="{Binding ThemeChoices}"
+                                         SelectedValuePath="Value"
+                                         SelectedValue="{Binding SelectedTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MinHeight="132" Padding="0" BorderThickness="0" Background="Transparent"
+                                         KeyboardNavigation.TabNavigation="Once"
+                                         PreviewKeyDown="ThemeSelector_PreviewKeyDown"
+                                         PreviewMouseLeftButtonDown="ThemeSelector_PreviewMouseLeftButtonDown"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         AutomationProperties.Name="Theme selector"
+                                         AutomationProperties.ItemStatus="{Binding ThemeSelectionAccessibleText}"
+                                         AutomationProperties.HelpText="Use Left and Right or Up and Down Arrow keys to choose Light, Dark, or High Contrast. Each option is announced as it is selected.">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="1" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                            <Setter Property="Margin" Value="0,0,6,0" />
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                            <Setter Property="AutomationProperties.PositionInSet" Value="{Binding Position}" />
+                                            <Setter Property="AutomationProperties.SizeOfSet" Value="3" />
+                                            <Setter Property="Focusable" Value="False" />
+                                            <Setter Property="IsTabStop" Value="False" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border x:Name="ThemeCard"
+                                                                Padding="8"
+                                                                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                                                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4">
+                                                            <ContentPresenter />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="ThemeCard" Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                                                <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                                                <Setter TargetName="ThemeCard" Property="BorderThickness" Value="3" />
+                                                            </Trigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                                    <Condition Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="ThemeCard" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                                                <Setter TargetName="ThemeCard" Property="BorderThickness" Value="3" />
+                                                                <Setter TargetName="ThemeCard" Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                                            </MultiDataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <Border x:Name="ThemePreview" Height="70" Margin="0,0,0,6"
+                                                        Background="#FFF7F8FC" BorderBrush="#FFC7D0E0"
+                                                        BorderThickness="1" CornerRadius="3">
+                                                    <Grid Margin="8">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="10" />
+                                                            <RowDefinition Height="*" />
+                                                        </Grid.RowDefinitions>
+                                                        <Border x:Name="PreviewHeader" Background="#FFD7DEEA" CornerRadius="1" />
+                                                        <Grid Grid.Row="1" Margin="0,6,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="42" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <Border x:Name="PreviewLineOne" Height="6" Width="58" HorizontalAlignment="Left" Background="#FF9BA8BA" />
+                                                                <Border x:Name="PreviewLineTwo" Height="6" Width="43" Margin="0,5,0,0" HorizontalAlignment="Left" Background="#FFC7D0E0" />
+                                                            </StackPanel>
+                                                            <Border x:Name="PreviewAction" Grid.Column="1" Height="24" VerticalAlignment="Center" Background="#FF2057D4" CornerRadius="2" />
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextAlignment="Center" />
+                                            </StackPanel>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding DisplayName}" Value="Dark">
+                                                    <Setter TargetName="ThemePreview" Property="Background" Value="#FF121C2C" />
+                                                    <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FF94A3B8" />
+                                                    <Setter TargetName="PreviewHeader" Property="Background" Value="#FF28364B" />
+                                                    <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFCBD5E1" />
+                                                    <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FF718096" />
+                                                    <Setter TargetName="PreviewAction" Property="Background" Value="#FF3B82F6" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding DisplayName}" Value="High Contrast">
+                                                    <Setter TargetName="ThemePreview" Property="Background" Value="#FF000000" />
+                                                    <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FFFFFF00" />
+                                                    <Setter TargetName="PreviewHeader" Property="Background" Value="#FFFFFFFF" />
+                                                    <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFFFFF00" />
+                                                    <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FFFFFFFF" />
+                                                    <Setter TargetName="PreviewAction" Property="Background" Value="#FFFFFF00" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Text="{Binding ThemeStatus}" Style="{StaticResource SecondaryText}"
+                                           TextWrapping="Wrap" Margin="0,4,0,8"
+                                           AutomationProperties.Name="{Binding ThemeStatus}"
+                                           AutomationProperties.LiveSetting="Polite"
+                                           a11y:LiveRegion.Announcement="{Binding ThemeStatus}" />
+
+                                <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,10" />
+
+                                <TextBlock Text="Spoken guidance" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,0,0,6" />
                                 <CheckBox x:Name="SpokenGuidanceToggle" TabIndex="8"
                                           IsChecked="{Binding SpokenGuidanceEnabled, Mode=TwoWay}"
                                           Content="Use SafeSpeak built-in spoken guidance"
@@ -1674,12 +1663,14 @@
                             </StackPanel>
                         </Border>
 
-                        <Label TabIndex="20" Style="{StaticResource ChapterHeading}"
-                               Content="Chapter 4 — Queue and message-rate limits"
-                               AutomationProperties.Name="Settings chapter 4 of 9, queue and message-rate limits"
-                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls set the pending queue size and per-viewer and whole-stream spam limits. Use Alt plus 4 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
+                                <Label TabIndex="20" Style="{StaticResource ChapterHeading}"
+                                       Content="Chapter 4 — Queue and message-rate limits"
+                                       AutomationProperties.Name="Settings chapter 4 of 9, queue and message-rate limits"
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls set the pending queue size and per-viewer and whole-stream spam limits. Use Alt plus 4 to return here." />
+                                <TextBlock Text="Set the approved message backlog size and protect your livestream audio from spam surges."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -1701,11 +1692,9 @@
                                         AutomationProperties.HelpText="Use Left and Right Arrow keys to set the maximum number of pending approved items from 1 through 500. Lowering the limit does not delete items already waiting." />
                                 <TextBlock Text="Tip: 5 to 15 keeps voice responses fresh and aligned with live stream chat (15–45s lag). Higher settings (50–500) let larger backlogs queue up during active chats. Stale messages beyond 45 seconds are automatically dropped to keep speech live."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,5,0,0" />
-                            </StackPanel>
-                        </Border>
 
-                        <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
-                            <StackPanel>
+                                <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="0,1,0,0" Margin="0,10,0,10" />
+
                                 <TextBlock Text="Message spam limits" Style="{StaticResource SectionTitle}"
                                            FontSize="{DynamicResource SafeSpeakFont17}" />
                                 <CheckBox TabIndex="22" Margin="0,7,0,5"
@@ -1919,12 +1908,14 @@
                                     </StackPanel>
                         </Border>
 
-                        <Label TabIndex="50" Style="{StaticResource ChapterHeading}"
-                               Content="Chapter 7 — Privacy and audit logs"
-                               AutomationProperties.Name="Settings chapter 7 of 9, privacy and audit logs"
-                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable local moderation logs and open their folder. Use Alt plus 7 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
+                                <Label TabIndex="50" Style="{StaticResource ChapterHeading}"
+                                       Content="Chapter 7 — Privacy and audit logs"
+                                       AutomationProperties.Name="Settings chapter 7 of 9, privacy and audit logs"
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable local moderation logs and open their folder. Use Alt plus 7 to return here." />
+                                <TextBlock Text="Manage local moderation decision logs for post-stream auditing and transparency."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <CheckBox TabIndex="51" IsChecked="{Binding EnableStreamAuditLogging}"
                                           Content="Save chat and moderation decisions to a local text log"
                                           AutomationProperties.Name="Save chat and moderation decisions to a local text log"
@@ -1943,12 +1934,14 @@
                             </StackPanel>
                         </Border>
 
-                        <Label TabIndex="53" Style="{StaticResource ChapterHeading}"
-                               Content="Chapter 8 — Interface and setup"
-                               AutomationProperties.Name="Settings chapter 8 of 9, interface and setup"
-                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls change interface text size or run the accessibility setup again. Use Alt plus 8 to return here." />
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
+                                <Label TabIndex="53" Style="{StaticResource ChapterHeading}"
+                                       Content="Chapter 8 — Interface and setup"
+                                       AutomationProperties.Name="Settings chapter 8 of 9, interface and setup"
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls change interface text size or run the accessibility setup again. Use Alt plus 8 to return here." />
+                                <TextBlock Text="Customize application text scaling or launch the first-run configuration setup."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -1968,23 +1961,28 @@
                                         AutomationProperties.HelpText="Use Left and Right Arrow keys to enlarge SafeSpeak text from 100 to 200 percent. Settings pages remain scrollable at large sizes." />
                                 <TextBlock Text="Text enlarges immediately and remains at this size after restart. Windows display scaling and high contrast continue to work independently."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+
+                                <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="0,1,0,0" Margin="0,10,0,10" />
+
+                                <TextBlock Text="Setup wizard" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,0,0,4" />
+                                <TextBlock Text="Rerun the first-time setup flow to review your streaming platform, moderation strength, visual theme, and screen reader guidance."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <Button TabIndex="55" HorizontalAlignment="Stretch"
+                                        Command="{Binding RerunAccessibilityWizardCommand}"
+                                        Content="Run Setup Again"
+                                        AutomationProperties.Name="Run SafeSpeak setup again button"
+                                        AutomationProperties.HelpText="Reviews streaming-platform, filtering, spoken-guidance, and theme choices. Cancel preserves your current settings, logs, imported voices, and downloaded models." />
                             </StackPanel>
                         </Border>
 
-                        <Button TabIndex="55" HorizontalAlignment="Stretch"
-                                Command="{Binding RerunAccessibilityWizardCommand}"
-                                Content="Run Setup Again"
-                                AutomationProperties.Name="Run SafeSpeak setup again button"
-                                AutomationProperties.HelpText="Reviews streaming-platform, filtering, spoken-guidance, and theme choices. Cancel preserves your current settings, logs, imported voices, and downloaded models." />
-
-                        <Label TabIndex="56" Style="{StaticResource ChapterHeading}"
-                               Content="Chapter 9 — Settings guide reference"
-                               AutomationProperties.Name="Settings chapter 9 of 9, Settings guide reference"
-                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following visible reference contains the complete Settings guide. Guide playback controls may be at the top or bottom of this page. Use Alt plus 9 to return here." />
                         <Border x:Name="SettingsGuidePanel" Style="{StaticResource ContentPanel}" Margin="0,10,0,10">
                             <StackPanel>
+                                <Label TabIndex="56" Style="{StaticResource ChapterHeading}"
+                                       Content="Chapter 9 — Settings guide reference"
+                                       AutomationProperties.Name="Settings chapter 9 of 9, Settings guide reference"
+                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following visible reference contains the complete Settings guide. Guide playback controls may be at the top or bottom of this page. Use Alt plus 9 to return here." />
                                 <TextBlock Text="Settings guide" FontWeight="SemiBold"
-                                           FontSize="{DynamicResource SafeSpeakFont17}" />
+                                           FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,4,0,0" />
                                 <ItemsControl ItemsSource="{Binding SettingsGuidePages}" IsTabStop="False" Margin="0,5,0,0"
                                               AutomationProperties.Name="Visible Settings guide pages">
                                     <ItemsControl.ItemTemplate>
