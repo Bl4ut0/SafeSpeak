@@ -24,8 +24,8 @@
             <Setter Property="CornerRadius" Value="6" />
         </Style>
         <Style x:Key="StepBallButton" TargetType="Button">
-            <Setter Property="MinHeight" Value="48" />
-            <Setter Property="MinWidth" Value="44" />
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="MinWidth" Value="40" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="1,0" />
             <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
@@ -39,8 +39,8 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <!-- Circle Ball -->
                                 <Border x:Name="BallBorder"
-                                        Width="34" Height="34"
-                                        CornerRadius="17"
+                                        Width="26" Height="26"
+                                        CornerRadius="13"
                                         Background="{TemplateBinding Background}"
                                         BorderBrush="{TemplateBinding BorderBrush}"
                                         BorderThickness="2"
@@ -48,7 +48,7 @@
                                     <TextBlock x:Name="BallNumber"
                                                Text="{TemplateBinding Tag}"
                                                FontWeight="Bold"
-                                               FontSize="{DynamicResource SafeSpeakFont14}"
+                                               FontSize="{DynamicResource SafeSpeakFont12}"
                                                Foreground="{TemplateBinding Foreground}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center" />
@@ -56,11 +56,11 @@
                                 <!-- Label -->
                                 <TextBlock x:Name="BallLabel"
                                            Text="{TemplateBinding Content}"
-                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           FontSize="10"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
                                            HorizontalAlignment="Center"
-                                           Margin="0,3,0,0" />
+                                           Margin="0,2,0,0" />
                             </StackPanel>
                         </Grid>
                         <ControlTemplate.Triggers>
@@ -121,49 +121,23 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Top Header Banner -->
+        <!-- Top Unified Header Bar -->
         <Border Grid.Row="0"
-                Padding="24,12"
+                Padding="20,8"
                 Background="{DynamicResource SafeSpeakSurfaceBrush}"
                 BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                 BorderThickness="0,0,0,1">
             <DockPanel LastChildFill="True">
-                <Border DockPanel.Dock="Right"
-                        Style="{StaticResource StatusPill}"
-                        Margin="18,0,0,0"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="{Binding StepProgress}"
-                               FontWeight="Bold"
-                               Foreground="{DynamicResource SafeSpeakTextBrush}" />
-                </Border>
-                <StackPanel>
-                    <TextBlock Text="WELCOME TO SAFESPEAK"
-                               Style="{StaticResource EyebrowText}"
-                               Margin="0,0,0,3" />
-                    <TextBlock Text="Set up SafeSpeak" Style="{StaticResource PageTitle}" />
-                    <TextBlock Text="Eight clear steps. Full keyboard and screen-reader access."
-                               Style="{StaticResource SecondaryText}"
-                               Margin="0,4,0,0" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!-- Main Content Area -->
-        <StackPanel Grid.Row="1" Margin="24,10" MaxWidth="780">
-
-            <!-- Step Navigation Stepper -->
-            <Border Style="{StaticResource CardPanel}"
-                    Padding="12,8"
-                    Margin="0,0,0,10">
-                <Grid>
-                    <!-- Horizontal connecting line between balls -->
-                    <Border Height="3"
-                            Margin="36,16,36,24"
+                <!-- Right Corner: Stepper Track with 8 Step Balls -->
+                <Grid DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <!-- Horizontal track line behind balls -->
+                    <Border Height="2"
+                            Margin="14,13,14,0"
                             VerticalAlignment="Top"
                             Background="{DynamicResource SafeSpeakBorderBrush}"
                             CornerRadius="1" />
 
-                    <UniformGrid Rows="1" Columns="8">
+                    <StackPanel Orientation="Horizontal">
                         <Button TabIndex="10"
                                 MinHeight="44"
                                 Tag="1"
@@ -210,8 +184,8 @@
                                 Content="Connect"
                                 Command="{Binding JumpToStepCommand}"
                                 CommandParameter="3"
-                                AutomationProperties.Name="Go to Step 3: Connectors (Control+3)"
-                                AutomationProperties.HelpText="Jump directly to Streaming Connectors setup step.">
+                                AutomationProperties.Name="Go to Step 3: Platform connectors (Control+3)"
+                                AutomationProperties.HelpText="Jump directly to Streaming Platform Connectors setup step.">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
                                     <Style.Triggers>
@@ -231,7 +205,7 @@
                                 Command="{Binding JumpToStepCommand}"
                                 CommandParameter="4"
                                 AutomationProperties.Name="Go to Step 4: Voice (Control+4)"
-                                AutomationProperties.HelpText="Jump directly to Voice Selection setup step.">
+                                AutomationProperties.HelpText="Jump directly to Voice setup step.">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
                                     <Style.Triggers>
@@ -250,7 +224,7 @@
                                 Content="AI Filter"
                                 Command="{Binding JumpToStepCommand}"
                                 CommandParameter="5"
-                                AutomationProperties.Name="Go to Step 5: AI Moderation (Control+5)"
+                                AutomationProperties.Name="Go to Step 5: AI Filtering (Control+5)"
                                 AutomationProperties.HelpText="Jump directly to AI Filtering setup step.">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
@@ -270,8 +244,8 @@
                                 Content="Keybinds"
                                 Command="{Binding JumpToStepCommand}"
                                 CommandParameter="6"
-                                AutomationProperties.Name="Go to Step 6: Primary Keybinds (Control+6)"
-                                AutomationProperties.HelpText="Jump directly to Primary Keybinds setup step.">
+                                AutomationProperties.Name="Go to Step 6: Keybinds (Control+6)"
+                                AutomationProperties.HelpText="Jump directly to Keybinds setup step.">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
                                     <Style.Triggers>
@@ -291,7 +265,7 @@
                                 Command="{Binding JumpToStepCommand}"
                                 CommandParameter="7"
                                 AutomationProperties.Name="Go to Step 7: Navigation Guide (Control+7)"
-                                AutomationProperties.HelpText="Jump directly to Navigation Shortcuts guide.">
+                                AutomationProperties.HelpText="Jump directly to Navigation Guide setup step.">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
                                     <Style.Triggers>
@@ -324,45 +298,59 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                    </UniformGrid>
+                    </StackPanel>
                 </Grid>
-            </Border>
 
-            <!-- Step Progress Live Announcement -->
-            <TextBlock Text="{Binding StepProgress}"
-                       Style="{StaticResource EyebrowText}"
-                       FontWeight="Bold"
-                       Margin="0,0,0,4"
-                       AutomationProperties.Name="{Binding StepProgress}"
-                       AutomationProperties.LiveSetting="Polite"
-                       a11y:LiveRegion.Announcement="{Binding StepProgress}" />
-
-            <!-- Prompt & Status Card -->
-            <Border Style="{StaticResource ContentPanel}" Padding="12">
-                <StackPanel>
-                    <TextBlock Text="{Binding PromptText}"
-                               FontSize="{DynamicResource SafeSpeakFont24}"
-                               FontWeight="Bold"
-                               TextWrapping="Wrap"
-                               AutomationProperties.Name="{Binding PromptText}" />
+                <!-- Left Corner: Branding & Current Step Context -->
+                <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="SafeSpeak Setup"
+                                   FontSize="{DynamicResource SafeSpeakFont17}"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource SafeSpeakTextBrush}"
+                                   VerticalAlignment="Center" />
+                        <Border Style="{StaticResource StatusPill}"
+                                Margin="10,0,0,0"
+                                Padding="8,2"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding StepProgress}"
+                                       FontWeight="Bold"
+                                       FontSize="{DynamicResource SafeSpeakFont12}"
+                                       Foreground="{DynamicResource SafeSpeakTextBrush}"
+                                       AutomationProperties.Name="{Binding StepProgress}"
+                                       AutomationProperties.LiveSetting="Polite"
+                                       a11y:LiveRegion.Announcement="{Binding StepProgress}" />
+                        </Border>
+                    </StackPanel>
                     <TextBlock Text="{Binding StatusText}"
                                Style="{StaticResource SecondaryText}"
-                               Margin="0,6,0,0"
-                               TextWrapping="Wrap"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
+                               Margin="0,2,0,0"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="360"
                                AutomationProperties.Name="{Binding StatusText}"
                                AutomationProperties.LiveSetting="Polite"
                                a11y:LiveRegion.Announcement="{Binding StatusText}" />
                 </StackPanel>
-            </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <StackPanel Grid.Row="1" Margin="24,14" MaxWidth="780">
 
             <!-- STEP 1: READER -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,4,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsReaderStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="Reader"
+                <TextBlock Text="Do you want to use the SafeSpeak built-in screen reader?"
                            FontSize="{DynamicResource SafeSpeakFont18}"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,8" />
+                           FontWeight="Bold"
+                           Margin="0,0,0,4"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="SafeSpeak can announce controls, chat messages, and safety alerts aloud through your headphones."
+                           Style="{StaticResource SecondaryText}"
+                           Margin="0,0,0,14"
+                           TextWrapping="Wrap" />
                 <UniformGrid Columns="2">
                     <Button x:Name="ReaderYesButton"
                             TabIndex="1"
@@ -1286,7 +1274,7 @@
                                     </Border>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="SafeSpeak" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" Foreground="{DynamicResource SafeSpeakAccentBrush}" Margin="0,0,8,0" />
+                                    <TextBlock Text="MAIN DASHBOARD" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakMutedTextBrush}" Margin="0,0,8,0" />
                                     <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,1">
                                         <TextBlock Text="● DISARMED (Safe)" FontSize="{DynamicResource SafeSpeakFont12}" FontWeight="SemiBold" Foreground="{DynamicResource SafeSpeakMutedTextBrush}" />
                                     </Border>
