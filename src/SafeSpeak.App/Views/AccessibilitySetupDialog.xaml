@@ -133,6 +133,30 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="MiniLmCardStyle" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMiniLmSelected}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="QwenCardStyle" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsQwenSelected}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="KeybindCardButton" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}">
+            <Setter Property="MinHeight" Value="76" />
+        </Style>
+
         <Style x:Key="PlaceholderCardButton" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}" />
     </Window.Resources>
 
@@ -1213,88 +1237,134 @@
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
                            Margin="0,0,0,4" />
-                <TextBlock Text="Safeguard your broadcast with real-time on-device machine learning, Unicode evasion filters, and customizable moderation strictness."
+                <TextBlock Text="SafeSpeak runs on-device AI moderation alongside deterministic evasion filters. Choose your preferred AI engine:"
                            Style="{StaticResource SecondaryText}"
                            Margin="0,0,0,14"
                            TextWrapping="Wrap" />
 
-                <!-- AI Master Toggle Card -->
-                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12" Padding="16,14">
-                    <StackPanel>
-                        <CheckBox x:Name="AiClassificationCheckBox"
-                                  TabIndex="1"
-                                  MinHeight="44"
-                                  FontWeight="Bold"
-                                  IsChecked="{Binding AiClassificationEnabled}"
-                                  Content="Enable AI on-device content classification"
-                                  AutomationProperties.Name="Enable AI content classification"
-                                  AutomationProperties.HelpText="When checked, SafeSpeak classifies messages with machine learning in addition to rule-based filtering." />
-                        <TextBlock Text="Classifies incoming chat messages with machine learning in addition to rule-based filtering."
-                                   Style="{StaticResource SecondaryText}"
-                                   FontSize="{DynamicResource SafeSpeakFont12}"
-                                   Margin="26,2,0,10"
-                                   TextWrapping="Wrap" />
-
-                        <!-- Model Choice Cards -->
-                        <Grid Margin="0,0,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Button x:Name="MiniLmCardButton"
-                                    Grid.Column="0"
-                                    TabIndex="2"
-                                    MinHeight="48"
-                                    Margin="0,0,6,0"
-                                    Command="{Binding SelectMiniLMCommand}"
-                                    Content="MiniLM ONNX (Bundled Default)"
-                                    AutomationProperties.Name="Select bundled MiniLM ONNX model"
-                                    AutomationProperties.HelpText="Use the bundled lightweight MiniLM model for intent and toxic content detection." />
-                            <Button x:Name="QwenCardButton"
-                                    Grid.Column="1"
-                                    TabIndex="3"
-                                    MinHeight="48"
-                                    Margin="6,0,0,0"
-                                    Command="{Binding SelectQwenCommand}"
-                                    Content="Qwen3Guard 0.6B (Advanced)"
-                                    AutomationProperties.Name="Select Qwen3Guard 0.6B model"
-                                    AutomationProperties.HelpText="Use the advanced Qwen3Guard model for deep reasoning and context analysis." />
-                        </Grid>
-
-                        <!-- Qwen Install Card (Visible when Qwen is selected) -->
-                        <Border Style="{StaticResource ContentPanel}"
-                                Margin="0,10,0,0"
-                                Padding="12"
-                                Visibility="{Binding IsQwenSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <DockPanel LastChildFill="True">
-                                <Button x:Name="InstallQwenButton"
-                                        DockPanel.Dock="Right"
-                                        TabIndex="4"
-                                        MinHeight="44"
-                                        MinWidth="180"
-                                        Margin="8,0,0,0"
-                                        Command="{Binding InstallQwenCommand}"
-                                        Content="Install Qwen3Guard"
-                                        AutomationProperties.Name="Download and install Qwen3Guard model"
-                                        AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Qwen3Guard 0.6B LLM" FontWeight="Bold" />
-                                    <TextBlock Text="{Binding QwenInstallStatus}" Style="{StaticResource SecondaryText}" Margin="0,2,0,0" />
-                                </StackPanel>
+                <!-- 2-Wide AI Model Selector Grid -->
+                <UniformGrid Columns="2" Margin="0,0,0,12">
+                    <!-- 1: MiniLM ONNX -->
+                    <Button x:Name="MiniLmCardButton"
+                            TabIndex="1"
+                            MinHeight="88"
+                            Margin="6,0"
+                            Style="{StaticResource MiniLmCardStyle}"
+                            Command="{Binding SelectMiniLMCommand}"
+                            AutomationProperties.Name="Default MiniLM ONNX engine. Bundled with SafeSpeak. Zero setup required."
+                            AutomationProperties.HelpText="Recommended lightweight on-device classifier. Fast and responsive with low CPU usage.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Default"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="MiniLM ONNX"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
                             </DockPanel>
-                        </Border>
-                    </StackPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Bundled lightweight classifier. Zero extra download, instant response, low memory footprint."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="18"
+                                       Text="Bundled • Ready to use"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 2: Qwen3Guard -->
+                    <Button x:Name="QwenCardButton"
+                            TabIndex="2"
+                            MinHeight="88"
+                            Margin="6,0"
+                            Style="{StaticResource QwenCardStyle}"
+                            Command="{Binding SelectQwenCommand}"
+                            AutomationProperties.Name="Enhanced Qwen3Guard 0.6B LLM engine. Deep reasoning and context-aware moderation."
+                            AutomationProperties.HelpText="Advanced reasoning model for nuanced edge cases and conversational context. Requires download.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Enhanced"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Qwen3Guard 0.6B"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Deep reasoning language guard. Context-aware nuances and conversational safety (~500 MB)."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="18"
+                                       Text="Advanced • On-Device LLM"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+                </UniformGrid>
+
+                <!-- Qwen Install Card (Visible when Qwen is selected) -->
+                <Border Style="{StaticResource CardPanel}"
+                        Margin="0,0,0,12"
+                        Padding="14,10"
+                        Visibility="{Binding IsQwenSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="InstallQwenButton"
+                                DockPanel.Dock="Right"
+                                TabIndex="3"
+                                MinHeight="44"
+                                MinWidth="180"
+                                Margin="8,0,0,0"
+                                Command="{Binding InstallQwenCommand}"
+                                Content="Install Qwen3Guard"
+                                AutomationProperties.Name="Download and install Qwen3Guard model"
+                                AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Qwen3Guard 0.6B LLM Setup" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
+                            <TextBlock Text="{Binding QwenInstallStatus}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </DockPanel>
                 </Border>
 
                 <!-- Model Status / Educational Copy -->
-                <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,12" Padding="16,14">
+                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12" Padding="14,10">
                     <StackPanel>
                         <TextBlock Text="The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required."
+                                   FontSize="{DynamicResource SafeSpeakFont12}"
                                    TextWrapping="Wrap" />
                         <TextBlock Text="{Binding ModelStatus}"
                                    TextWrapping="Wrap"
                                    FontWeight="SemiBold"
-                                   Margin="0,6,0,0"
+                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                   Margin="0,4,0,0"
                                    AutomationProperties.Name="{Binding ModelStatus}"
                                    AutomationProperties.LiveSetting="Polite"
                                    a11y:LiveRegion.Announcement="{Binding ModelStatus}" />
@@ -1302,10 +1372,10 @@
                 </Border>
 
                 <!-- Chat @Reply Filter Toggle Card -->
-                <Border Style="{StaticResource CardPanel}" Padding="16,14">
+                <Border Style="{StaticResource CardPanel}" Padding="14,10">
                     <StackPanel>
                         <CheckBox x:Name="IgnoreChatRepliesCheckBox"
-                                  TabIndex="5"
+                                  TabIndex="4"
                                   MinHeight="44"
                                   FontWeight="Bold"
                                   IsChecked="{Binding IgnoreChatReplies}"
@@ -1314,7 +1384,7 @@
                                   AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
                         <TextBlock Text="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken."
                                    Style="{StaticResource SecondaryText}"
-                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                   FontSize="{DynamicResource SafeSpeakFont11}"
                                    Margin="26,2,0,0"
                                    TextWrapping="Wrap" />
                     </StackPanel>
@@ -1329,67 +1399,286 @@
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
                            Margin="0,0,0,4" />
-                <TextBlock Text="SafeSpeak provides instant global hotkeys so you can control chat without switching out of your game or stream."
+                <TextBlock Text="SafeSpeak provides instant global hotkeys so you can control chat without switching out of your game or stream. Press any hotkey to customize or rebind it."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,14"
+                           Margin="0,0,0,12"
                            TextWrapping="Wrap" />
 
-                <ListBox x:Name="KeybindsList"
-                         TabIndex="1"
-                         ItemsSource="{Binding Keybinds}"
-                         MinHeight="250"
-                         Margin="0,0,0,14"
-                         AutomationProperties.Name="Primary SafeSpeak hotkeys"
-                         AutomationProperties.HelpText="Use Up and Down Arrow keys to review global hotkeys.">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="{x:Type ListBoxItem}"
-                               BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                            <Setter Property="MinHeight" Value="46" />
-                            <Setter Property="AutomationProperties.Name"
-                                    Value="{Binding AutomationSummary}" />
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="14,8"
-                                    Margin="0,3">
-                                <DockPanel LastChildFill="True">
-                                    <Border DockPanel.Dock="Right"
-                                            Background="{DynamicResource SafeSpeakSurfaceAltBrush}"
-                                            BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Padding="10,4"
-                                            Margin="10,0,0,0"
-                                            VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Gesture}"
-                                                   FontWeight="Bold"
-                                                   FontSize="{DynamicResource SafeSpeakFont12}"
-                                                   Foreground="{DynamicResource SafeSpeakAccentBrush}" />
-                                    </Border>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" />
-                                        <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <!-- 2-Column Keybind Grid -->
+                <UniformGrid Columns="2" Margin="0,0,0,10">
+                    <!-- 1: Hear Status -->
+                    <Button x:Name="KeybindButton1"
+                            TabIndex="1"
+                            MinHeight="76"
+                            Margin="6,5"
+                            Style="{StaticResource KeybindCardButton}"
+                            Command="{Binding OpenKeybindEditorCommand}"
+                            CommandParameter="{Binding SetupKeybinds[0]}"
+                            AutomationProperties.Name="{Binding SetupKeybinds[0].CardAutomationName}"
+                            AutomationProperties.HelpText="{Binding SetupKeybinds[0].CardHelpText}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding SetupKeybinds[0].GestureDisplay}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding SetupKeybinds[0].DisplayName}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont13}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding SetupKeybinds[0].Description}"
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,3,0,3"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Text="Press to customize"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
 
-                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,12" Padding="14,10">
+                    <!-- 2: Arm / Disarm -->
+                    <Button x:Name="KeybindButton2"
+                            TabIndex="2"
+                            MinHeight="76"
+                            Margin="6,5"
+                            Style="{StaticResource KeybindCardButton}"
+                            Command="{Binding OpenKeybindEditorCommand}"
+                            CommandParameter="{Binding SetupKeybinds[1]}"
+                            AutomationProperties.Name="{Binding SetupKeybinds[1].CardAutomationName}"
+                            AutomationProperties.HelpText="{Binding SetupKeybinds[1].CardHelpText}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding SetupKeybinds[1].GestureDisplay}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding SetupKeybinds[1].DisplayName}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont13}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding SetupKeybinds[1].Description}"
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,3,0,3"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Text="Press to customize"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 3: Emergency Stop -->
+                    <Button x:Name="KeybindButton3"
+                            TabIndex="3"
+                            MinHeight="76"
+                            Margin="6,5"
+                            Style="{StaticResource KeybindCardButton}"
+                            Command="{Binding OpenKeybindEditorCommand}"
+                            CommandParameter="{Binding SetupKeybinds[2]}"
+                            AutomationProperties.Name="{Binding SetupKeybinds[2].CardAutomationName}"
+                            AutomationProperties.HelpText="{Binding SetupKeybinds[2].CardHelpText}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding SetupKeybinds[2].GestureDisplay}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding SetupKeybinds[2].DisplayName}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont13}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding SetupKeybinds[2].Description}"
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,3,0,3"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Text="Press to customize"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 4: Shut up live speech -->
+                    <Button x:Name="KeybindButton4"
+                            TabIndex="4"
+                            MinHeight="76"
+                            Margin="6,5"
+                            Style="{StaticResource KeybindCardButton}"
+                            Command="{Binding OpenKeybindEditorCommand}"
+                            CommandParameter="{Binding SetupKeybinds[3]}"
+                            AutomationProperties.Name="{Binding SetupKeybinds[3].CardAutomationName}"
+                            AutomationProperties.HelpText="{Binding SetupKeybinds[3].CardHelpText}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding SetupKeybinds[3].GestureDisplay}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding SetupKeybinds[3].DisplayName}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont13}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding SetupKeybinds[3].Description}"
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,3,0,3"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Text="Press to customize"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 5: Built-in screen reader silence -->
+                    <Button x:Name="KeybindButton5"
+                            TabIndex="5"
+                            MinHeight="76"
+                            Margin="6,5"
+                            Style="{StaticResource KeybindCardButton}"
+                            Command="{Binding OpenKeybindEditorCommand}"
+                            CommandParameter="{Binding SetupKeybinds[4]}"
+                            AutomationProperties.Name="{Binding SetupKeybinds[4].CardAutomationName}"
+                            AutomationProperties.HelpText="{Binding SetupKeybinds[4].CardHelpText}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding SetupKeybinds[4].GestureDisplay}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding SetupKeybinds[4].DisplayName}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont13}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding SetupKeybinds[4].Description}"
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,3,0,3"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Text="Press to customize"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 6: Restore Defaults Button -->
+                    <Button x:Name="RestoreKeybindDefaultsButton"
+                            TabIndex="6"
+                            MinHeight="76"
+                            Margin="6,5"
+                            Style="{StaticResource KeybindCardButton}"
+                            Command="{Binding RestoreAllDefaultKeybindsCommand}"
+                            AutomationProperties.Name="Restore all default shortcuts"
+                            AutomationProperties.HelpText="Resets all 5 hotkeys back to standard factory shortcuts.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Reset"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Restore All Defaults"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont13}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Reset all 5 hotkeys to their default recommended key combinations."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,3,0,3"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Text="Press to restore"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+                </UniformGrid>
+
+                <Border Style="{StaticResource StatusCard}" Margin="0,4,0,10" Padding="14,8">
                     <TextBlock Text="Pro Tip: Pressing the Control key alone at any time immediately silences the built-in screen reader narrator."
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
                                TextWrapping="Wrap" />
                 </Border>
 
-                <Border Style="{StaticResource CardPanel}" Padding="14,10">
-                    <TextBlock Text="Global hotkeys operate across all games and fullscreen applications. You can rebind or disable hotkeys in Settings > Shortcuts."
+                <Border Style="{StaticResource CardPanel}" Padding="14,8">
+                    <TextBlock Text="Global hotkeys operate across all games and fullscreen applications. You can also rebind or disable hotkeys anytime in Settings > Shortcuts."
                                Style="{StaticResource SecondaryText}"
                                FontSize="{DynamicResource SafeSpeakFont12}"
                                TextWrapping="Wrap" />
@@ -1787,6 +2076,93 @@
                                 Command="{Binding CloseConnectorModalCommand}"
                                 Content="Close (Esc)"
                                 AutomationProperties.Name="Close placeholder connector details" />
+                    </StackPanel>
+
+                    <!-- View C: Shortcut Keybind Editor Modal -->
+                    <StackPanel Visibility="{Binding IsEditingKeybind, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <DockPanel LastChildFill="True" Margin="0,0,0,10">
+                            <Button x:Name="KeybindModalCloseButton"
+                                    DockPanel.Dock="Right"
+                                    Padding="10,4"
+                                    MinHeight="36"
+                                    MinWidth="60"
+                                    Command="{Binding CloseKeybindEditorCommand}"
+                                    Content="Close"
+                                    AutomationProperties.Name="Close shortcut editor" />
+                            <StackPanel VerticalAlignment="Center">
+                                <Border Style="{StaticResource StatusPill}"
+                                        HorizontalAlignment="Left"
+                                        Padding="8,2"
+                                        Margin="0,0,0,4">
+                                    <TextBlock Text="Customize Shortcut"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="{Binding EditingKeybind.DisplayName, StringFormat='Change Shortcut: {0}'}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont18}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <TextBlock Text="{Binding EditingKeybind.Description}"
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,2,0,10"
+                                   TextWrapping="Wrap" />
+
+                        <!-- Shortcut capture listener button -->
+                        <Button x:Name="ModalShortcutCaptureButton"
+                                MinHeight="70"
+                                Margin="0,4,0,10"
+                                Padding="16,12"
+                                Style="{StaticResource PrimaryButton}"
+                                PreviewKeyDown="ModalShortcutCaptureButton_PreviewKeyDown"
+                                PreviewKeyUp="ModalShortcutCaptureButton_PreviewKeyUp"
+                                LostKeyboardFocus="ModalShortcutCaptureButton_LostKeyboardFocus"
+                                AutomationProperties.Name="{Binding KeybindCapturePrompt}"
+                                AutomationProperties.HelpText="Press your desired shortcut combination. Press it a second time to confirm.">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="{Binding KeybindCapturePrompt}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont15}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Press new shortcut combination (press twice to confirm)"
+                                           FontSize="{DynamicResource SafeSpeakFont11}"
+                                           Opacity="0.85"
+                                           Margin="0,4,0,0"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <TextBlock x:Name="ModalShortcutStatusTextBlock"
+                                   Text="{Binding KeybindCaptureStatus}"
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,0,0,14"
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Assertive"
+                                   a11y:LiveRegion.Announcement="{Binding KeybindCaptureStatus}" />
+
+                        <!-- Modal Action Buttons -->
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    MinHeight="44"
+                                    MinWidth="100"
+                                    Command="{Binding CloseKeybindEditorCommand}"
+                                    Content="Cancel (Esc)"
+                                    AutomationProperties.Name="Cancel shortcut editing" />
+                            <Button DockPanel.Dock="Right"
+                                    MinHeight="44"
+                                    MinWidth="120"
+                                    Margin="0,0,10,0"
+                                    Command="{Binding ClearEditingKeybindCommand}"
+                                    Content="Clear / Disable"
+                                    AutomationProperties.Name="Clear and disable this shortcut" />
+                            <Button MinHeight="44"
+                                    MinWidth="130"
+                                    Margin="0,0,10,0"
+                                    Command="{Binding RestoreDefaultEditingKeybindCommand}"
+                                    Content="Restore Default"
+                                    AutomationProperties.Name="Restore default shortcut" />
+                        </DockPanel>
                     </StackPanel>
                 </Grid>
             </Border>

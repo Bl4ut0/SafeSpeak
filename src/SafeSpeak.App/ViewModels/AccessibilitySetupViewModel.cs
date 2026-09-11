@@ -51,6 +51,58 @@ public sealed record NavigationShortcutItem(
     public string AutomationSummary => $"{Category}, shortcut: {Gesture}. {Description}";
 }
 
+public sealed partial class SetupKeybindItemViewModel : ObservableObject
+{
+    public HotkeyAction Action { get; }
+    public string DisplayName { get; }
+    public string Description { get; }
+    public string DefaultGesture { get; }
+
+    [ObservableProperty]
+    private string _gesture;
+
+    [ObservableProperty]
+    private bool _isEnabled;
+
+    public SetupKeybindItemViewModel(
+        HotkeyAction action,
+        string displayName,
+        string description,
+        string defaultGesture,
+        string currentGesture,
+        bool isEnabled)
+    {
+        Action = action;
+        DisplayName = displayName;
+        Description = description;
+        DefaultGesture = defaultGesture;
+        _gesture = currentGesture;
+        _isEnabled = isEnabled;
+    }
+
+    public string GestureDisplay => IsEnabled && !string.IsNullOrWhiteSpace(Gesture)
+        ? Gesture
+        : "Disabled";
+
+    public string CardAutomationName =>
+        $"{DisplayName}. Current shortcut: {GestureDisplay}. Press to customize.";
+
+    public string CardHelpText =>
+        $"{Description} Press to customize or disable.";
+
+    partial void OnGestureChanged(string value)
+    {
+        OnPropertyChanged(nameof(GestureDisplay));
+        OnPropertyChanged(nameof(CardAutomationName));
+    }
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(GestureDisplay));
+        OnPropertyChanged(nameof(CardAutomationName));
+    }
+}
+
 public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDisposable
 {
     private readonly AppSettings _settings;
@@ -162,6 +214,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public ObservableCollection<VoiceInfo> Voices { get; } = [];
     public ObservableCollection<KeybindDisplayItem> Keybinds { get; } = [];
     public ObservableCollection<KeybindDisplayItem> KeybindList => Keybinds;
+    public ObservableCollection<SetupKeybindItemViewModel> SetupKeybinds { get; } = [];
     public ObservableCollection<NavigationShortcutItem> NavigationShortcuts { get; } = [];
 
     [ObservableProperty]
@@ -250,6 +303,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool IsKokoroInstalled => _kokoroManager.IsInstalled;
     public bool IsQwenInstalled => _qwenRuntime.IsModelInstalled;
     public bool IsQwenSelected => SelectedModerationModel == ModerationModelPreference.Qwen3Guard06BCompressed;
+    public bool IsMiniLmSelected => SelectedModerationModel == ModerationModelPreference.BuiltInHybrid;
     public bool HasAnyConnectorSelected => UseTikFinity || UseTikTokDirect;
     public string TikFinityStatusBadge => UseTikFinity ? "Enabled" : "Disabled";
     public string TikTokDirectStatusBadge => UseTikTokDirect ? (string.IsNullOrWhiteSpace(TikTokUsername) ? "Enabled" : $"@{TikTokUsername}") : "Disabled";
@@ -277,9 +331,19 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     [ObservableProperty]
     private string? _tikTokFirstAttempt;
 
-    public bool IsAnyModalOpen => !string.IsNullOrEmpty(ActiveModalConnectorId);
+    [ObservableProperty]
+    private SetupKeybindItemViewModel? _editingKeybind;
+
+    [ObservableProperty]
+    private string _keybindCaptureStatus = "Listening for key combination. Press the keys once.";
+
+    [ObservableProperty]
+    private string _keybindCapturePrompt = "Press the shortcut combination once";
+
+    public bool IsEditingKeybind => EditingKeybind != null;
+    public bool IsAnyModalOpen => !string.IsNullOrEmpty(ActiveModalConnectorId) || IsEditingKeybind;
     public bool IsConfiguringTikTokDirect => string.Equals(ActiveModalConnectorId, "tiktok-direct", StringComparison.OrdinalIgnoreCase);
-    public bool IsPlaceholderModalOpen => IsAnyModalOpen && !IsConfiguringTikTokDirect;
+    public bool IsPlaceholderModalOpen => !string.IsNullOrEmpty(ActiveModalConnectorId) && !IsConfiguringTikTokDirect;
     public bool IsTikTokSecondAttempt => TikTokFirstAttempt != null;
     public string TikTokStepBadge => IsTikTokSecondAttempt ? "Step 2 of 2: Confirm Username" : "Step 1 of 2: Enter Username";
 
@@ -291,6 +355,12 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(IsAnyModalOpen));
         OnPropertyChanged(nameof(IsConfiguringTikTokDirect));
         OnPropertyChanged(nameof(IsPlaceholderModalOpen));
+    }
+
+    partial void OnEditingKeybindChanged(SetupKeybindItemViewModel? value)
+    {
+        OnPropertyChanged(nameof(IsEditingKeybind));
+        OnPropertyChanged(nameof(IsAnyModalOpen));
     }
 
     partial void OnTikTokFirstAttemptChanged(string? value)
@@ -552,6 +622,102 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     partial void OnSelectedModerationModelChanged(ModerationModelPreference value)
     {
         OnPropertyChanged(nameof(IsQwenSelected));
+        OnPropertyChanged(nameof(IsMiniLmSelected));
+    }
+
+    [RelayCommand]
+    private void SelectMiniLM()
+    {
+        SelectedModerationModel = ModerationModelPreference.BuiltInHybrid;
+        _announcer.Announce("Selected Default MiniLM on-device model.", interrupt: true);
+    }
+
+    [RelayCommand]
+    private void SelectQwen()
+    {
+        SelectedModerationModel = ModerationModelPreference.Qwen3Guard06BCompressed;
+        _announcer.Announce("Selected Enhanced Qwen3Guard model.", interrupt: true);
+    }
+
+    [RelayCommand]
+    private void OpenKeybindEditor(SetupKeybindItemViewModel? item)
+    {
+        if (item is null) return;
+        EditingKeybind = item;
+        KeybindCapturePrompt = "Press the shortcut combination once";
+        KeybindCaptureStatus = $"Listening for {item.DisplayName}. Press the shortcut combination once.";
+        _announcer.Announce($"Configure shortcut for {item.DisplayName}. Current shortcut is {item.GestureDisplay}. Press the new shortcut combination.", interrupt: true);
+        FocusRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void CloseKeybindEditor()
+    {
+        EditingKeybind = null;
+        FocusRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void ClearEditingKeybind()
+    {
+        if (EditingKeybind is not { } item) return;
+        SaveKeybind(item, string.Empty, enabled: false);
+        StatusText = $"Shortcut for {item.DisplayName} disabled.";
+        _announcer.Announce(StatusText, interrupt: true);
+        CloseKeybindEditor();
+    }
+
+    [RelayCommand]
+    private void RestoreDefaultEditingKeybind()
+    {
+        if (EditingKeybind is not { } item) return;
+        SaveKeybind(item, item.DefaultGesture, enabled: true);
+        StatusText = $"Restored default shortcut {item.DefaultGesture} for {item.DisplayName}.";
+        _announcer.Announce(StatusText, interrupt: true);
+        CloseKeybindEditor();
+    }
+
+    [RelayCommand]
+    private void RestoreAllDefaultKeybinds()
+    {
+        foreach (var item in SetupKeybinds)
+        {
+            SaveKeybind(item, item.DefaultGesture, enabled: true);
+        }
+        StatusText = "Restored all default keyboard shortcuts.";
+        _announcer.Announce(StatusText, interrupt: true);
+    }
+
+    public void SaveKeybind(SetupKeybindItemViewModel item, string gesture, bool enabled)
+    {
+        item.Gesture = gesture;
+        item.IsEnabled = enabled;
+
+        _settings.GlobalShortcuts ??= GlobalShortcutCatalog.CreateDefaults();
+        GlobalShortcutBinding? binding = _settings.GlobalShortcuts.FirstOrDefault(b => b.Action == item.Action);
+        if (binding is not null)
+        {
+            binding.Gesture = gesture;
+            binding.IsEnabled = enabled;
+        }
+        else
+        {
+            _settings.GlobalShortcuts.Add(new GlobalShortcutBinding
+            {
+                Action = item.Action,
+                Gesture = gesture,
+                IsEnabled = enabled
+            });
+        }
+
+        for (int i = 0; i < Keybinds.Count; i++)
+        {
+            if (Keybinds[i].Name == item.DisplayName)
+            {
+                Keybinds[i] = new KeybindDisplayItem(item.DisplayName, item.GestureDisplay, item.Description);
+                break;
+            }
+        }
     }
 
     partial void OnIsBusyChanged(bool value) =>
@@ -706,7 +872,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     private void CompleteFilteringStep()
     {
-        _settings.AiClassificationEnabled = AiClassificationEnabled;
+        _settings.AiClassificationEnabled = true;
         _settings.ModerationModel = SelectedModerationModel;
         _settings.IgnoreChatReplies = IgnoreChatReplies;
         _settings.OnboardingStage = OnboardingStage.Keybinds;
@@ -721,6 +887,26 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     private void CompleteKeybindsStep()
     {
+        _settings.GlobalShortcuts ??= GlobalShortcutCatalog.CreateDefaults();
+        foreach (var item in SetupKeybinds)
+        {
+            GlobalShortcutBinding? binding = _settings.GlobalShortcuts.FirstOrDefault(b => b.Action == item.Action);
+            if (binding is not null)
+            {
+                binding.Gesture = item.Gesture;
+                binding.IsEnabled = item.IsEnabled;
+            }
+            else
+            {
+                _settings.GlobalShortcuts.Add(new GlobalShortcutBinding
+                {
+                    Action = item.Action,
+                    Gesture = item.Gesture,
+                    IsEnabled = item.IsEnabled
+                });
+            }
+        }
+
         _settings.OnboardingStage = OnboardingStage.Navigation;
         if (!_settings.TrySave(out string? error))
         {
@@ -931,11 +1117,27 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private void PopulateKeybinds()
     {
         Keybinds.Clear();
-        Keybinds.Add(new("Hear SafeSpeak status", "Control + Shift + S", "Privately announces arming state, message queue count, and connector status."));
-        Keybinds.Add(new("Arm / Disarm SafeSpeak", "Control + Shift + A", "Begins or pauses reading live chat aloud without closing your streaming app."));
-        Keybinds.Add(new("Emergency Stop", "Pause / Break or Control + Shift + X", "Immediately silences speech and clears all pending chat and announcement queues."));
-        Keybinds.Add(new("Shut up live speech", "Control + Shift + Q", "Silences the message currently speaking on your livestream audio track."));
-        Keybinds.Add(new("Built-in screen reader silence", "Control key alone", "Pressing the Control key immediately silences SafeSpeak's built-in spoken guidance."));
+        SetupKeybinds.Clear();
+
+        var definitions = new (HotkeyAction Action, string Name, string DefaultGesture, string Description)[]
+        {
+            (HotkeyAction.AnnounceStatus, "Hear SafeSpeak status", "Control + Shift + S", "Privately announces arming state, message queue count, and connector status."),
+            (HotkeyAction.ToggleArm, "Arm / Disarm SafeSpeak", "Control + Shift + A", "Begins or pauses reading live chat aloud without closing your streaming app."),
+            (HotkeyAction.EmergencyStop, "Emergency Stop", "Pause / Break or Control + Shift + X", "Immediately silences speech and clears all pending chat and announcement queues."),
+            (HotkeyAction.StopCurrentSpeech, "Shut up live speech", "Control + Shift + Q", "Silences the message currently speaking on your livestream audio track."),
+            (HotkeyAction.StopBuiltInGuidance, "Built-in screen reader silence", "Control key alone", "Pressing the Control key immediately silences SafeSpeak's built-in spoken guidance.")
+        };
+
+        foreach (var def in definitions)
+        {
+            GlobalShortcutBinding? binding = _settings.GlobalShortcuts?.FirstOrDefault(b => b.Action == def.Action);
+            string gesture = !string.IsNullOrWhiteSpace(binding?.Gesture) ? binding.Gesture : def.DefaultGesture;
+            bool enabled = binding?.IsEnabled ?? true;
+
+            var item = new SetupKeybindItemViewModel(def.Action, def.Name, def.Description, def.DefaultGesture, gesture, enabled);
+            SetupKeybinds.Add(item);
+            Keybinds.Add(new KeybindDisplayItem(def.Name, gesture, def.Description));
+        }
     }
 
     private void PopulateNavigationShortcuts()
