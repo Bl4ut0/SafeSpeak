@@ -282,6 +282,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<LiveConnectorViewModel> LiveConnectors { get; } = new();
     public ObservableCollection<LiveConnectorViewModel> ConfiguredConnectors { get; } = new();
     public ObservableCollection<LiveConnectorViewModel> AvailableConnectors { get; } = new();
+    public IReadOnlyList<PlannedConnectorViewModel> PlannedConnectors { get; } =
+        PlannedConnectorViewModel.CreateDefaultList();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
     public ObservableCollection<string> CustomBlockedTerms { get; } = new();

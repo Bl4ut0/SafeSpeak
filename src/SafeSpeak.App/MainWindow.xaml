@@ -1326,6 +1326,105 @@
                                         </ItemsControl>
                                     </StackPanel>
                                 </Border>
+
+                                <Border x:Name="InlineConnectorRoadmapPanel"
+                                        Style="{StaticResource StatusCard}" Padding="12" Margin="0,0,0,8"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,8">
+                                            <Border DockPanel.Dock="Right"
+                                                    Style="{StaticResource StatusPill}"
+                                                    Padding="8,2"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="Coming Soon"
+                                                           FontWeight="Bold"
+                                                           FontSize="{DynamicResource SafeSpeakFont12}" />
+                                            </Border>
+                                            <TextBlock x:Name="InlineConnectorRoadmapHeading"
+                                                       FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}"
+                                                       TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level3" />
+                                        </DockPanel>
+                                        <TextBlock x:Name="InlineConnectorRoadmapDescription"
+                                                   Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                        <Border Style="{StaticResource StatusCard}" Padding="10" Margin="0,0,0,10">
+                                            <TextBlock Text="This livestreaming connector is planned for a future SafeSpeak update. SafeSpeak will support official platform authentication and direct chat events without requiring third-party relay tools."
+                                                       TextWrapping="Wrap" />
+                                        </Border>
+                                        <Button x:Name="InlineConnectorRoadmapCloseButton"
+                                                Tag="SettingsConnectorInlineControl"
+                                                Padding="9,7"
+                                                HorizontalAlignment="Left"
+                                                Click="InlineConnectorRoadmapCloseButton_Click"
+                                                Content="Close (Esc)"
+                                                AutomationProperties.Name="Close placeholder connector details" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border x:Name="PlannedConnectorsBorder" Style="{StaticResource StatusCard}" Padding="10" Margin="0,0,0,8"
+                                        MinHeight="104" AutomationProperties.Name="Planned connectors group">
+                                    <StackPanel>
+                                        <TextBlock Text="Planned connectors" FontWeight="SemiBold"
+                                                   FontSize="{DynamicResource SafeSpeakFont17}"
+                                                   AutomationProperties.HeadingLevel="Level3" />
+                                        <TextBlock Text="These livestreaming connectors are planned for upcoming updates. Press Enter on any card to view roadmap details."
+                                                   Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                        <ItemsControl x:Name="PlannedConnectorCards"
+                                                      ItemsSource="{Binding PlannedConnectors}"
+                                                      Margin="0,5,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="2" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Tag="SettingsConnectorCard" Margin="0,0,7,6"
+                                                            Padding="12,10" MinHeight="88"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            VerticalContentAlignment="Stretch"
+                                                            Click="SettingsPlaceholderCard_Click"
+                                                            AutomationProperties.Name="{Binding AutomationName}"
+                                                            AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="*" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                                                <Border DockPanel.Dock="Right"
+                                                                        Style="{StaticResource StatusPill}"
+                                                                        Padding="6,1"
+                                                                        VerticalAlignment="Top">
+                                                                    <TextBlock Text="{Binding StatusBadge}"
+                                                                               FontWeight="Bold"
+                                                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                                                </Border>
+                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                           FontWeight="Bold"
+                                                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                                                            </DockPanel>
+                                                            <TextBlock Grid.Row="1"
+                                                                       Text="{Binding ShortDescription}"
+                                                                       Style="{StaticResource SecondaryText}"
+                                                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                                                       Margin="0,4,0,4"
+                                                                       TextWrapping="Wrap" />
+                                                            <TextBlock Grid.Row="2"
+                                                                       MinHeight="20"
+                                                                       Text="{Binding ActionText}"
+                                                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                                                       FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
                                 <TextBlock Text="{Binding ConnectorConfigurationSummary}" Style="{StaticResource SecondaryText}"
                                            TextWrapping="Wrap" Margin="0,7,0,0"
                                            AutomationProperties.Name="{Binding ConnectorConfigurationSummary}" />

@@ -33,6 +33,7 @@ public partial class MainWindow : Window
     private string? _firstConnectorUsername;
     private LiveConnectorViewModel? _managingConnector;
     private bool _editingConnectorConfiguration;
+    private Button? _lastFocusedPlaceholderButton;
 
     public MainWindow()
     {
@@ -366,6 +367,7 @@ public partial class MainWindow : Window
     {
         CloseInlineConnectorCapture();
         CloseInlineConnectorManagement();
+        CloseInlineConnectorRoadmap();
     }
 
     private void SetInlineConnectorStatus(string message)
@@ -392,6 +394,48 @@ public partial class MainWindow : Window
                 FocusElement(card);
             }
         }, DispatcherPriority.Loaded);
+    }
+
+    private void SettingsPlaceholderCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: PlannedConnectorViewModel placeholder } button ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        CancelInlineConnectorSurfaces();
+        _lastFocusedPlaceholderButton = button;
+        InlineConnectorRoadmapHeading.Text = placeholder.ModalTitle;
+        InlineConnectorRoadmapDescription.Text = placeholder.RoadmapDescription;
+        InlineConnectorRoadmapPanel.Visibility = Visibility.Visible;
+        InlineConnectorRoadmapPanel.BringIntoView();
+        viewModel.AnnounceState(
+            $"{placeholder.ModalTitle} connector. {placeholder.RoadmapDescription}",
+            interrupt: true);
+        Dispatcher.BeginInvoke(
+            () => FocusElement(InlineConnectorRoadmapCloseButton),
+            DispatcherPriority.Input);
+    }
+
+    private void InlineConnectorRoadmapCloseButton_Click(object sender, RoutedEventArgs e)
+        => CloseInlineConnectorRoadmap(announce: true);
+
+    private void CloseInlineConnectorRoadmap(bool announce = false)
+    {
+        InlineConnectorRoadmapPanel.Visibility = Visibility.Collapsed;
+        Button? button = _lastFocusedPlaceholderButton;
+        _lastFocusedPlaceholderButton = null;
+        if (button is not null)
+        {
+            button.BringIntoView();
+            FocusElement(button);
+        }
+
+        if (announce && DataContext is MainViewModel viewModel)
+        {
+            viewModel.AnnounceState("Placeholder connector details closed.", interrupt: true);
+        }
     }
 
     private void GlobalShortcutGroupEntry_Click(object sender, RoutedEventArgs e) =>
@@ -1041,6 +1085,12 @@ public partial class MainWindow : Window
         if (key == Key.Escape && _managingConnector is not null)
         {
             CancelInlineConnectorManagement(announce: true);
+            e.Handled = true;
+            return;
+        }
+        if (key == Key.Escape && InlineConnectorRoadmapPanel.Visibility == Visibility.Visible)
+        {
+            CloseInlineConnectorRoadmap(announce: true);
             e.Handled = true;
             return;
         }

@@ -1326,6 +1326,21 @@ public sealed class MainShellAccessibilityContractTests
                 .Descendants(Presentation + "UniformGrid")
                 .Single()
                 .Attribute("Columns")?.Value);
+        Assert.Equal("{Binding PlannedConnectors}",
+            NamedElement(document, "ItemsControl", "PlannedConnectorCards")
+                .Attribute("ItemsSource")?.Value);
+        Assert.Equal("2",
+            NamedElement(document, "ItemsControl", "PlannedConnectorCards")
+                .Descendants(Presentation + "UniformGrid")
+                .Single()
+                .Attribute("Columns")?.Value);
+        Assert.True(
+            NamedElement(document, "ItemsControl", "AvailableConnectorCards")
+                .IsBefore(NamedElement(document, "ItemsControl", "PlannedConnectorCards")));
+        Assert.Equal("Collapsed",
+            NamedElement(document, "Border", "InlineConnectorRoadmapPanel")
+                .Attribute("Visibility")?.Value);
+        Assert.NotNull(NamedElement(document, "Border", "PlannedConnectorsBorder"));
         Assert.True(runSetup.IsBefore(visibleGuide));
         Assert.True(visibleGuide.IsBefore(guideButtonsAtEnd));
 
@@ -1337,6 +1352,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains(".OrderBy(GetSettingsNavigationOrder)", codeBehind);
         Assert.Contains("SettingsConnectorCard", codeBehind);
         Assert.Contains("SettingsConnectorInlineControl", codeBehind);
+        Assert.Contains("SettingsPlaceholderCard_Click", codeBehind);
+        Assert.Contains("InlineConnectorRoadmapCloseButton_Click", codeBehind);
         Assert.Contains("ConfigureTikTokDirectAsync(username)", codeBehind);
         Assert.Contains("_firstConnectorUsername", codeBehind);
         Assert.Contains("BeginInlineConnectorManagement(connector)", codeBehind);
