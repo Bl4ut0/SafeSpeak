@@ -352,6 +352,20 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("await _previewOutput.SpeakAsync(", testVoice);
     }
 
+    [Fact]
+    public void Wizard_NavigationStepHeaderDoesNotDuplicateBodyViewList()
+    {
+        string wizard = WizardViewModel();
+        string configureNavigation = Method(wizard, "private void ConfigureNavigationPage()");
+
+        // StatusText in the header must provide a concise overview rather than re-listing the 4 views and hotkeys
+        Assert.DoesNotContain("Live chat (Ctrl+1)", configureNavigation);
+        Assert.DoesNotContain("Safety filtering (Ctrl+2)", configureNavigation);
+        Assert.DoesNotContain("Voice selection (Ctrl+3)", configureNavigation);
+        Assert.DoesNotContain("Settings (Ctrl+4)", configureNavigation);
+        Assert.Contains("Overview of SafeSpeak's primary views and navigation shortcuts", configureNavigation);
+    }
+
     private static void AssertPersistsBeforeNavigation(
         string method,
         string stageAssignment,

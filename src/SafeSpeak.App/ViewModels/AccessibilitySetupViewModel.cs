@@ -1393,7 +1393,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         StepProgress = "Step 7 of 8";
         PromptText = "How SafeSpeak works and navigation";
         StatusText =
-            "SafeSpeak is divided into 4 primary views: Live chat (Ctrl+1), Safety filtering (Ctrl+2), Voice selection (Ctrl+3), and Settings (Ctrl+4). Inside any page, press Alt+1 through Alt+9 to jump between chapters. Use Settings anytime to adjust what gets spoken on stream.";
+            "Overview of SafeSpeak's primary views and navigation shortcuts.";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Continue after reviewing SafeSpeak interface design and navigation";
         KeyboardHelpText =

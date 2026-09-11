@@ -1791,13 +1791,15 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Status advisory card -->
-                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,0" Padding="14,10">
-                    <TextBlock Text="Ready to continue! Press Y or Enter to proceed to the final review."
-                               FontWeight="SemiBold"
-                               FontSize="{DynamicResource SafeSpeakFont13}"
-                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
-                               TextWrapping="Wrap" />
+                <!-- Navigation Tip -->
+                <Border Style="{StaticResource CardPanel}" Margin="0,4,0,0" Padding="12,6">
+                    <TextBlock Style="{StaticResource SecondaryText}"
+                               FontSize="{DynamicResource SafeSpeakFont11}"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap">
+                        <Run Text="Tip:" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                        <Run Text="Global hotkeys switch views instantly even while broadcasting. You can adjust all preferences anytime in Settings (Ctrl+4)." />
+                    </TextBlock>
                 </Border>
             </StackPanel>
 
