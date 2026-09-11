@@ -72,7 +72,7 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 1. Length Validation
-        if (message.RawText.Length > Config.MaxMessageLength)
+        if (!isSystemEvent && message.EventType == LivestreamEventType.Chat && message.RawText.Length > Config.MaxMessageLength)
         {
             return new ModerationDecision
             {
@@ -86,7 +86,10 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 2. Audience Eligibility Rule
-        if (!_ruleEngine.IsAudienceEligible(
+        // Non-chat stream events (donations, follows, shares, subscriptions, etc.) and system events
+        // bypass audience eligibility restrictions so they can be announced regardless of chat audience mode.
+        if (!isSystemEvent && message.EventType == LivestreamEventType.Chat &&
+            !_ruleEngine.IsAudienceEligible(
                 message,
                 Config.AudienceMode,
                 Config.AllowDonorsToSpeak))
@@ -103,9 +106,9 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 3. Adjustable per-viewer and whole-stream sliding rate limits.
-        // Positive community contributions (donations and follows) bypass rate limiting.
+        // Positive community contributions (donations and follows) and non-chat stream events bypass rate limiting.
         bool exemptFromRateLimit = isSystemEvent || message.IsDonor ||
-            message.EventType is LivestreamEventType.Gift or LivestreamEventType.Follow;
+            message.EventType != LivestreamEventType.Chat;
         if (Config.MessageRateLimitEnabled && !exemptFromRateLimit)
         {
             int windowSeconds = Config.MessageRateWindow == MessageRateWindow.OneSecond ? 1 : 10;
@@ -274,7 +277,7 @@ public sealed partial class ModerationPipeline : IDisposable
         // enforced; the user-facing moderation level controls only uncertain
         // contextual hostility. System events with static phrases skip this step.
         IntentClassificationResult intentResult;
-        if (isSystemEvent)
+        if (isSystemEvent || message.EventType != LivestreamEventType.Chat)
         {
             intentResult = new IntentClassificationResult
             {
