@@ -51,6 +51,13 @@ public partial class App : Application
             if (!settings.HasCompletedOnboarding ||
                 settings.IsAwaitingAccessibilityConfirmation)
             {
+                if (!settings.HasCompletedOnboarding)
+                {
+                    AppLogger.LogInformation("App", "Incomplete onboarding detected on startup. Starting over with clean initial settings.");
+                    settings.ResetIncompleteOnboarding();
+                    settings.TrySave(out _);
+                }
+
                 AppLogger.LogInformation("App", "Launching AccessibilitySetupDialog...");
                 var tempAnnouncer = new ScreenReaderAnnouncer();
                 tempAnnouncer.SpeechRate = settings.ReaderSpeechRate;

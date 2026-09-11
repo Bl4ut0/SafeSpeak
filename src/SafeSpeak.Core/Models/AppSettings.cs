@@ -744,4 +744,22 @@ public sealed class AppSettings
         PendingSpokenGuidance = SpokenGuidanceMode.Unset;
         PendingTheme = ThemePreference.Unset;
     }
+
+    public void ResetIncompleteOnboarding()
+    {
+        ResetOnboarding();
+        SelectedSourceConnectorId = string.Empty;
+        ConfiguredSourceConnectorIds = [];
+        ActiveSourceConnectorIds = [];
+        AutoConnectSource = false;
+        TikTokUsername = string.Empty;
+        LocalConnectorAutoDetectConsent = false;
+        LocalConnectorDetectionStatus = OnboardingConnectorDetectionStatus.NotChecked;
+        LocalConnectorDetectionSummary = "Local connector detection is not used during setup.";
+        SelectedVoiceName = string.Empty;
+        ModerationModel = ModerationModelPreference.BuiltInHybrid;
+        AiClassificationEnabled = true;
+        IgnoreChatReplies = false;
+        GlobalShortcuts = GlobalShortcutCatalog.CreateDefaults();
+    }
 }

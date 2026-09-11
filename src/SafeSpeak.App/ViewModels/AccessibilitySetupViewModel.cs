@@ -112,6 +112,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private readonly bool _confirmationOnly;
     private readonly bool _previousAnnouncerState;
     private readonly AccessibilitySnapshot? _settingsRerunSnapshot;
+    private readonly AccessibilitySnapshot? _initialOnboardingSnapshot;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
 
     private readonly KokoroModelManager _kokoroManager;
@@ -144,6 +145,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.IsAwaitingAccessibilityConfirmation;
         _previousAnnouncerState = announcer.IsEnhancedAccessibilityEnabled;
         _settingsRerunSnapshot = changeExistingProfile
+            ? AccessibilitySnapshot.Capture(settings)
+            : null;
+        _initialOnboardingSnapshot = !settings.HasCompletedOnboarding
             ? AccessibilitySnapshot.Capture(settings)
             : null;
 
@@ -199,7 +203,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         PopulateKeybinds();
         PopulateNavigationShortcuts();
 
-        AccessibilitySetupPage initialPage = _changeExistingProfile
+        AccessibilitySetupPage initialPage = _changeExistingProfile || !_settings.HasCompletedOnboarding
             ? AccessibilitySetupPage.Reader
             : ResolveInitialPage();
         _currentPage = initialPage;
@@ -732,7 +736,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     private AccessibilitySetupPage ResolveInitialPage()
     {
-        if (!_settings.HasConfirmedAccessibilityPreferences)
+        if (!_settings.HasCompletedOnboarding || !_settings.HasConfirmedAccessibilityPreferences)
             return AccessibilitySetupPage.Reader;
 
         return _settings.OnboardingStage switch
@@ -1466,6 +1470,15 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 snapshot.Restore(_settings);
                 _settings.TrySave(out _);
             }
+            else if (!_settings.HasCompletedOnboarding)
+            {
+                if (_initialOnboardingSnapshot is { } initialSnapshot)
+                {
+                    initialSnapshot.Restore(_settings);
+                }
+                _settings.OnboardingStage = OnboardingStage.Accessibility;
+                _settings.TrySave(out _);
+            }
 
             ThemeManager.Apply(_settings.EffectiveTheme);
             _announcer.IsEnhancedAccessibilityEnabled = _previousAnnouncerState;
@@ -1492,7 +1505,8 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         bool AiClassificationEnabled,
         bool IgnoreChatReplies,
         string SelectedVoiceName,
-        ModerationModelPreference ModerationModel)
+        ModerationModelPreference ModerationModel,
+        GlobalShortcutBinding[] GlobalShortcuts)
     {
         public static AccessibilitySnapshot Capture(AppSettings settings) =>
             new(
@@ -1513,7 +1527,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 settings.AiClassificationEnabled,
                 settings.IgnoreChatReplies,
                 settings.SelectedVoiceName ?? string.Empty,
-                settings.ModerationModel);
+                settings.ModerationModel,
+                settings.GlobalShortcuts?.Select(s => new GlobalShortcutBinding
+                {
+                    Action = s.Action,
+                    Gesture = s.Gesture,
+                    IsEnabled = s.IsEnabled
+                }).ToArray() ?? []);
 
         public void Restore(AppSettings settings)
         {
@@ -1535,6 +1555,12 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.IgnoreChatReplies = IgnoreChatReplies;
             settings.SelectedVoiceName = SelectedVoiceName;
             settings.ModerationModel = ModerationModel;
+            settings.GlobalShortcuts = GlobalShortcuts.Select(s => new GlobalShortcutBinding
+            {
+                Action = s.Action,
+                Gesture = s.Gesture,
+                IsEnabled = s.IsEnabled
+            }).ToList();
         }
     }
 }

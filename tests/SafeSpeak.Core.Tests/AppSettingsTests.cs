@@ -674,6 +674,48 @@ public sealed class AppSettingsTests
         Assert.False(reloaded.ShouldPromptSetupUpdate);
     }
 
+    [Fact]
+    public void ResetIncompleteOnboarding_ClearsAllPartialSetupStateAndRestoresDefaults()
+    {
+        var settings = new AppSettings
+        {
+            OnboardingStage = OnboardingStage.Filtering,
+            SpokenGuidance = SpokenGuidanceMode.Enabled,
+            Theme = ThemePreference.Dark,
+            PendingSpokenGuidance = SpokenGuidanceMode.Disabled,
+            PendingTheme = ThemePreference.Light,
+            SelectedSourceConnectorId = "tiktok-direct",
+            ConfiguredSourceConnectorIds = ["tiktok-direct"],
+            ActiveSourceConnectorIds = ["tiktok-direct"],
+            AutoConnectSource = true,
+            TikTokUsername = "some_streamer",
+            SelectedVoiceName = "Kokoro:af_heart",
+            ModerationModel = ModerationModelPreference.Qwen3Guard06BCompressed,
+            AiClassificationEnabled = true,
+            IgnoreChatReplies = true
+        };
+
+        settings.ResetIncompleteOnboarding();
+
+        Assert.Equal(OnboardingStage.Accessibility, settings.OnboardingStage);
+        Assert.False(settings.HasCompletedOnboarding);
+        Assert.Equal(SpokenGuidanceMode.Unset, settings.SpokenGuidance);
+        Assert.Equal(ThemePreference.Unset, settings.Theme);
+        Assert.Equal(SpokenGuidanceMode.Unset, settings.PendingSpokenGuidance);
+        Assert.Equal(ThemePreference.Unset, settings.PendingTheme);
+        Assert.Empty(settings.ConfiguredSourceConnectorIds);
+        Assert.Empty(settings.ActiveSourceConnectorIds);
+        Assert.Equal(string.Empty, settings.SelectedSourceConnectorId);
+        Assert.False(settings.AutoConnectSource);
+        Assert.Equal(string.Empty, settings.TikTokUsername);
+        Assert.Equal(string.Empty, settings.SelectedVoiceName);
+        Assert.Equal(ModerationModelPreference.BuiltInHybrid, settings.ModerationModel);
+        Assert.True(settings.AiClassificationEnabled);
+        Assert.False(settings.IgnoreChatReplies);
+        Assert.NotNull(settings.GlobalShortcuts);
+        Assert.NotEmpty(settings.GlobalShortcuts);
+    }
+
     private static string CreateTemporarySettingsPath() => Path.Combine(
         Path.GetTempPath(),
         "SafeSpeak.Core.Tests",

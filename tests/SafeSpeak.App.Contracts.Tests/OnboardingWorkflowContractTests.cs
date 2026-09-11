@@ -295,6 +295,32 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("_settings.TrySave(out _);", dialogCode);
     }
 
+    [Fact]
+    public void IncompleteOnboarding_StartsOverCleanlyAndStartupResetsUncommittedChanges()
+    {
+        string startup = Source("src", "SafeSpeak.App", "App.xaml.cs");
+        string wizard = WizardViewModel();
+
+        // Startup checks for incomplete onboarding and resets uncommitted state
+        Assert.Contains("settings.ResetIncompleteOnboarding();", startup);
+
+        // Wizard initializes snapshot for uncompleted runs and forces initialPage to Reader
+        string constructor = Method(wizard, "public AccessibilitySetupViewModel(");
+        Assert.Contains("_initialOnboardingSnapshot = !settings.HasCompletedOnboarding", constructor);
+        Assert.Contains("!_settings.HasCompletedOnboarding", constructor);
+        Assert.Contains("? AccessibilitySetupPage.Reader", constructor);
+
+        // ResolveInitialPage guards uncompleted onboarding from resuming midway
+        string resolver = Method(wizard, "private AccessibilitySetupPage ResolveInitialPage()");
+        Assert.Contains("!_settings.HasCompletedOnboarding", resolver);
+
+        // Dispose reverts uncompleted onboarding session to clean state when closed without completion
+        string dispose = Method(wizard, "public void Dispose()");
+        Assert.Contains("else if (!_settings.HasCompletedOnboarding)", dispose);
+        Assert.Contains("initialSnapshot.Restore(_settings);", dispose);
+        Assert.Contains("_settings.OnboardingStage = OnboardingStage.Accessibility;", dispose);
+    }
+
     private static void AssertPersistsBeforeNavigation(
         string method,
         string stageAssignment,
