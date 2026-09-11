@@ -131,13 +131,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             ThemeOptions.First(option => option.Value == initialTheme);
 
         // Connectors disabled by default on clean onboarding unless already configured
+        TikTokUsername = _settings.TikTokUsername;
         UseTikFinity = _settings.ConfiguredSourceConnectorIds.Contains(
             TikFinityWebSocketClient.ConnectorDescriptor.Id,
             StringComparer.OrdinalIgnoreCase);
         UseTikTokDirect = _settings.ConfiguredSourceConnectorIds.Contains(
             TikTokLiveConnector.ConnectorDescriptor.Id,
             StringComparer.OrdinalIgnoreCase);
-        TikTokUsername = _settings.TikTokUsername;
 
         AiClassificationEnabled = _settings.AiClassificationEnabled;
         SelectedModerationModel = _settings.ModerationModel;
@@ -151,6 +151,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             ? AccessibilitySetupPage.Reader
             : ResolveInitialPage();
         _currentPage = initialPage;
+        ActiveModalConnectorId = null;
         _initialized = true;
         UpdatePagePresentation();
     }
@@ -308,7 +309,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(HasAnyConnectorSelected));
         OnPropertyChanged(nameof(TikTokDirectStatusBadge));
         OnPropertyChanged(nameof(IsTikTokDirectEnabled));
-        if (value && string.IsNullOrWhiteSpace(TikTokUsername))
+        if (_initialized && CurrentPage == AccessibilitySetupPage.Platform && value && string.IsNullOrWhiteSpace(TikTokUsername))
         {
             OpenTikTokDirectConfig();
         }
@@ -754,6 +755,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         UseTikFinity = false;
         UseTikTokDirect = false;
         TikTokUsername = string.Empty;
+        ActiveModalConnectorId = null;
+        TikTokFirstAttempt = null;
+        TikTokModalInput = string.Empty;
         SelectedThemeOption = ThemeOptions.First(o => o.Value == ThemePreference.Light);
         NavigateTo(AccessibilitySetupPage.Reader);
         _announcer.Announce("Setup restarted. Step 1 of 8. Do you want to use the SafeSpeak built-in screen reader? Press Y for Yes or N for No.", interrupt: true);
@@ -762,6 +766,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private void NavigateTo(AccessibilitySetupPage page)
     {
         if (CurrentPage == page) return;
+        ActiveModalConnectorId = null;
         CurrentPage = page;
         FocusRequested?.Invoke(this, EventArgs.Empty);
         AnnounceCurrentPage();

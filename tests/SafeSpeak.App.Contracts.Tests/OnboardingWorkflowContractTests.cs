@@ -237,6 +237,31 @@ public sealed class OnboardingWorkflowContractTests
             navigationMarker: "_onCompleted()");
     }
 
+    [Fact]
+    public void SetupRerun_DoesNotAutoOpenConnectorModalUntilUserInteraction()
+    {
+        string wizard = WizardViewModel();
+        string constructor = Method(wizard, "public AccessibilitySetupViewModel(");
+        string onTikTokChanged = Method(wizard, "partial void OnUseTikTokDirectChanged(bool value)");
+        string restart = Method(wizard, "public void RestartSetup()");
+
+        // State initialization order in constructor: TikTokUsername must be assigned before UseTikTokDirect
+        int usernameIndex = constructor.IndexOf("TikTokUsername = _settings.TikTokUsername;", StringComparison.Ordinal);
+        int useTikTokIndex = constructor.IndexOf("UseTikTokDirect = _settings.ConfiguredSourceConnectorIds.Contains(", StringComparison.Ordinal);
+        Assert.True(usernameIndex >= 0 && useTikTokIndex > usernameIndex, "TikTokUsername must be initialized before UseTikTokDirect");
+
+        // ActiveModalConnectorId must be guaranteed null before initialization ends
+        Assert.Contains("ActiveModalConnectorId = null;", constructor);
+
+        // OnUseTikTokDirectChanged must guard modal launch so it never auto-triggers during initialization or non-platform steps
+        Assert.Contains("_initialized", onTikTokChanged);
+        Assert.Contains("CurrentPage == AccessibilitySetupPage.Platform", onTikTokChanged);
+        Assert.Contains("string.IsNullOrWhiteSpace(TikTokUsername)", onTikTokChanged);
+
+        // RestartSetup must cleanly reset modal state
+        Assert.Contains("ActiveModalConnectorId = null;", restart);
+    }
+
     private static void AssertPersistsBeforeNavigation(
         string method,
         string stageAssignment,
