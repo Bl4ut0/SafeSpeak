@@ -321,6 +321,37 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("_settings.OnboardingStage = OnboardingStage.Accessibility;", dispose);
     }
 
+    [Fact]
+    public void Step4_TestVoiceAndKokoroInstallDetection_WiredCorrectly()
+    {
+        XDocument xaml = LoadWizard();
+        string wizard = WizardViewModel();
+
+        // PreviewVoiceButton must bind to TestVoiceCommand and CanTestVoice
+        XElement previewButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "PreviewVoiceButton");
+        Assert.Equal("{Binding TestVoiceCommand}", previewButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding CanTestVoice}", previewButton.Attribute("IsEnabled")?.Value);
+
+        // KokoroInstallButton must bind to InstallKokoroCommand, CanInstallKokoro, and dynamic text
+        XElement kokoroButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "KokoroInstallButton");
+        Assert.Equal("{Binding InstallKokoroCommand}", kokoroButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding CanInstallKokoro}", kokoroButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{Binding KokoroInstallButtonText}", kokoroButton.Attribute("Content")?.Value);
+
+        // ViewModel exposes command alias and wires VoiceId on preview output
+        Assert.Contains("public IRelayCommand PreviewVoiceCommand => TestVoiceCommand;", wizard);
+        Assert.Contains("public bool CanTestVoice =>", wizard);
+        Assert.Contains("public bool CanInstallKokoro => !IsKokoroInstalled", wizard);
+        Assert.Contains("public string KokoroInstallButtonText => IsKokoroInstalled", wizard);
+        Assert.Contains("public string KokoroInstallStatus => IsKokoroInstalled", wizard);
+
+        string testVoice = Method(wizard, "public async Task TestVoiceAsync()");
+        Assert.Contains("_previewOutput.VoiceId = SelectedVoice;", testVoice);
+        Assert.Contains("await _previewOutput.SpeakAsync(", testVoice);
+    }
+
     private static void AssertPersistsBeforeNavigation(
         string method,
         string stageAssignment,

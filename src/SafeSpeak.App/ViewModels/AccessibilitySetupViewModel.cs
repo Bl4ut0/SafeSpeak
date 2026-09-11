@@ -155,6 +155,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         _voicePackageManager = new VoicePackageManager();
         _ttsEngine = new ModularTtsEngine(_kokoroManager, _voicePackageManager);
         _previewAudioRouter = new WasapiAudioRouter();
+        _previewAudioRouter.SelectEndpoint(settings.SelectedGuidanceAudioEndpointId);
         _previewOutput = new PrivateVoicePreviewOutput(_ttsEngine, _previewAudioRouter);
         _qwenRuntime = new Qwen3GuardRuntimeManager();
 
@@ -305,6 +306,20 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool IsReviewStep => CurrentPage == AccessibilitySetupPage.Review;
 
     public bool IsKokoroInstalled => _kokoroManager.IsInstalled;
+    public bool CanInstallKokoro => !IsKokoroInstalled && !IsDownloadingVoice;
+    public bool ShowKokoroInstallAction => !IsKokoroInstalled;
+    public string KokoroInstallButtonText => IsKokoroInstalled
+        ? "✓ Kokoro Installed"
+        : (IsDownloadingVoice ? "Installing Kokoro..." : "Install Kokoro Voices");
+    public string KokoroInstallStatus => IsKokoroInstalled
+        ? "✓ 27 Kokoro Level 3 neural voices are installed and active."
+        : (IsDownloadingVoice
+            ? $"Downloading Kokoro Level 3 neural voices... {VoiceDownloadProgress:P0}"
+            : "The optional 330 MB Kokoro neural voice pack is not installed yet.");
+
+    public bool CanTestVoice => !string.IsNullOrWhiteSpace(SelectedVoice) && !IsBusy;
+    public IRelayCommand PreviewVoiceCommand => TestVoiceCommand;
+
     public bool IsQwenInstalled => _qwenRuntime.IsModelInstalled;
     public bool IsQwenSelected => SelectedModerationModel == ModerationModelPreference.Qwen3Guard06BCompressed;
     public bool IsMiniLmSelected => SelectedModerationModel == ModerationModelPreference.BuiltInHybrid;
@@ -621,6 +636,18 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     partial void OnSelectedVoiceChanged(string value)
     {
         SelectedVoiceInfo = Voices.FirstOrDefault(v => v.Id == value);
+        OnPropertyChanged(nameof(CanTestVoice));
+        TestVoiceCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsDownloadingVoiceChanged(bool value)
+    {
+        NotifyKokoroStateChanged();
+    }
+
+    partial void OnVoiceDownloadProgressChanged(double value)
+    {
+        OnPropertyChanged(nameof(KokoroInstallStatus));
     }
 
     partial void OnSelectedModerationModelChanged(ModerationModelPreference value)
@@ -724,8 +751,12 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
     }
 
-    partial void OnIsBusyChanged(bool value) =>
+    partial void OnIsBusyChanged(bool value)
+    {
         OnPropertyChanged(nameof(IsInteractionEnabled));
+        OnPropertyChanged(nameof(CanTestVoice));
+        TestVoiceCommand.NotifyCanExecuteChanged();
+    }
 
     partial void OnCurrentPageChanged(AccessibilitySetupPage value)
     {
@@ -1003,7 +1034,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanTestVoice))]
     public async Task TestVoiceAsync()
     {
         if (string.IsNullOrWhiteSpace(SelectedVoice)) return;
@@ -1012,10 +1043,17 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         string name = voice?.DisplayName ?? "the selected voice";
         string sample = $"This is {name}. SafeSpeak voice preview is working.";
 
+        _previewOutput.VoiceId = SelectedVoice;
+        _previewOutput.Volume = Math.Clamp(_settings.ReaderSpeechVolume > 0 ? _settings.ReaderSpeechVolume : 100, 0, 100);
+        _previewOutput.Rate = Math.Clamp(_settings.ReaderSpeechRate, -5, 5);
+
         _announcer.StopSpeaking();
         try
         {
             await _previewOutput.SpeakAsync(sample, interrupt: true);
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
@@ -1023,13 +1061,18 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanInstallKokoro))]
     public async Task InstallKokoroAsync()
     {
-        if (IsDownloadingVoice || IsKokoroInstalled) return;
+        if (!CanInstallKokoro)
+        {
+            _announcer.Announce(KokoroInstallStatus, interrupt: true);
+            return;
+        }
 
         IsDownloadingVoice = true;
         VoiceDownloadProgress = 0;
+        NotifyKokoroStateChanged();
         _announcer.Announce("Installing Kokoro offline voices. This download is about 330 megabytes.", interrupt: true);
         try
         {
@@ -1037,7 +1080,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             await _kokoroManager.InstallAsync(progress);
             LoadVoices();
             SelectedVoice = KokoroModelManager.VoicePrefix + "af_heart";
-            OnPropertyChanged(nameof(IsKokoroInstalled));
+            NotifyKokoroStateChanged();
             _announcer.Announce("Kokoro voices installed successfully. Twenty seven offline neural voices are now available.", interrupt: true);
         }
         catch (Exception ex)
@@ -1047,7 +1090,18 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         finally
         {
             IsDownloadingVoice = false;
+            NotifyKokoroStateChanged();
         }
+    }
+
+    private void NotifyKokoroStateChanged()
+    {
+        OnPropertyChanged(nameof(IsKokoroInstalled));
+        OnPropertyChanged(nameof(CanInstallKokoro));
+        OnPropertyChanged(nameof(ShowKokoroInstallAction));
+        OnPropertyChanged(nameof(KokoroInstallButtonText));
+        OnPropertyChanged(nameof(KokoroInstallStatus));
+        InstallKokoroCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]

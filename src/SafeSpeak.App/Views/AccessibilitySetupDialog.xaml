@@ -1168,7 +1168,8 @@
                                     MinHeight="46"
                                     MinWidth="120"
                                     Margin="10,0,0,0"
-                                    Command="{Binding PreviewVoiceCommand}"
+                                    Command="{Binding TestVoiceCommand}"
+                                    IsEnabled="{Binding CanTestVoice}"
                                     Content="Test Voice"
                                     AutomationProperties.Name="Test selected voice"
                                     AutomationProperties.HelpText="Play a short sample using the selected voice." />
@@ -1191,9 +1192,10 @@
                                 MinWidth="180"
                                 Margin="10,0,0,0"
                                 Command="{Binding InstallKokoroCommand}"
-                                Content="Install Kokoro Voices"
-                                AutomationProperties.Name="Install Kokoro Level 3 Neural Voices"
-                                AutomationProperties.HelpText="Download and install Kokoro high-fidelity neural voices (~330 MB)." />
+                                IsEnabled="{Binding CanInstallKokoro}"
+                                Content="{Binding KokoroInstallButtonText}"
+                                AutomationProperties.Name="{Binding KokoroInstallButtonText}"
+                                AutomationProperties.HelpText="{Binding KokoroInstallStatus}" />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Level 3: Kokoro Neural Voices (~330 MB)" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" />
                             <TextBlock Text="{Binding KokoroInstallStatus}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,3,0,0" />
