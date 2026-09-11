@@ -23,6 +23,59 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
         </Style>
+        <Style x:Key="StepBallButton" TargetType="Button">
+            <Setter Property="MinHeight" Value="48" />
+            <Setter Property="MinWidth" Value="44" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <StackPanel HorizontalAlignment="Center">
+                                <!-- Circle Ball -->
+                                <Border x:Name="BallBorder"
+                                        Width="34" Height="34"
+                                        CornerRadius="17"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="2"
+                                        HorizontalAlignment="Center">
+                                    <TextBlock x:Name="BallNumber"
+                                               Text="{TemplateBinding Tag}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont14}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <!-- Label -->
+                                <TextBlock x:Name="BallLabel"
+                                           Text="{TemplateBinding Content}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BallBorder" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="BallBorder" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                <Setter TargetName="BallBorder" Property="BorderThickness" Value="3" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Background="{DynamicResource SafeSpeakWindowBrush}"
@@ -64,92 +117,181 @@
         <!-- Main Content Area -->
         <StackPanel Grid.Row="1" Margin="24,10" MaxWidth="780">
 
-            <!-- Step Navigation Button Row -->
+            <!-- Step Navigation Stepper -->
             <Border Style="{StaticResource CardPanel}"
-                    Padding="6,4"
+                    Padding="12,8"
                     Margin="0,0,0,10">
-                <UniformGrid Rows="1" Columns="8">
-                    <Button TabIndex="10"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="1. Reader"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="1"
-                            AutomationProperties.Name="Go to Step 1: Reader (Control+1)"
-                            AutomationProperties.HelpText="Jump directly to Reader setup step." />
-                    <Button TabIndex="11"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="2. Theme"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="2"
-                            AutomationProperties.Name="Go to Step 2: Theme (Control+2)"
-                            AutomationProperties.HelpText="Jump directly to Visual Theme setup step." />
-                    <Button TabIndex="12"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="3. Connect"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="3"
-                            AutomationProperties.Name="Go to Step 3: Connectors (Control+3)"
-                            AutomationProperties.HelpText="Jump directly to Streaming Connectors setup step." />
-                    <Button TabIndex="13"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="4. Voice"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="4"
-                            AutomationProperties.Name="Go to Step 4: Voice (Control+4)"
-                            AutomationProperties.HelpText="Jump directly to Voice Selection setup step." />
-                    <Button TabIndex="14"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="5. AI Filter"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="5"
-                            AutomationProperties.Name="Go to Step 5: AI Moderation (Control+5)"
-                            AutomationProperties.HelpText="Jump directly to AI Filtering setup step." />
-                    <Button TabIndex="15"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="6. Keybinds"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="6"
-                            AutomationProperties.Name="Go to Step 6: Primary Keybinds (Control+6)"
-                            AutomationProperties.HelpText="Jump directly to Primary Keybinds setup step." />
-                    <Button TabIndex="16"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="7. Nav Guide"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="7"
-                            AutomationProperties.Name="Go to Step 7: Navigation Guide (Control+7)"
-                            AutomationProperties.HelpText="Jump directly to Navigation Shortcuts guide." />
-                    <Button TabIndex="17"
-                            MinHeight="44"
-                            Margin="2,0"
-                            Padding="2,0"
-                            FontSize="{DynamicResource SafeSpeakFont13}"
-                            Content="8. Review"
-                            Command="{Binding JumpToStepCommand}"
-                            CommandParameter="8"
-                            AutomationProperties.Name="Go to Step 8: Review Confirmation (Control+8)"
-                            AutomationProperties.HelpText="Jump directly to Review Confirmation setup step." />
-                </UniformGrid>
+                <Grid>
+                    <!-- Horizontal connecting line between balls -->
+                    <Border Height="3"
+                            Margin="36,16,36,24"
+                            VerticalAlignment="Top"
+                            Background="{DynamicResource SafeSpeakBorderBrush}"
+                            CornerRadius="1" />
+
+                    <UniformGrid Rows="1" Columns="8">
+                        <Button TabIndex="10"
+                                MinHeight="44"
+                                Tag="1"
+                                Content="Reader"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="1"
+                                AutomationProperties.Name="Go to Step 1: Reader (Control+1)"
+                                AutomationProperties.HelpText="Jump directly to Reader setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsReaderStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="11"
+                                MinHeight="44"
+                                Tag="2"
+                                Content="Theme"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="2"
+                                AutomationProperties.Name="Go to Step 2: Theme (Control+2)"
+                                AutomationProperties.HelpText="Jump directly to Visual Theme setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsThemeStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="12"
+                                MinHeight="44"
+                                Tag="3"
+                                Content="Connect"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="3"
+                                AutomationProperties.Name="Go to Step 3: Connectors (Control+3)"
+                                AutomationProperties.HelpText="Jump directly to Streaming Connectors setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlatformStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="13"
+                                MinHeight="44"
+                                Tag="4"
+                                Content="Voice"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="4"
+                                AutomationProperties.Name="Go to Step 4: Voice (Control+4)"
+                                AutomationProperties.HelpText="Jump directly to Voice Selection setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsVoiceStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="14"
+                                MinHeight="44"
+                                Tag="5"
+                                Content="AI Filter"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="5"
+                                AutomationProperties.Name="Go to Step 5: AI Moderation (Control+5)"
+                                AutomationProperties.HelpText="Jump directly to AI Filtering setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFilteringStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="15"
+                                MinHeight="44"
+                                Tag="6"
+                                Content="Keybinds"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="6"
+                                AutomationProperties.Name="Go to Step 6: Primary Keybinds (Control+6)"
+                                AutomationProperties.HelpText="Jump directly to Primary Keybinds setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsKeybindsStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="16"
+                                MinHeight="44"
+                                Tag="7"
+                                Content="Nav Guide"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="7"
+                                AutomationProperties.Name="Go to Step 7: Navigation Guide (Control+7)"
+                                AutomationProperties.HelpText="Jump directly to Navigation Shortcuts guide.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsNavigationStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button TabIndex="17"
+                                MinHeight="44"
+                                Tag="8"
+                                Content="Review"
+                                Command="{Binding JumpToStepCommand}"
+                                CommandParameter="8"
+                                AutomationProperties.Name="Go to Step 8: Review Confirmation (Control+8)"
+                                AutomationProperties.HelpText="Jump directly to Review Confirmation setup step.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource StepBallButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsReviewStep}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </UniformGrid>
+                </Grid>
             </Border>
 
             <!-- Step Progress Live Announcement -->
@@ -196,7 +338,7 @@
                             Command="{Binding ChooseSpokenGuidanceYesCommand}"
                             Content="Yes — use spoken guidance (Y)"
                             AutomationProperties.Name="Yes, use the SafeSpeak built-in screen reader"
-                            AutomationProperties.HelpText="Press Y or activate this button. SafeSpeak will speak the remaining setup questions." />
+                            AutomationProperties.HelpText="Press Y. SafeSpeak will speak the remaining setup questions." />
                     <Button x:Name="ReaderNoButton"
                             TabIndex="2"
                             MinHeight="64"
@@ -204,7 +346,7 @@
                             Command="{Binding ChooseSpokenGuidanceNoCommand}"
                             Content="No — continue without it (N)"
                             AutomationProperties.Name="No, do not use the SafeSpeak built-in screen reader"
-                            AutomationProperties.HelpText="Press N or activate this button. Setup continues to Theme without SafeSpeak spoken guidance. External screen readers remain supported." />
+                            AutomationProperties.HelpText="Press N. Setup continues to Theme without SafeSpeak spoken guidance. External screen readers remain supported." />
                 </UniformGrid>
             </StackPanel>
 
@@ -377,130 +519,247 @@
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
                            Margin="0,0,0,3" />
-                <TextBlock Text="Choose which platforms SafeSpeak listens to for live chat. You can leave them disabled and configure connectors later in Settings."
+                <TextBlock Text="Select connectors to capture live chat. Press a connector card to enable or configure it."
                            Style="{StaticResource SecondaryText}"
                            Margin="0,0,0,10"
                            TextWrapping="Wrap" />
 
-                <!-- Card 1: TikFinity -->
-                <Border Style="{StaticResource CardPanel}"
-                        Margin="0,0,0,10"
-                        Padding="14">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <DockPanel Grid.Row="0" LastChildFill="True">
-                            <Border DockPanel.Dock="Right"
-                                    Style="{StaticResource StatusPill}"
-                                    Padding="10,3"
-                                    Margin="10,0,0,0"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{Binding TikFinityStatusBadge}"
-                                           FontWeight="SemiBold"
-                                           FontSize="{DynamicResource SafeSpeakFont12}" />
-                            </Border>
-                            <CheckBox x:Name="TikFinityCheckBox"
-                                      TabIndex="1"
-                                      MinHeight="44"
-                                      IsChecked="{Binding UseTikFinity}"
-                                      Content="Use TikFinity for TikTok chat"
-                                      FontWeight="SemiBold"
-                                      AutomationProperties.Name="Use TikFinity for TikTok chat"
-                                      AutomationProperties.HelpText="When selected, SafeSpeak will try to connect to the configured local TikFinity connector when it opens." />
-                        </DockPanel>
-
-                        <TextBlock Grid.Row="1"
-                                   Margin="28,4,0,0"
-                                   Text="Connects to the TikFinity desktop application over a local WebSocket (ws://localhost:21213). Best if you already use TikFinity for overlays, sound alerts, or screen widgets."
-                                   Style="{StaticResource SecondaryText}"
-                                   TextWrapping="Wrap" />
-                    </Grid>
-                </Border>
-
-                <!-- Card 2: TikTok Direct -->
-                <Border Style="{StaticResource CardPanel}"
-                        Margin="0,0,0,10"
-                        Padding="14">
-                    <StackPanel>
-                        <DockPanel LastChildFill="True">
-                            <Border DockPanel.Dock="Right"
-                                    Style="{StaticResource StatusPill}"
-                                    Padding="10,3"
-                                    Margin="10,0,0,0"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{Binding TikTokDirectStatusBadge}"
-                                           FontWeight="SemiBold"
-                                           FontSize="{DynamicResource SafeSpeakFont12}" />
-                            </Border>
-                            <CheckBox x:Name="TikTokDirectCheckBox"
-                                      TabIndex="2"
-                                      MinHeight="44"
-                                      IsChecked="{Binding UseTikTokDirect}"
-                                      Content="Use TikTok Direct by username"
-                                      FontWeight="SemiBold"
-                                      AutomationProperties.Name="Use TikTok Direct by username"
-                                      AutomationProperties.HelpText="When selected, SafeSpeak adds its self-contained TikTok LIVE connector. TikFinity is not required." />
-                        </DockPanel>
-
-                        <TextBlock Margin="28,4,0,8"
-                                   Text="Direct, self-contained connection to TikTok LIVE chat via creator username. No third-party tools or intermediate apps needed."
-                                   Style="{StaticResource SecondaryText}"
-                                   TextWrapping="Wrap" />
-
-                        <!-- Details section: asks for creator username when enabled -->
-                        <Border Visibility="{Binding UseTikTokDirect, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Background="{DynamicResource SafeSpeakSurfaceAltBrush}"
-                                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="12,10"
-                                Margin="28,4,0,0">
-                            <StackPanel>
-                                <Label Target="{Binding ElementName=TikTokUsernameTextBox}"
-                                       Content="TikTok Creator Username"
-                                       Padding="0"
-                                       Margin="0,0,0,4"
-                                       FontWeight="SemiBold"
-                                       FontSize="{DynamicResource SafeSpeakFont13}" />
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0"
-                                            Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                                            BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                            BorderThickness="1,1,0,1"
-                                            CornerRadius="4,0,0,4"
-                                            Padding="10,0"
-                                            MinHeight="44">
-                                        <TextBlock Text="@"
-                                                   FontWeight="Bold"
-                                                   FontSize="{DynamicResource SafeSpeakFont15}"
-                                                   Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
-                                                   VerticalAlignment="Center"
-                                                   HorizontalAlignment="Center" />
-                                    </Border>
-                                    <TextBox x:Name="TikTokUsernameTextBox"
-                                             Grid.Column="1"
-                                             TabIndex="3"
-                                             MinHeight="44"
-                                             MaxLength="24"
-                                             IsEnabled="{Binding UseTikTokDirect}"
-                                             Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.Name="TikTok creator username for TikTok Direct"
-                                             AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
-                                </Grid>
-                                <TextBlock Margin="0,4,0,0"
-                                           Text="Enter creator username without '@' (letters, numbers, underscores, periods). SafeSpeak will connect to this creator's live chat."
+                <!-- 3-Wide Connector Grid -->
+                <UniformGrid Rows="1" Columns="3" Margin="0,0,0,10">
+                    <!-- Connector 1: TikFinity -->
+                    <Border Margin="0,0,6,0" Padding="12" CornerRadius="6">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTikFinityEnabled}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="3" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding TikFinityStatusBadge}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont12}" />
+                                </Border>
+                                <TextBlock Text="TikFinity"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont15}" />
+                            </DockPanel>
+                            <StackPanel Grid.Row="1" Margin="0,6,0,8">
+                                <TextBlock Text="Local WebSocket connector."
                                            Style="{StaticResource SecondaryText}"
                                            FontSize="{DynamicResource SafeSpeakFont12}"
                                            TextWrapping="Wrap" />
+                                <TextBlock Text="ws://localhost:21213"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           FontFamily="Consolas, monospace"
+                                           Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
+                                           Margin="0,2,0,0" />
                             </StackPanel>
-                        </Border>
+                            <CheckBox x:Name="TikFinityCheckBox"
+                                      Grid.Row="2"
+                                      TabIndex="1"
+                                      MinHeight="44"
+                                      IsChecked="{Binding UseTikFinity}"
+                                      Content="Enable TikFinity"
+                                      FontWeight="SemiBold"
+                                      AutomationProperties.Name="Use TikFinity for TikTok chat"
+                                      AutomationProperties.HelpText="When selected, SafeSpeak connects to your local TikFinity application." />
+                        </Grid>
+                    </Border>
+
+                    <!-- Connector 2: TikTok Direct -->
+                    <Border Margin="3,0,3,0" Padding="12" CornerRadius="6">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTikTokDirectEnabled}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="3" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding TikTokDirectStatusBadge}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont12}" />
+                                </Border>
+                                <TextBlock Text="TikTok Direct"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont15}" />
+                            </DockPanel>
+                            <StackPanel Grid.Row="1" Margin="0,6,0,8">
+                                <TextBlock Text="Direct, self-contained LIVE chat."
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           TextWrapping="Wrap" />
+                                <Button Padding="0"
+                                        Margin="0,4,0,0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        HorizontalAlignment="Left"
+                                        Command="{Binding OpenTikTokDirectConfigCommand}"
+                                        AutomationProperties.Name="Configure TikTok Direct username">
+                                    <TextBlock Text="{Binding TikTokUsername, StringFormat='@{0}', FallbackValue='Click to configure'}"
+                                               FontWeight="SemiBold"
+                                               FontSize="{DynamicResource SafeSpeakFont12}"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                               TextDecorations="Underline" />
+                                </Button>
+                            </StackPanel>
+                            <CheckBox x:Name="TikTokDirectCheckBox"
+                                      Grid.Row="2"
+                                      TabIndex="2"
+                                      MinHeight="44"
+                                      IsChecked="{Binding UseTikTokDirect}"
+                                      Content="Enable TikTok Direct"
+                                      FontWeight="SemiBold"
+                                      AutomationProperties.Name="Use TikTok Direct by username"
+                                      AutomationProperties.HelpText="When selected, SafeSpeak connects directly to TikTok LIVE chat." />
+                        </Grid>
+                    </Border>
+
+                    <!-- Connector 3: Twitch (Coming Soon) -->
+                    <Border Margin="6,0,0,0" Padding="12" CornerRadius="6"
+                            Style="{StaticResource CardPanel}"
+                            Opacity="0.55">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont12}" />
+                                </Border>
+                                <TextBlock Text="Twitch"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont15}" />
+                            </DockPanel>
+                            <StackPanel Grid.Row="1" Margin="0,6,0,8">
+                                <TextBlock Text="Direct IRC / EventSub."
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="Planned in future update."
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           Margin="0,2,0,0" />
+                            </StackPanel>
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Not yet available"
+                                       Style="{StaticResource SecondaryText}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </UniformGrid>
+
+                <!-- Detail Popup / Configuration Panel for TikTok Direct -->
+                <Border Style="{StaticResource StatusCard}"
+                        Margin="0,0,0,10"
+                        Padding="14"
+                        Visibility="{Binding IsConfiguringTikTokDirect, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    Padding="10,4"
+                                    MinHeight="36"
+                                    MinWidth="60"
+                                    Command="{Binding CancelTikTokDirectConfigCommand}"
+                                    Content="Close"
+                                    AutomationProperties.Name="Close TikTok Direct configuration" />
+                            <TextBlock Text="Configure TikTok Direct"
+                                       FontWeight="Bold"
+                                       FontSize="{DynamicResource SafeSpeakFont17}"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Text="Enter the creator username to connect directly to live chat."
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,4,0,8"
+                                   TextWrapping="Wrap" />
+
+                        <!-- Username Input Row -->
+                        <Grid Margin="0,4,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                    BorderThickness="1,1,0,1"
+                                    CornerRadius="4,0,0,4"
+                                    Padding="10,0"
+                                    MinHeight="44">
+                                <TextBlock Text="@"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont15}"
+                                           Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                            </Border>
+                            <TextBox x:Name="TikTokUsernameTextBox"
+                                     Grid.Column="1"
+                                     TabIndex="3"
+                                     MinHeight="44"
+                                     MaxLength="24"
+                                     Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="TikTok creator username for TikTok Direct"
+                                     AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
+                        </Grid>
+
+                        <WrapPanel>
+                            <Button MinHeight="44"
+                                    MinWidth="140"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding SaveTikTokDirectConfigCommand}"
+                                    Content="Save &amp; Enable"
+                                    AutomationProperties.Name="Save username and enable TikTok Direct" />
+                            <Button MinHeight="44"
+                                    MinWidth="90"
+                                    Command="{Binding CancelTikTokDirectConfigCommand}"
+                                    Content="Cancel"
+                                    AutomationProperties.Name="Cancel TikTok Direct configuration" />
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
 
@@ -519,7 +778,7 @@
                                        FontWeight="Bold"
                                        FontSize="{DynamicResource SafeSpeakFont12}" />
                         </Border>
-                        <TextBlock Text="No connectors are enabled. You can continue setup now, but SafeSpeak will not capture or speak chat messages until you configure a connector in Settings or the Live tab."
+                        <TextBlock Text="No connectors are enabled. You can continue setup now and configure connectors later in Settings or the Live tab."
                                    Style="{StaticResource SecondaryText}"
                                    TextWrapping="Wrap" />
                     </DockPanel>
@@ -540,7 +799,7 @@
                                        FontWeight="Bold"
                                        FontSize="{DynamicResource SafeSpeakFont12}" />
                         </Border>
-                        <TextBlock Text="Connector selected. SafeSpeak will save your platform choices and prepare them for live speech when setup finishes."
+                        <TextBlock Text="Connector configured. SafeSpeak will prepare your live speech feeds when setup finishes."
                                    Style="{StaticResource SecondaryText}"
                                    TextWrapping="Wrap" />
                     </DockPanel>
@@ -551,41 +810,9 @@
             <StackPanel Margin="0,10,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsVoiceStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="Speech voice configuration"
-                           FontSize="{DynamicResource SafeSpeakFont18}"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,6" />
-
-                <!-- Voice Quality Level Info Card -->
-                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,8" Padding="10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="4,0">
-                            <TextBlock Text="Level 1: Desktop" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
-                            <TextBlock Text="Built-in SAPI5 voices" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="4,0">
-                            <TextBlock Text="Level 2: Natural" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
-                            <TextBlock Text="Windows Natural TTS" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Margin="4,0">
-                            <TextBlock Text="Level 3: Kokoro" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
-                            <TextBlock Text="Neural local (~330 MB)" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="3" Margin="4,0">
-                            <TextBlock Text="Level 4: Custom" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
-                            <TextBlock Text="Custom endpoints" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
 
                 <!-- Voice Selector Row -->
-                <Grid Margin="0,4,0,0">
+                <Grid Margin="0,4,0,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -604,7 +831,7 @@
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Right"
                                             Style="{StaticResource StatusPill}"
-                                            Padding="6,1"
+                                            Padding="8,2"
                                             Margin="8,0,0,0">
                                         <TextBlock Text="{Binding LevelBadge}" FontSize="{DynamicResource SafeSpeakFont12}" />
                                     </Border>
@@ -625,8 +852,15 @@
                             AutomationProperties.HelpText="Play a short sample using the selected voice." />
                 </Grid>
 
+                <!-- Voice Tier Guide Text -->
+                <TextBlock Text="Level 1 = Windows Desktop voices • Level 2 = Windows Natural voices • Level 3 = Studio Kokoro neural voices"
+                           Style="{StaticResource SecondaryText}"
+                           FontSize="{DynamicResource SafeSpeakFont12}"
+                           Margin="0,2,0,8"
+                           TextWrapping="Wrap" />
+
                 <!-- Kokoro Neural Voice Install Action -->
-                <Border Style="{StaticResource CardPanel}" Margin="0,8,0,0" Padding="10">
+                <Border Style="{StaticResource CardPanel}" Margin="0,4,0,0" Padding="10">
                     <DockPanel LastChildFill="True">
                         <Button x:Name="KokoroInstallButton"
                                 DockPanel.Dock="Right"
@@ -653,7 +887,7 @@
                         Command="{Binding OpenWindowsSpeechSettingsCommand}"
                         Content="Open Windows Speech Settings"
                         AutomationProperties.Name="Open Windows Speech Settings"
-                        AutomationProperties.HelpText="Open Windows system settings to add more voices and language packs." />
+                        AutomationProperties.HelpText="Open Windows system speech settings to manage installed system voices." />
             </StackPanel>
 
             <!-- STEP 5: AI FILTERING -->
@@ -866,7 +1100,7 @@
                             Command="{Binding RestartSetupCommand}"
                             Content="Restart Setup (N)"
                             AutomationProperties.Name="Restart setup from step 1"
-                            AutomationProperties.HelpText="Press N or activate this button to reset choices and return to Step 1." />
+                            AutomationProperties.HelpText="Press N to reset choices and return to Step 1." />
                     <TextBlock Text="Saved setup choices"
                                FontSize="{DynamicResource SafeSpeakFont18}"
                                FontWeight="SemiBold"

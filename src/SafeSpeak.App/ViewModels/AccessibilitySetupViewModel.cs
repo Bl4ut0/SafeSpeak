@@ -242,16 +242,75 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public string TikFinityStatusBadge => UseTikFinity ? "Enabled" : "Disabled";
     public string TikTokDirectStatusBadge => UseTikTokDirect ? "Enabled" : "Disabled";
 
+    [ObservableProperty]
+    private bool _isConfiguringTikTokDirect;
+
+    public bool IsTikFinityEnabled => UseTikFinity;
+    public bool IsTikTokDirectEnabled => UseTikTokDirect;
+
     partial void OnUseTikFinityChanged(bool value)
     {
         OnPropertyChanged(nameof(HasAnyConnectorSelected));
         OnPropertyChanged(nameof(TikFinityStatusBadge));
+        OnPropertyChanged(nameof(IsTikFinityEnabled));
     }
 
     partial void OnUseTikTokDirectChanged(bool value)
     {
         OnPropertyChanged(nameof(HasAnyConnectorSelected));
         OnPropertyChanged(nameof(TikTokDirectStatusBadge));
+        OnPropertyChanged(nameof(IsTikTokDirectEnabled));
+        if (value && string.IsNullOrWhiteSpace(TikTokUsername))
+        {
+            IsConfiguringTikTokDirect = true;
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleTikFinity()
+    {
+        UseTikFinity = !UseTikFinity;
+        StatusText = UseTikFinity ? "TikFinity enabled." : "TikFinity disabled.";
+        _announcer.Announce(StatusText, interrupt: true);
+    }
+
+    [RelayCommand]
+    private void OpenTikTokDirectConfig()
+    {
+        IsConfiguringTikTokDirect = true;
+        StatusText = "Enter TikTok creator username.";
+        _announcer.Announce(StatusText, interrupt: true);
+        FocusRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void SaveTikTokDirectConfig()
+    {
+        if (TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string normalized))
+        {
+            TikTokUsername = normalized;
+            UseTikTokDirect = true;
+            IsConfiguringTikTokDirect = false;
+            StatusText = $"TikTok Direct enabled for @{normalized}.";
+            _announcer.Announce(StatusText, interrupt: true);
+        }
+        else
+        {
+            StatusText = "Please enter a valid creator username (letters, numbers, underscores, periods).";
+            _announcer.Announce(StatusText, interrupt: true);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelTikTokDirectConfig()
+    {
+        IsConfiguringTikTokDirect = false;
+        if (string.IsNullOrWhiteSpace(TikTokUsername))
+        {
+            UseTikTokDirect = false;
+        }
+        StatusText = "TikTok Direct configuration closed.";
+        _announcer.Announce(StatusText, interrupt: true);
     }
 
     public bool IsInteractionEnabled => !IsBusy;
@@ -849,74 +908,74 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private void ConfigurePlatformPage()
     {
         StepProgress = "Step 3 of 8";
-        PromptText = "Configure your streaming connections";
+        PromptText = "Streaming platform connectors";
         StatusText =
-            "Select which connectors to enable. All connectors are disabled by default. You can also continue without enabling any connectors and configure them later in Settings.";
+            "Select connectors for live chat. Connectors are disabled by default. You can configure them now or continue and set them up later in Settings.";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Save streaming connection and continue";
         KeyboardHelpText =
-            "Keyboard: Tab through the connector choices and username. Space changes a checkbox. Press Y to save and continue.";
+            "Keyboard: Tab through the connectors. Press Space or Enter to enable or configure. Press Y to continue.";
     }
 
     private void ConfigureVoicePage()
     {
         StepProgress = "Step 4 of 8";
-        PromptText = "Choose your voice and quality level";
+        PromptText = "Speech voice configuration";
         StatusText =
-            "Select the voice that will speak approved livestream chat messages. Windows includes Level 1 (Desktop) and Level 2 (Natural) voices immediately. You can install high-fidelity Level 3 neural voices (Kokoro, ~330 MB) or select custom voices anytime.";
+            "Choose the voice that speaks approved chat aloud. Built-in Windows voices (Levels 1 & 2) are ready immediately; Level 3 Kokoro neural voices can be installed below.";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Save voice selection and continue";
         KeyboardHelpText =
-            "Keyboard: Tab to the voice dropdown and use Arrow keys to choose a voice. Tab to Test Voice to hear it. Press Y to save and continue.";
+            "Keyboard: Use Arrow keys in the voice dropdown to select a voice. Tab to Test Voice to preview. Press Y to continue.";
     }
 
     private void ConfigureFilteringPage()
     {
         StepProgress = "Step 5 of 8";
-        PromptText = "Configure on-device AI moderation";
+        PromptText = "On-device AI and language safety";
         StatusText =
-            "This step is educational; there is no choice to make. The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required. SafeSpeak automatically uses its bundled on-device language model with deterministic rules and banned terms. You can also install the upgraded Qwen3Guard 0.6B local model for higher contextual understanding.";
+            "This step is educational; there is no choice to make. The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required. SafeSpeak runs fully offline.";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Continue after learning how enhanced filtering works";
         KeyboardHelpText =
-            "Keyboard: read the explanation, then press Y or Tab to Continue. The model status is also exposed as a polite screen-reader announcement.";
+            "Keyboard: Press Y or Tab to Continue.";
         if (!_modelChecked) _ = EnsureModelStatusAsync();
     }
 
     private void ConfigureKeybindsPage()
     {
         StepProgress = "Step 6 of 8";
-        PromptText = "Review primary global hotkeys";
+        PromptText = "Primary global hotkeys";
         StatusText =
-            "Global shortcuts work system-wide even when other applications have focus. Control plus Shift plus S announces status privately. Control plus Shift plus A arms or disarms speech. Pause or Control plus Shift plus X triggers emergency stop. Press Control alone to silence built-in guidance.";
+            "Shortcuts work system-wide: Status (Ctrl+Shift+S), Arm (Ctrl+Shift+A), Emergency Stop (Pause / Ctrl+Shift+X), Silence (Ctrl+Shift+Q), and Narrator Silence (Control).";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Continue after reviewing global hotkeys";
         KeyboardHelpText =
-            "Keyboard: Tab through the keybind reference list. Press Y to continue.";
+            "Keyboard: Tab through hotkeys. Press Y to continue.";
     }
 
     private void ConfigureNavigationPage()
     {
         StepProgress = "Step 7 of 8";
-        PromptText = "Learn application navigation shortcuts";
+        PromptText = "Navigation quick keys";
         StatusText =
-            "Use Control plus 1, 2, 3, and 4 to switch between Live, Safety, Voice, and Settings tabs. Use Alt plus 1 through 9 to jump directly to any chapter on the active page. During setup, use Control plus 1 through 8 to jump between setup steps.";
+            "Quick keys: Tabs (Ctrl+1..4), Chapters (Alt+1..9), and Setup steps (Ctrl+1..8).";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Continue after reviewing navigation shortcuts";
         KeyboardHelpText =
-            "Keyboard: Tab through the navigation shortcut list. Press Y to continue to the final review.";
+            "Keyboard: Tab through shortcuts. Press Y to continue.";
     }
 
     private void ConfigureReviewPage()
     {
         StepProgress = "Step 8 of 8";
-        PromptText = "Review your SafeSpeak setup";
+        PromptText = "Review setup choices";
         StatusText =
-            "Use the arrow keys in the review list to hear each saved choice. Built-in Windows speech voices (Levels 1 & 2) are ready immediately; you can install high-fidelity Level 3 neural voices in the Voice tab anytime. Finish Setup saves the result and opens SafeSpeak.";
+            "Use Arrow keys to review choices. Finish Setup saves your profile and opens SafeSpeak disarmed.";
         PrimaryButtonText = "Finish setup (Y)";
         PrimaryButtonAutomationName = "Save setup and open SafeSpeak";
         KeyboardHelpText =
-            "Keyboard: press Y to finish and open SafeSpeak, or press N to restart setup. You can also press Control plus 1 through 8 to revisit any step.";
+            "Keyboard: Press Y to finish setup, or N to restart.";
 
         if (_modelChecked)
             BuildReviewItems();

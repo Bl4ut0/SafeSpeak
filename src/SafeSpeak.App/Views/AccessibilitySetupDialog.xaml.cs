@@ -74,6 +74,23 @@ public partial class AccessibilitySetupDialog : Window
             return;
         }
 
+        if (_viewModel.IsConfiguringTikTokDirect)
+        {
+            if (e.Key == Key.Escape)
+            {
+                _viewModel.CancelTikTokDirectConfigCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Enter)
+            {
+                _viewModel.SaveTikTokDirectConfigCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (_viewModel.CurrentPage == AccessibilitySetupPage.Reader)
         {
             if (e.Key == Key.Y)
@@ -174,6 +191,13 @@ public partial class AccessibilitySetupDialog : Window
         Dispatcher.BeginInvoke(
             () =>
             {
+                if (_viewModel.CurrentPage == AccessibilitySetupPage.Platform && _viewModel.IsConfiguringTikTokDirect)
+                {
+                    TikTokUsernameTextBox.Focus();
+                    Keyboard.Focus(TikTokUsernameTextBox);
+                    return;
+                }
+
                 Control target = _viewModel.CurrentPage switch
                 {
                     AccessibilitySetupPage.Reader => ReaderYesButton,
