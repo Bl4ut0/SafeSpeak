@@ -71,6 +71,7 @@ public sealed class StreamAuditLogger : IAsyncDisposable
             AllowSynchronousContinuations = false
         });
         _writeWorker = Task.Run(ProcessLogQueueAsync);
+        LogRetentionManager.CleanOldLogs(_logsDirectory);
     }
 
     public bool IsEnabled
@@ -129,22 +130,29 @@ public sealed class StreamAuditLogger : IAsyncDisposable
     {
         lock (_stateLock)
         {
-            if (_disposed || !_isEnabled) return false;
-            QueueEndActiveSessionLocked();
-
-            var session = new SessionContext(
-                CreateUniqueLogPath(),
-                DateTimeOffset.UtcNow,
-                BuildHeader(sourceName, endpointUrl, config));
-            _activeSession = session;
-            _lastSession = session;
-            _lastError = null;
-
-            if (_workQueue.Writer.TryWrite(LogWorkItem.Start(session))) return true;
-            _activeSession = null;
-            _lastError = "The audit log writer is unavailable.";
-            return false;
+            return StartSessionLocked(sourceName, endpointUrl, config);
         }
+    }
+
+    private bool StartSessionLocked(string sourceName, string endpointUrl, ModerationConfig? config = null)
+    {
+        if (_disposed || !_isEnabled) return false;
+        QueueEndActiveSessionLocked();
+
+        LogRetentionManager.CleanOldLogs(_logsDirectory);
+
+        var session = new SessionContext(
+            CreateUniqueLogPath(),
+            DateTimeOffset.UtcNow,
+            BuildHeader(sourceName, endpointUrl, config));
+        _activeSession = session;
+        _lastSession = session;
+        _lastError = null;
+
+        if (_workQueue.Writer.TryWrite(LogWorkItem.Start(session))) return true;
+        _activeSession = null;
+        _lastError = "The audit log writer is unavailable.";
+        return false;
     }
 
     public void LogDecision(ChatMessage rawMessage, ModerationDecision decision)

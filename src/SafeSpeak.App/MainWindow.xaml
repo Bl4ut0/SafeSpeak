@@ -1925,9 +1925,8 @@
                                           Content="Save chat and moderation decisions to a local text log"
                                           AutomationProperties.Name="Save chat and moderation decisions to a local text log"
                                           AutomationProperties.HelpText="When enabled, raw chat, usernames, gifts, and safety decisions are saved locally for post-stream review." />
-                                <TextBlock Text="Logs can include usernames, raw chat, and blocked text. Logging is off until you enable it."
-                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,7"
-                                           Foreground="{DynamicResource SafeSpeakDangerBrush}" />
+                                <TextBlock Text="Logs include usernames, raw chat, and blocked text. Chat and debug logs are saved automatically and kept for the last 10 days."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,7" />
                                 <TextBlock Text="{Binding AuditLogsDirectoryDisplay, StringFormat=Log folder: {0}}"
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,7"
                                            AutomationProperties.Name="{Binding AuditLogsDirectoryDisplay, StringFormat=SafeSpeak log folder: {0}}" />

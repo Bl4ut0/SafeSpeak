@@ -126,7 +126,7 @@ public sealed class SettingsStoreTests
         Assert.Equal(ThemePreference.Unset, loaded.Theme);
         Assert.Equal(SpokenGuidanceMode.Unset, loaded.SpokenGuidance);
         Assert.Equal(OnboardingStage.Accessibility, loaded.OnboardingStage);
-        Assert.False(loaded.EnableStreamAuditLogging);
+        Assert.True(loaded.EnableStreamAuditLogging);
     }
 
     [Fact]

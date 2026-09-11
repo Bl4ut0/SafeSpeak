@@ -70,7 +70,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string _connectionSummaryText = "Disconnected";
 
     [ObservableProperty]
-    private string _selectedSourceConnectorId = TikFinityWebSocketClient.ConnectorDescriptor.Id;
+    private string _selectedSourceConnectorId = string.Empty;
 
     [ObservableProperty]
     private string _tikTokUsername = "";

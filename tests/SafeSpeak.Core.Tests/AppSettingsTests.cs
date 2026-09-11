@@ -116,11 +116,23 @@ public sealed class AppSettingsTests
 
         AppSettings settings = JsonSerializer.Deserialize<AppSettings>(legacyJson)!;
 
-        Assert.False(settings.EnableStreamAuditLogging);
+        Assert.True(settings.EnableStreamAuditLogging);
         Assert.Equal("local_hybrid", settings.SelectedIntentEngineId);
         Assert.Null(settings.PerspectiveApiKey);
         Assert.Equal("http://localhost:11434", settings.LocalLlmEndpointUrl);
         Assert.Equal("llama3.2:1b", settings.LocalLlmModelName);
+    }
+
+    [Fact]
+    public void DefaultSettings_HasAutomaticLoggingAndEmptyConnectors()
+    {
+        var settings = new AppSettings();
+
+        Assert.True(settings.EnableStreamAuditLogging);
+        Assert.True(settings.HasConsentedToLocalAuditLogging);
+        Assert.Equal(string.Empty, settings.SelectedSourceConnectorId);
+        Assert.Empty(settings.ConfiguredSourceConnectorIds);
+        Assert.Empty(settings.ActiveSourceConnectorIds);
     }
 
     [Fact]
@@ -617,6 +629,32 @@ public sealed class AppSettingsTests
 
             Assert.True(loaded.EnableStreamAuditLogging);
             Assert.True(loaded.HasConsentedToLocalAuditLogging);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void MigrateAuditLoggingConsent_SupportsDisablingStreamAuditLoggingInJson()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(
+                path,
+                """
+                {
+                  "SettingsSchemaVersion": 12,
+                  "EnableStreamAuditLogging": false
+                }
+                """);
+
+            AppSettings loaded = AppSettings.Load(path);
+
+            Assert.False(loaded.EnableStreamAuditLogging);
+            Assert.False(loaded.HasConsentedToLocalAuditLogging);
         }
         finally
         {

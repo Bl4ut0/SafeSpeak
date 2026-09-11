@@ -131,7 +131,7 @@ public sealed class AppSettings
     public bool InstantAlertsLikes { get; set; } = false;
 
     public bool BroadcastOutputEnabled { get; set; } = true;
-    public bool HasConsentedToLocalAuditLogging { get; set; }
+    public bool HasConsentedToLocalAuditLogging { get; set; } = true;
 
     [JsonIgnore]
     public bool EnableStreamAuditLogging
@@ -139,9 +139,9 @@ public sealed class AppSettings
         get => HasConsentedToLocalAuditLogging;
         set => HasConsentedToLocalAuditLogging = value;
     }
-    public string SelectedSourceConnectorId { get; set; } = "tikfinity";
-    public List<string> ConfiguredSourceConnectorIds { get; set; } = ["tikfinity"];
-    public List<string> ActiveSourceConnectorIds { get; set; } = ["tikfinity"];
+    public string SelectedSourceConnectorId { get; set; } = "";
+    public List<string> ConfiguredSourceConnectorIds { get; set; } = [];
+    public List<string> ActiveSourceConnectorIds { get; set; } = [];
     public string TikTokUsername { get; set; } = "";
     public bool AutoConnectSource { get; set; } = true;
     public bool SafetyGuideControlsAtTop { get; set; } = true;
@@ -441,24 +441,26 @@ public sealed class AppSettings
         AppSettings settings)
     {
         int schemaVersion = 0;
-        if (root.TryGetProperty(
-                nameof(SettingsSchemaVersion),
-                out JsonElement schemaElement))
+        if (root.TryGetProperty(nameof(SettingsSchemaVersion), out JsonElement schemaElement))
         {
             _ = schemaElement.TryGetInt32(out schemaVersion);
         }
 
-        // Schema 4 and earlier treated logging as a hidden secondary-track
-        // setting. Neither its obsolete property nor a prematurely injected
-        // current property is evidence of informed consent.
         if (schemaVersion < 5)
         {
             settings.HasConsentedToLocalAuditLogging = false;
         }
-        else if (!settings.HasConsentedToLocalAuditLogging &&
-                 TryReadBoolean(root, nameof(EnableStreamAuditLogging), out bool enableLogging) &&
-                 enableLogging)
+        else if (TryReadBoolean(root, nameof(EnableStreamAuditLogging), out bool enableLogging))
         {
+            settings.HasConsentedToLocalAuditLogging = enableLogging;
+        }
+        else if (TryReadBoolean(root, nameof(HasConsentedToLocalAuditLogging), out bool hasConsented))
+        {
+            settings.HasConsentedToLocalAuditLogging = hasConsented;
+        }
+        else
+        {
+            // Logging is automatic by default for modern schemas
             settings.HasConsentedToLocalAuditLogging = true;
         }
     }
@@ -492,13 +494,19 @@ public sealed class AppSettings
             return;
         }
 
-        string legacyId = string.IsNullOrWhiteSpace(settings.SelectedSourceConnectorId)
-            ? "tikfinity"
-            : settings.SelectedSourceConnectorId;
-        settings.ConfiguredSourceConnectorIds = [legacyId];
-        settings.ActiveSourceConnectorIds = settings.AutoConnectSource
-            ? [legacyId]
-            : [];
+        if (!string.IsNullOrWhiteSpace(settings.SelectedSourceConnectorId))
+        {
+            string legacyId = settings.SelectedSourceConnectorId;
+            settings.ConfiguredSourceConnectorIds = [legacyId];
+            settings.ActiveSourceConnectorIds = settings.AutoConnectSource
+                ? [legacyId]
+                : [];
+        }
+        else
+        {
+            settings.ConfiguredSourceConnectorIds = [];
+            settings.ActiveSourceConnectorIds = [];
+        }
     }
 
     private static void MigrateLegacyAccessibilitySettings(
