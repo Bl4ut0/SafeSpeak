@@ -1121,11 +1121,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
         var definitions = new (HotkeyAction Action, string Name, string DefaultGesture, string Description)[]
         {
-            (HotkeyAction.AnnounceStatus, "Hear SafeSpeak status", "Control + Shift + S", "Privately announces arming state, message queue count, and connector status."),
-            (HotkeyAction.ToggleArm, "Arm / Disarm SafeSpeak", "Control + Shift + A", "Begins or pauses reading live chat aloud without closing your streaming app."),
-            (HotkeyAction.EmergencyStop, "Emergency Stop", "Pause / Break or Control + Shift + X", "Immediately silences speech and clears all pending chat and announcement queues."),
-            (HotkeyAction.StopCurrentSpeech, "Shut up live speech", "Control + Shift + Q", "Silences the message currently speaking on your livestream audio track."),
-            (HotkeyAction.StopBuiltInGuidance, "Built-in screen reader silence", "Control key alone", "Pressing the Control key immediately silences SafeSpeak's built-in spoken guidance.")
+            (HotkeyAction.AnnounceStatus, "Hear SafeSpeak status", "Control + Shift + S", "Announces arming state, queue count, and connector status."),
+            (HotkeyAction.ToggleArm, "Arm / Disarm SafeSpeak", "Control + Shift + A", "Begins or pauses reading live chat aloud without leaving your game."),
+            (HotkeyAction.EmergencyStop, "Emergency Stop", "Pause / Break or Control + Shift + X", "Immediately silences speech and clears all pending speech queues."),
+            (HotkeyAction.StopCurrentSpeech, "Shut up live speech", "Control + Shift + Q", "Silences the message currently speaking on your stream audio."),
+            (HotkeyAction.StopBuiltInGuidance, "Built-in screen reader silence", "Control key alone", "Tapping Control alone immediately silences spoken guidance.")
         };
 
         foreach (var def in definitions)
@@ -1274,11 +1274,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         StepProgress = "Step 6 of 8";
         PromptText = "Primary global hotkeys";
         StatusText =
-            "Shortcuts work system-wide: Status (Ctrl+Shift+S), Arm (Ctrl+Shift+A), Emergency Stop (Pause / Ctrl+Shift+X), Silence (Ctrl+Shift+Q), and Narrator Silence (Control).";
+            "Global shortcuts work across all games and streaming software without switching windows.";
         PrimaryButtonText = "Continue (Y)";
         PrimaryButtonAutomationName = "Continue after reviewing global hotkeys";
         KeyboardHelpText =
-            "Keyboard: Tab through hotkeys. Press Y to continue.";
+            "Keyboard: Tab through hotkeys. Press Enter to customize. Press Y to continue.";
     }
 
     private void ConfigureNavigationPage()

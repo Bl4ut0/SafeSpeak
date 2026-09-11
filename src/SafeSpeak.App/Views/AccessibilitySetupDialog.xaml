@@ -154,7 +154,9 @@
         </Style>
 
         <Style x:Key="KeybindCardButton" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}">
-            <Setter Property="MinHeight" Value="76" />
+            <Setter Property="MinHeight" Value="68" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Margin" Value="4,3" />
         </Style>
 
         <Style x:Key="PlaceholderCardButton" TargetType="Button" BasedOn="{StaticResource ConnectorCardButton}" />
@@ -1392,25 +1394,25 @@
             </StackPanel>
 
             <!-- STEP 6: KEYBINDS -->
-            <StackPanel Margin="0,12,0,0"
+            <StackPanel Margin="0,8,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsKeybindsStep, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="Primary hotkeys and controls"
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,4" />
-                <TextBlock Text="SafeSpeak provides instant global hotkeys so you can control chat without switching out of your game or stream. Press any hotkey to customize or rebind it."
+                           Margin="0,0,0,3" />
+                <TextBlock Text="Control live chat without leaving your game. Press any hotkey card to customize its trigger."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,12"
+                           Margin="0,0,0,8"
                            TextWrapping="Wrap" />
 
                 <!-- 2-Column Keybind Grid -->
-                <UniformGrid Columns="2" Margin="0,0,0,10">
+                <UniformGrid Columns="2" Margin="0,0,0,6">
                     <!-- 1: Hear Status -->
                     <Button x:Name="KeybindButton1"
                             TabIndex="1"
-                            MinHeight="76"
-                            Margin="6,5"
+                            MinHeight="68"
+                            Margin="4,3"
                             Style="{StaticResource KeybindCardButton}"
                             Command="{Binding OpenKeybindEditorCommand}"
                             CommandParameter="{Binding SetupKeybinds[0]}"
@@ -1425,7 +1427,7 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding SetupKeybinds[0].GestureDisplay}"
                                                FontWeight="Bold"
@@ -1440,7 +1442,7 @@
                                        Text="{Binding SetupKeybinds[0].Description}"
                                        Style="{StaticResource SecondaryText}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
-                                       Margin="0,3,0,3"
+                                       Margin="0,2,0,2"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        Text="Press to customize"
@@ -1453,8 +1455,8 @@
                     <!-- 2: Arm / Disarm -->
                     <Button x:Name="KeybindButton2"
                             TabIndex="2"
-                            MinHeight="76"
-                            Margin="6,5"
+                            MinHeight="68"
+                            Margin="4,3"
                             Style="{StaticResource KeybindCardButton}"
                             Command="{Binding OpenKeybindEditorCommand}"
                             CommandParameter="{Binding SetupKeybinds[1]}"
@@ -1469,7 +1471,7 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding SetupKeybinds[1].GestureDisplay}"
                                                FontWeight="Bold"
@@ -1484,7 +1486,7 @@
                                        Text="{Binding SetupKeybinds[1].Description}"
                                        Style="{StaticResource SecondaryText}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
-                                       Margin="0,3,0,3"
+                                       Margin="0,2,0,2"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        Text="Press to customize"
@@ -1497,8 +1499,8 @@
                     <!-- 3: Emergency Stop -->
                     <Button x:Name="KeybindButton3"
                             TabIndex="3"
-                            MinHeight="76"
-                            Margin="6,5"
+                            MinHeight="68"
+                            Margin="4,3"
                             Style="{StaticResource KeybindCardButton}"
                             Command="{Binding OpenKeybindEditorCommand}"
                             CommandParameter="{Binding SetupKeybinds[2]}"
@@ -1513,7 +1515,7 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding SetupKeybinds[2].GestureDisplay}"
                                                FontWeight="Bold"
@@ -1528,7 +1530,7 @@
                                        Text="{Binding SetupKeybinds[2].Description}"
                                        Style="{StaticResource SecondaryText}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
-                                       Margin="0,3,0,3"
+                                       Margin="0,2,0,2"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        Text="Press to customize"
@@ -1541,8 +1543,8 @@
                     <!-- 4: Shut up live speech -->
                     <Button x:Name="KeybindButton4"
                             TabIndex="4"
-                            MinHeight="76"
-                            Margin="6,5"
+                            MinHeight="68"
+                            Margin="4,3"
                             Style="{StaticResource KeybindCardButton}"
                             Command="{Binding OpenKeybindEditorCommand}"
                             CommandParameter="{Binding SetupKeybinds[3]}"
@@ -1557,7 +1559,7 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding SetupKeybinds[3].GestureDisplay}"
                                                FontWeight="Bold"
@@ -1572,7 +1574,7 @@
                                        Text="{Binding SetupKeybinds[3].Description}"
                                        Style="{StaticResource SecondaryText}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
-                                       Margin="0,3,0,3"
+                                       Margin="0,2,0,2"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        Text="Press to customize"
@@ -1585,8 +1587,8 @@
                     <!-- 5: Built-in screen reader silence -->
                     <Button x:Name="KeybindButton5"
                             TabIndex="5"
-                            MinHeight="76"
-                            Margin="6,5"
+                            MinHeight="68"
+                            Margin="4,3"
                             Style="{StaticResource KeybindCardButton}"
                             Command="{Binding OpenKeybindEditorCommand}"
                             CommandParameter="{Binding SetupKeybinds[4]}"
@@ -1601,7 +1603,7 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding SetupKeybinds[4].GestureDisplay}"
                                                FontWeight="Bold"
@@ -1616,7 +1618,7 @@
                                        Text="{Binding SetupKeybinds[4].Description}"
                                        Style="{StaticResource SecondaryText}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
-                                       Margin="0,3,0,3"
+                                       Margin="0,2,0,2"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        Text="Press to customize"
@@ -1629,8 +1631,8 @@
                     <!-- 6: Restore Defaults Button -->
                     <Button x:Name="RestoreKeybindDefaultsButton"
                             TabIndex="6"
-                            MinHeight="76"
-                            Margin="6,5"
+                            MinHeight="68"
+                            Margin="4,3"
                             Style="{StaticResource KeybindCardButton}"
                             Command="{Binding RestoreAllDefaultKeybindsCommand}"
                             AutomationProperties.Name="Restore all default shortcuts"
@@ -1644,7 +1646,7 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="Reset"
                                                FontWeight="Bold"
@@ -1655,10 +1657,10 @@
                                            FontSize="{DynamicResource SafeSpeakFont13}" />
                             </DockPanel>
                             <TextBlock Grid.Row="1"
-                                       Text="Reset all 5 hotkeys to their default recommended key combinations."
+                                       Text="Reset all 5 hotkeys back to standard factory shortcuts."
                                        Style="{StaticResource SecondaryText}"
                                        FontSize="{DynamicResource SafeSpeakFont11}"
-                                       Margin="0,3,0,3"
+                                       Margin="0,2,0,2"
                                        TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        Text="Press to restore"
@@ -1669,19 +1671,14 @@
                     </Button>
                 </UniformGrid>
 
-                <Border Style="{StaticResource StatusCard}" Margin="0,4,0,10" Padding="14,8">
-                    <TextBlock Text="Pro Tip: Pressing the Control key alone at any time immediately silences the built-in screen reader narrator."
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap" />
-                </Border>
-
-                <Border Style="{StaticResource CardPanel}" Padding="14,8">
-                    <TextBlock Text="Global hotkeys operate across all games and fullscreen applications. You can also rebind or disable hotkeys anytime in Settings > Shortcuts."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap" />
+                <Border Style="{StaticResource CardPanel}" Margin="0,4,0,0" Padding="12,6">
+                    <TextBlock Style="{StaticResource SecondaryText}"
+                               FontSize="{DynamicResource SafeSpeakFont11}"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap">
+                        <Run Text="Tip:" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                        <Run Text="Hotkeys work system-wide across all games. You can rebind or disable them anytime in Settings > Shortcuts." />
+                    </TextBlock>
                 </Border>
             </StackPanel>
 
