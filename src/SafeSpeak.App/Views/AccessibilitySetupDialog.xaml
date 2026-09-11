@@ -76,6 +76,40 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="PlaceholderCardButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SafeSpeakBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                <Setter TargetName="CardBorder" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Background="{DynamicResource SafeSpeakWindowBrush}"
@@ -515,19 +549,15 @@
             <StackPanel Margin="0,10,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsPlatformStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="Streaming platform connectors"
-                           FontSize="{DynamicResource SafeSpeakFont18}"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,3" />
                 <TextBlock Text="Select connectors to capture live chat. Press a connector card to enable or configure it."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,10"
+                           Margin="0,0,0,8"
                            TextWrapping="Wrap" />
 
-                <!-- 3-Wide Connector Grid -->
-                <UniformGrid Rows="1" Columns="3" Margin="0,0,0,10">
-                    <!-- Connector 1: TikFinity -->
-                    <Border Margin="0,0,6,0" Padding="12" CornerRadius="6">
+                <!-- 3-Wide Connector Grid (9 Platforms) -->
+                <UniformGrid Columns="3" Margin="0,0,0,8">
+                    <!-- 1: TikFinity -->
+                    <Border Margin="3" Padding="10,8" CornerRadius="6">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
@@ -551,27 +581,22 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding TikFinityStatusBadge}"
                                                FontWeight="Bold"
-                                               FontSize="{DynamicResource SafeSpeakFont12}" />
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
                                 </Border>
                                 <TextBlock Text="TikFinity"
                                            FontWeight="Bold"
-                                           FontSize="{DynamicResource SafeSpeakFont15}" />
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
                             </DockPanel>
-                            <StackPanel Grid.Row="1" Margin="0,6,0,8">
-                                <TextBlock Text="Local WebSocket connector."
-                                           Style="{StaticResource SecondaryText}"
-                                           FontSize="{DynamicResource SafeSpeakFont12}"
-                                           TextWrapping="Wrap" />
-                                <TextBlock Text="ws://localhost:21213"
-                                           FontSize="{DynamicResource SafeSpeakFont12}"
-                                           FontFamily="Consolas, monospace"
-                                           Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
-                                           Margin="0,2,0,0" />
-                            </StackPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Local WebSocket connector."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
                             <CheckBox x:Name="TikFinityCheckBox"
                                       Grid.Row="2"
                                       TabIndex="1"
@@ -584,8 +609,8 @@
                         </Grid>
                     </Border>
 
-                    <!-- Connector 2: TikTok Direct -->
-                    <Border Margin="3,0,3,0" Padding="12" CornerRadius="6">
+                    <!-- 2: TikTok Direct -->
+                    <Border Margin="3" Padding="10,8" CornerRadius="6">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
@@ -609,35 +634,36 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="{Binding TikTokDirectStatusBadge}"
                                                FontWeight="Bold"
-                                               FontSize="{DynamicResource SafeSpeakFont12}" />
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
                                 </Border>
                                 <TextBlock Text="TikTok Direct"
                                            FontWeight="Bold"
-                                           FontSize="{DynamicResource SafeSpeakFont15}" />
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
                             </DockPanel>
-                            <StackPanel Grid.Row="1" Margin="0,6,0,8">
-                                <TextBlock Text="Direct, self-contained LIVE chat."
-                                           Style="{StaticResource SecondaryText}"
-                                           FontSize="{DynamicResource SafeSpeakFont12}"
-                                           TextWrapping="Wrap" />
-                                <Button Padding="0"
-                                        Margin="0,4,0,0"
+                            <DockPanel Grid.Row="1" LastChildFill="True" Margin="0,4,0,4">
+                                <Button DockPanel.Dock="Right"
+                                        Padding="0"
+                                        Margin="4,0,0,0"
                                         Background="Transparent"
                                         BorderThickness="0"
-                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
                                         Command="{Binding OpenTikTokDirectConfigCommand}"
                                         AutomationProperties.Name="Configure TikTok Direct username">
-                                    <TextBlock Text="{Binding TikTokUsername, StringFormat='@{0}', FallbackValue='Click to configure'}"
+                                    <TextBlock Text="Edit"
                                                FontWeight="SemiBold"
-                                               FontSize="{DynamicResource SafeSpeakFont12}"
+                                               FontSize="{DynamicResource SafeSpeakFont11}"
                                                Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                                TextDecorations="Underline" />
                                 </Button>
-                            </StackPanel>
+                                <TextBlock Text="Direct LIVE chat."
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont11}"
+                                           TextWrapping="Wrap" />
+                            </DockPanel>
                             <CheckBox x:Name="TikTokDirectCheckBox"
                                       Grid.Row="2"
                                       TabIndex="2"
@@ -650,10 +676,13 @@
                         </Grid>
                     </Border>
 
-                    <!-- Connector 3: Twitch (Coming Soon) -->
-                    <Border Margin="6,0,0,0" Padding="12" CornerRadius="6"
-                            Style="{StaticResource CardPanel}"
-                            Opacity="0.55">
+                    <!-- 3: Twitch -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="twitch"
+                            AutomationProperties.Name="Twitch connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="Twitch direct IRC and EventSub connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -663,105 +692,284 @@
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Border DockPanel.Dock="Right"
                                         Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
+                                        Padding="6,1"
                                         VerticalAlignment="Top">
                                     <TextBlock Text="Coming Soon"
                                                FontWeight="Bold"
-                                               FontSize="{DynamicResource SafeSpeakFont12}" />
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
                                 </Border>
                                 <TextBlock Text="Twitch"
                                            FontWeight="Bold"
-                                           FontSize="{DynamicResource SafeSpeakFont15}" />
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
                             </DockPanel>
-                            <StackPanel Grid.Row="1" Margin="0,6,0,8">
-                                <TextBlock Text="Direct IRC / EventSub."
-                                           Style="{StaticResource SecondaryText}"
-                                           FontSize="{DynamicResource SafeSpeakFont12}"
-                                           TextWrapping="Wrap" />
-                                <TextBlock Text="Planned in future update."
-                                           Style="{StaticResource SecondaryText}"
-                                           FontSize="{DynamicResource SafeSpeakFont12}"
-                                           Margin="0,2,0,0" />
-                            </StackPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Direct IRC / EventSub chat."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
                             <TextBlock Grid.Row="2"
                                        MinHeight="44"
-                                       Text="Not yet available"
-                                       Style="{StaticResource SecondaryText}"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
                                        VerticalAlignment="Center" />
                         </Grid>
-                    </Border>
-                </UniformGrid>
+                    </Button>
 
-                <!-- Detail Popup / Configuration Panel for TikTok Direct -->
-                <Border Style="{StaticResource StatusCard}"
-                        Margin="0,0,0,10"
-                        Padding="14"
-                        Visibility="{Binding IsConfiguringTikTokDirect, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel>
-                        <DockPanel LastChildFill="True">
-                            <Button DockPanel.Dock="Right"
-                                    Padding="10,4"
-                                    MinHeight="36"
-                                    MinWidth="60"
-                                    Command="{Binding CancelTikTokDirectConfigCommand}"
-                                    Content="Close"
-                                    AutomationProperties.Name="Close TikTok Direct configuration" />
-                            <TextBlock Text="Configure TikTok Direct"
-                                       FontWeight="Bold"
-                                       FontSize="{DynamicResource SafeSpeakFont17}"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
-                        <TextBlock Text="Enter the creator username to connect directly to live chat."
-                                   Style="{StaticResource SecondaryText}"
-                                   Margin="0,4,0,8"
-                                   TextWrapping="Wrap" />
-
-                        <!-- Username Input Row -->
-                        <Grid Margin="0,4,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0"
-                                    Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                    BorderThickness="1,1,0,1"
-                                    CornerRadius="4,0,0,4"
-                                    Padding="10,0"
-                                    MinHeight="44">
-                                <TextBlock Text="@"
+                    <!-- 4: YouTube Live -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="youtube-live"
+                            AutomationProperties.Name="YouTube Live connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="YouTube Live streaming chat API connector is planned for a future update.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="6,1"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="YouTube Live"
                                            FontWeight="Bold"
-                                           FontSize="{DynamicResource SafeSpeakFont15}"
-                                           Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Center" />
-                            </Border>
-                            <TextBox x:Name="TikTokUsernameTextBox"
-                                     Grid.Column="1"
-                                     TabIndex="3"
-                                     MinHeight="44"
-                                     MaxLength="24"
-                                     Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
-                                     AutomationProperties.Name="TikTok creator username for TikTok Direct"
-                                     AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Official Live Chat API."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
                         </Grid>
+                    </Button>
 
-                        <WrapPanel>
-                            <Button MinHeight="44"
-                                    MinWidth="140"
-                                    Margin="0,0,8,0"
-                                    Style="{StaticResource PrimaryButton}"
-                                    Command="{Binding SaveTikTokDirectConfigCommand}"
-                                    Content="Save &amp; Enable"
-                                    AutomationProperties.Name="Save username and enable TikTok Direct" />
-                            <Button MinHeight="44"
-                                    MinWidth="90"
-                                    Command="{Binding CancelTikTokDirectConfigCommand}"
-                                    Content="Cancel"
-                                    AutomationProperties.Name="Cancel TikTok Direct configuration" />
-                        </WrapPanel>
-                    </StackPanel>
-                </Border>
+                    <!-- 5: Kick -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="kick"
+                            AutomationProperties.Name="Kick connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="Kick streaming live chat connector is planned for a future update.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="6,1"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Kick"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Kick live stream chat."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 6: Facebook Live -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="facebook-live"
+                            AutomationProperties.Name="Facebook Live connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="Facebook Live video comments connector is planned for a future update.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="6,1"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Facebook Live"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Live video comments."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 7: Instagram Live -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="instagram-live"
+                            AutomationProperties.Name="Instagram Live connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="Instagram Live broadcast comments connector is planned for a future update.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="6,1"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Instagram Live"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Broadcast comments."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 8: X / Twitter Live -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="x-live"
+                            AutomationProperties.Name="X Twitter Live connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="X Spaces and live broadcast chat connector is planned for a future update.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="6,1"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="X Live"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Spaces &amp; live video."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 9: Trovo -->
+                    <Button Margin="3"
+                            Style="{StaticResource PlaceholderCardButton}"
+                            Command="{Binding OpenPlaceholderModalCommand}"
+                            CommandParameter="trovo"
+                            AutomationProperties.Name="Trovo connector. Coming soon. Press to view roadmap details."
+                            AutomationProperties.HelpText="Trovo live chat API connector is planned for a future update.">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="6,1"
+                                        VerticalAlignment="Top">
+                                    <TextBlock Text="Coming Soon"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Trovo"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont14}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="Trovo live chat API."
+                                       Style="{StaticResource SecondaryText}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       Margin="0,4,0,4"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       MinHeight="44"
+                                       Text="Planned • Details"
+                                       Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                       FontSize="{DynamicResource SafeSpeakFont11}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+                </UniformGrid>
 
                 <!-- Advisory when no connector is checked -->
                 <Border Style="{StaticResource StatusCard}"
@@ -998,7 +1206,7 @@
 
                 <ListBox x:Name="KeybindsList"
                          TabIndex="1"
-                         ItemsSource="{Binding KeybindList}"
+                         ItemsSource="{Binding Keybinds}"
                          MinHeight="170"
                          AutomationProperties.Name="Primary SafeSpeak hotkeys"
                          AutomationProperties.HelpText="Use Up and Down Arrow keys to review global hotkeys.">
@@ -1012,20 +1220,32 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <DockPanel Margin="6,4">
-                                <Border DockPanel.Dock="Right"
-                                        Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
-                                        VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Shortcut}"
-                                               FontWeight="Bold"
-                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
-                                </Border>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" />
-                                    <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                </StackPanel>
-                            </DockPanel>
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="10,6"
+                                    Margin="0,2">
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Right"
+                                            Background="{DynamicResource SafeSpeakSurfaceAltBrush}"
+                                            BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="8,3"
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Gesture}"
+                                                   FontWeight="Bold"
+                                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                                   Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -1038,52 +1258,112 @@
                 </Border>
             </StackPanel>
 
-            <!-- STEP 7: NAVIGATION GUIDE -->
+            <!-- STEP 7: NAVIGATION & SYSTEM DESIGN -->
             <StackPanel Margin="0,10,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsNavigationStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="Navigation shortcuts guide"
+                <TextBlock Text="How SafeSpeak is organized"
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
                            Margin="0,0,0,4" />
-                <TextBlock Text="SafeSpeak is fully keyboard-accessible with dedicated shortcuts to navigate tabs, settings chapters, and setup steps."
+                <TextBlock Text="SafeSpeak runs in the background while you broadcast, with 4 main views and instant global hotkeys from any game or screen."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,6"
+                           Margin="0,0,0,8"
                            TextWrapping="Wrap" />
 
-                <ListBox x:Name="NavigationShortcutsList"
-                         TabIndex="1"
-                         ItemsSource="{Binding NavigationShortcuts}"
-                         MinHeight="170"
-                         AutomationProperties.Name="SafeSpeak navigation shortcuts"
-                         AutomationProperties.HelpText="Use Up and Down Arrow keys to review navigation shortcuts.">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="{x:Type ListBoxItem}"
-                               BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                            <Setter Property="MinHeight" Value="44" />
-                            <Setter Property="AutomationProperties.Name"
-                                    Value="{Binding AutomationSummary}" />
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel Margin="6,4">
-                                <Border DockPanel.Dock="Right"
-                                        Style="{StaticResource StatusPill}"
-                                        Padding="8,2"
-                                        VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Shortcut}"
-                                               FontWeight="Bold"
-                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
-                                </Border>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" />
-                                    <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                <!-- Graphical Interface Architecture Diagram -->
+                <Border Style="{StaticResource CardPanel}" Padding="10" Margin="0,0,0,6">
+                    <StackPanel>
+                        <!-- Top Mock App Bar -->
+                        <Border Background="{DynamicResource SafeSpeakWindowBrush}" CornerRadius="4" Padding="8,5" Margin="0,0,0,8">
+                            <DockPanel LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="{DynamicResource SafeSpeakDangerBrush}" CornerRadius="3" Padding="5,2" Margin="0,0,4,0">
+                                        <TextBlock Text="Emergency: Pause" FontSize="{DynamicResource SafeSpeakFont12}" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakDangerTextBrush}" />
+                                    </Border>
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="5,2">
+                                        <TextBlock Text="Arm: Ctrl+Shift+A" FontSize="{DynamicResource SafeSpeakFont12}" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakTextBrush}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="SafeSpeak" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" Foreground="{DynamicResource SafeSpeakAccentBrush}" Margin="0,0,8,0" />
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="● DISARMED (Safe)" FontSize="{DynamicResource SafeSpeakFont12}" FontWeight="SemiBold" Foreground="{DynamicResource SafeSpeakMutedTextBrush}" />
+                                    </Border>
                                 </StackPanel>
                             </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                        </Border>
+
+                        <!-- 4 Navigation Tabs Graphical Grid -->
+                        <TextBlock Text="Primary Application Tabs" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakMutedTextBrush}" Margin="0,0,0,4" />
+                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,8">
+                            <!-- Tab 1: Live -->
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakAccentBrush}" BorderThickness="2" CornerRadius="5" Padding="6" Margin="0,0,3,0">
+                                <StackPanel>
+                                    <Border Background="{DynamicResource SafeSpeakAccentSoftBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                        <TextBlock Text="Ctrl + 1" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                    </Border>
+                                    <TextBlock Text="1. Live Monitoring" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                    <TextBlock Text="Chat queue and active TTS stream" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Tab 2: Safety -->
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="6" Margin="2,0,2,0">
+                                <StackPanel>
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                        <TextBlock Text="Ctrl + 2" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakTextBrush}" />
+                                    </Border>
+                                    <TextBlock Text="2. Safety &amp; Filter" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                    <TextBlock Text="AI guard, banned words, regex rules" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Tab 3: Voice -->
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="6" Margin="2,0,2,0">
+                                <StackPanel>
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                        <TextBlock Text="Ctrl + 3" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakTextBrush}" />
+                                    </Border>
+                                    <TextBlock Text="3. Speech Voice" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                    <TextBlock Text="Kokoro neural and Windows voices" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Tab 4: Settings -->
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="6" Margin="3,0,0,0">
+                                <StackPanel>
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                        <TextBlock Text="Ctrl + 4" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakTextBrush}" />
+                                    </Border>
+                                    <TextBlock Text="4. Settings" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                    <TextBlock Text="Audio routing, connectors, profiles" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- Chapter Navigation Graphic -->
+                        <Border Background="{DynamicResource SafeSpeakWindowBrush}" CornerRadius="4" Padding="8,6">
+                            <DockPanel LastChildFill="True">
+                                <Border DockPanel.Dock="Left" Background="{DynamicResource SafeSpeakAccentBrush}" CornerRadius="3" Padding="5,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Alt + 1..9" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakAccentTextBrush}" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Instant Chapter Jumping" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                    <TextBlock Text="Press Alt plus a number to jump directly to any numbered chapter on the active screen." Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status advisory card -->
+                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,0" Padding="8">
+                    <TextBlock Text="Ready to continue! Press Y or Enter to proceed to the final review."
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                               TextWrapping="Wrap" />
+                </Border>
             </StackPanel>
 
             <!-- STEP 8: REVIEW -->
@@ -1101,10 +1381,15 @@
                             Content="Restart Setup (N)"
                             AutomationProperties.Name="Restart setup from step 1"
                             AutomationProperties.HelpText="Press N to reset choices and return to Step 1." />
-                    <TextBlock Text="Saved setup choices"
-                               FontSize="{DynamicResource SafeSpeakFont18}"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Saved setup choices"
+                                   FontSize="{DynamicResource SafeSpeakFont18}"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Review your configured details below, then press Y if you agree to save and open SafeSpeak."
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,2,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
                 </DockPanel>
 
                 <ListBox x:Name="ReviewList"
@@ -1122,9 +1407,32 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}"
-                                       TextWrapping="Wrap"
-                                       Margin="8,6" />
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="10,6"
+                                    Margin="0,2">
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Left"
+                                            Background="{DynamicResource SafeSpeakAccentSoftBrush}"
+                                            CornerRadius="10"
+                                            Width="20" Height="20"
+                                            Margin="0,0,8,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="✓"
+                                                   FontWeight="Bold"
+                                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                                   Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="{Binding}"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"
+                                               FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -1188,5 +1496,150 @@
                        TextWrapping="Wrap"
                        AutomationProperties.Name="{Binding KeyboardHelpText}" />
         </Border>
+
+        <!-- Window-Level Modal Overlay (Popup over window) -->
+        <Grid Grid.Row="0" Grid.RowSpan="4"
+              Panel.ZIndex="1000"
+              Visibility="{Binding IsAnyModalOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <!-- Semi-transparent backdrop -->
+            <Border Background="#C0000000"
+                    PreviewMouseLeftButtonDown="ModalBackdrop_PreviewMouseLeftButtonDown" />
+
+            <!-- Elevated Modal Dialog Card -->
+            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                    BorderBrush="{DynamicResource SafeSpeakAccentBrush}"
+                    BorderThickness="3"
+                    CornerRadius="8"
+                    MaxWidth="540"
+                    Margin="24"
+                    Padding="22"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center">
+                <Grid>
+                    <!-- View A: TikTok Direct Two-Step Confirmation -->
+                    <StackPanel Visibility="{Binding IsConfiguringTikTokDirect, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <DockPanel LastChildFill="True" Margin="0,0,0,10">
+                            <Button x:Name="TikTokModalCloseButton"
+                                    DockPanel.Dock="Right"
+                                    Padding="10,4"
+                                    MinHeight="36"
+                                    MinWidth="60"
+                                    Command="{Binding CloseConnectorModalCommand}"
+                                    Content="Close"
+                                    AutomationProperties.Name="Close TikTok Direct configuration" />
+                            <StackPanel VerticalAlignment="Center">
+                                <Border Style="{StaticResource StatusPill}"
+                                        HorizontalAlignment="Left"
+                                        Padding="8,2"
+                                        Margin="0,0,0,4">
+                                    <TextBlock Text="{Binding TikTokStepBadge}"
+                                               FontWeight="Bold"
+                                               FontSize="{DynamicResource SafeSpeakFont11}" />
+                                </Border>
+                                <TextBlock Text="Configure TikTok Direct"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont18}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <TextBlock Text="{Binding TikTokModalPrompt}"
+                                   FontWeight="SemiBold"
+                                   Margin="0,4,0,8"
+                                   TextWrapping="Wrap" />
+
+                        <!-- Username Input Row with @ prefix -->
+                        <Grid Margin="0,4,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                    BorderThickness="1,1,0,1"
+                                    CornerRadius="4,0,0,4"
+                                    Padding="12,0"
+                                    MinHeight="44">
+                                <TextBlock Text="@"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont17}"
+                                           Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                            </Border>
+                            <TextBox x:Name="TikTokUsernameTextBox"
+                                     Grid.Column="1"
+                                     MinHeight="44"
+                                     MaxLength="24"
+                                     FontSize="{DynamicResource SafeSpeakFont15}"
+                                     Text="{Binding TikTokModalInput, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="TikTok creator username confirmation input"
+                                     AutomationProperties.HelpText="Enter the creator username without the at sign and press Enter. Enter the same username a second time to verify and save." />
+                        </Grid>
+
+                        <TextBlock x:Name="TikTokModalStatusTextBlock"
+                                   Text="{Binding TikTokModalStatus}"
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,0,0,14"
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Assertive"
+                                   a11y:LiveRegion.Announcement="{Binding TikTokModalStatus}" />
+
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    MinHeight="44"
+                                    MinWidth="100"
+                                    Command="{Binding CloseConnectorModalCommand}"
+                                    Content="Cancel (Esc)"
+                                    AutomationProperties.Name="Cancel TikTok Direct configuration" />
+                            <Button MinHeight="44"
+                                    MinWidth="160"
+                                    Margin="0,0,10,0"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding SubmitTikTokUsernameCommand}"
+                                    Content="Save &amp; Verify (Enter)"
+                                    AutomationProperties.Name="Save and verify creator username" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- View B: Planned Connector Roadmap Info -->
+                    <StackPanel Visibility="{Binding IsPlaceholderModalOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <DockPanel LastChildFill="True" Margin="0,0,0,10">
+                            <Border DockPanel.Dock="Right"
+                                    Style="{StaticResource StatusPill}"
+                                    Padding="8,2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="Coming Soon"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource SafeSpeakFont12}" />
+                            </Border>
+                            <TextBlock Text="{Binding ActivePlaceholderTitle}"
+                                       FontWeight="Bold"
+                                       FontSize="{DynamicResource SafeSpeakFont18}"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+
+                        <TextBlock Text="{Binding ActivePlaceholderDescription}"
+                                   Style="{StaticResource SecondaryText}"
+                                   Margin="0,4,0,12"
+                                   TextWrapping="Wrap" />
+
+                        <Border Style="{StaticResource StatusCard}" Padding="12" Margin="0,0,0,16">
+                            <TextBlock Text="This livestreaming connector is planned for a future SafeSpeak update. SafeSpeak will support official platform authentication and direct chat events without requiring third-party relay tools."
+                                       TextWrapping="Wrap" />
+                        </Border>
+
+                        <Button x:Name="PlaceholderCloseButton"
+                                MinHeight="44"
+                                MinWidth="130"
+                                HorizontalAlignment="Right"
+                                Style="{StaticResource PrimaryButton}"
+                                Command="{Binding CloseConnectorModalCommand}"
+                                Content="Close (Esc)"
+                                AutomationProperties.Name="Close placeholder connector details" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

@@ -34,12 +34,22 @@ public sealed record ThemeChoiceOption(
 public sealed record KeybindDisplayItem(
     string Name,
     string Gesture,
-    string Description);
+    string Description)
+{
+    public string Title => Name;
+    public string Shortcut => Gesture;
+    public string AutomationSummary => $"{Name}, shortcut: {Gesture}. {Description}";
+}
 
 public sealed record NavigationShortcutItem(
     string Category,
     string Gesture,
-    string Description);
+    string Description)
+{
+    public string Title => Category;
+    public string Shortcut => Gesture;
+    public string AutomationSummary => $"{Category}, shortcut: {Gesture}. {Description}";
+}
 
 public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDisposable
 {
@@ -150,6 +160,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public ObservableCollection<string> ReviewItems { get; } = [];
     public ObservableCollection<VoiceInfo> Voices { get; } = [];
     public ObservableCollection<KeybindDisplayItem> Keybinds { get; } = [];
+    public ObservableCollection<KeybindDisplayItem> KeybindList => Keybinds;
     public ObservableCollection<NavigationShortcutItem> NavigationShortcuts { get; } = [];
 
     [ObservableProperty]
@@ -240,13 +251,50 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool IsQwenSelected => SelectedModerationModel == ModerationModelPreference.Qwen3Guard06BCompressed;
     public bool HasAnyConnectorSelected => UseTikFinity || UseTikTokDirect;
     public string TikFinityStatusBadge => UseTikFinity ? "Enabled" : "Disabled";
-    public string TikTokDirectStatusBadge => UseTikTokDirect ? "Enabled" : "Disabled";
+    public string TikTokDirectStatusBadge => UseTikTokDirect ? (string.IsNullOrWhiteSpace(TikTokUsername) ? "Enabled" : $"@{TikTokUsername}") : "Disabled";
 
     [ObservableProperty]
-    private bool _isConfiguringTikTokDirect;
+    private string? _activeModalConnectorId;
+
+    [ObservableProperty]
+    private string _activePlaceholderTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _activePlaceholderDescription = string.Empty;
+
+    [ObservableProperty]
+    private string _tikTokModalPrompt = "Enter creator username without the at sign, then press Enter.";
+
+    [ObservableProperty]
+    private string _tikTokModalStatus = "Configure TikTok Direct. Enter creator username.";
+
+    [ObservableProperty]
+    private string _tikTokModalInput = string.Empty;
+
+    [ObservableProperty]
+    private string? _tikTokFirstAttempt;
+
+    public bool IsAnyModalOpen => !string.IsNullOrEmpty(ActiveModalConnectorId);
+    public bool IsConfiguringTikTokDirect => string.Equals(ActiveModalConnectorId, "tiktok-direct", StringComparison.OrdinalIgnoreCase);
+    public bool IsPlaceholderModalOpen => IsAnyModalOpen && !IsConfiguringTikTokDirect;
+    public bool IsTikTokSecondAttempt => TikTokFirstAttempt != null;
+    public string TikTokStepBadge => IsTikTokSecondAttempt ? "Step 2 of 2: Confirm Username" : "Step 1 of 2: Enter Username";
 
     public bool IsTikFinityEnabled => UseTikFinity;
     public bool IsTikTokDirectEnabled => UseTikTokDirect;
+
+    partial void OnActiveModalConnectorIdChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsAnyModalOpen));
+        OnPropertyChanged(nameof(IsConfiguringTikTokDirect));
+        OnPropertyChanged(nameof(IsPlaceholderModalOpen));
+    }
+
+    partial void OnTikTokFirstAttemptChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsTikTokSecondAttempt));
+        OnPropertyChanged(nameof(TikTokStepBadge));
+    }
 
     partial void OnUseTikFinityChanged(bool value)
     {
@@ -262,7 +310,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(IsTikTokDirectEnabled));
         if (value && string.IsNullOrWhiteSpace(TikTokUsername))
         {
-            IsConfiguringTikTokDirect = true;
+            OpenTikTokDirectConfig();
         }
     }
 
@@ -277,40 +325,88 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     [RelayCommand]
     private void OpenTikTokDirectConfig()
     {
-        IsConfiguringTikTokDirect = true;
-        StatusText = "Enter TikTok creator username.";
+        ActiveModalConnectorId = "tiktok-direct";
+        TikTokFirstAttempt = null;
+        TikTokModalInput = string.Empty;
+        TikTokModalPrompt = "Enter creator username without the at sign, then press Enter.";
+        TikTokModalStatus = "Configure TikTok Direct. Enter creator username.";
+        _announcer.Announce(TikTokModalStatus, interrupt: true);
+        FocusRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void SubmitTikTokUsername()
+    {
+        if (!TikTokLiveConnector.TryNormalizeUsername(TikTokModalInput, out string normalized))
+        {
+            TikTokModalStatus = "That username cannot be used. Enter 2 to 24 letters, numbers, periods, or underscores, without the at sign.";
+            _announcer.Announce(TikTokModalStatus, interrupt: true);
+            return;
+        }
+
+        if (TikTokFirstAttempt is null)
+        {
+            TikTokFirstAttempt = normalized;
+            TikTokModalInput = string.Empty;
+            TikTokModalPrompt = "Enter the same TikTok username again, then press Enter to verify and save.";
+            TikTokModalStatus = $"First entry captured as {normalized}. Enter the same username again and press Enter.";
+            _announcer.Announce(TikTokModalStatus, interrupt: true);
+            FocusRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (!string.Equals(TikTokFirstAttempt, normalized, StringComparison.OrdinalIgnoreCase))
+        {
+            TikTokModalInput = string.Empty;
+            TikTokModalStatus = $"The usernames did not match. The first entry was {TikTokFirstAttempt}. Enter that username again and press Enter, or press Escape to cancel.";
+            _announcer.Announce(TikTokModalStatus, interrupt: true);
+            FocusRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        TikTokUsername = normalized;
+        UseTikTokDirect = true;
+        ActiveModalConnectorId = null;
+        TikTokFirstAttempt = null;
+        TikTokModalInput = string.Empty;
+        StatusText = $"Verified @{normalized}. TikTok Direct enabled.";
         _announcer.Announce(StatusText, interrupt: true);
         FocusRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]
-    private void SaveTikTokDirectConfig()
+    private void OpenPlaceholderModal(string? platformId)
     {
-        if (TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string normalized))
+        if (string.IsNullOrWhiteSpace(platformId)) return;
+        ActiveModalConnectorId = platformId;
+        (ActivePlaceholderTitle, ActivePlaceholderDescription) = platformId.ToLowerInvariant() switch
         {
-            TikTokUsername = normalized;
-            UseTikTokDirect = true;
-            IsConfiguringTikTokDirect = false;
-            StatusText = $"TikTok Direct enabled for @{normalized}.";
-            _announcer.Announce(StatusText, interrupt: true);
-        }
-        else
-        {
-            StatusText = "Please enter a valid creator username (letters, numbers, underscores, periods).";
-            _announcer.Announce(StatusText, interrupt: true);
-        }
+            "twitch" => ("Twitch", "Planned for an upcoming update. SafeSpeak will support official Twitch authentication and IRC / EventSub chat integration."),
+            "youtube-live" => ("YouTube Live", "Planned for an upcoming update. SafeSpeak will support official YouTube Live Streaming and Live Chat APIs."),
+            "kick" => ("Kick", "Planned for an upcoming update. SafeSpeak will support official Kick streaming live chat integration."),
+            "facebook-live" => ("Facebook Live", "Planned for an upcoming update. SafeSpeak will support Facebook Graph API live video comments integration."),
+            "instagram-live" => ("Instagram Live", "Planned for an upcoming update. SafeSpeak will support Instagram Graph API live broadcast comments integration."),
+            "x-live" => ("X / Twitter Live", "Planned for an upcoming update. SafeSpeak will support live audio spaces and broadcast chat feeds."),
+            "trovo" => ("Trovo", "Planned for an upcoming update. SafeSpeak will support official Trovo chat API integration."),
+            _ => (platformId, "Planned for an upcoming update. This connector will be available in a future SafeSpeak release.")
+        };
+        _announcer.Announce($"{ActivePlaceholderTitle} connector. {ActivePlaceholderDescription}", interrupt: true);
+        FocusRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]
-    private void CancelTikTokDirectConfig()
+    private void CloseConnectorModal()
     {
-        IsConfiguringTikTokDirect = false;
+        ActiveModalConnectorId = null;
+        TikTokFirstAttempt = null;
+        TikTokModalInput = string.Empty;
         if (string.IsNullOrWhiteSpace(TikTokUsername))
         {
             UseTikTokDirect = false;
         }
-        StatusText = "TikTok Direct configuration closed.";
+        StatusText = "Connector dialog closed.";
         _announcer.Announce(StatusText, interrupt: true);
+        FocusRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public bool IsInteractionEnabled => !IsBusy;
@@ -957,13 +1053,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private void ConfigureNavigationPage()
     {
         StepProgress = "Step 7 of 8";
-        PromptText = "Navigation quick keys";
+        PromptText = "How SafeSpeak works and navigation";
         StatusText =
-            "Quick keys: Tabs (Ctrl+1..4), Chapters (Alt+1..9), and Setup steps (Ctrl+1..8).";
+            "SafeSpeak is divided into 4 primary views: Live chat (Ctrl+1), Safety filtering (Ctrl+2), Voice selection (Ctrl+3), and Settings (Ctrl+4). Inside any page, press Alt+1 through Alt+9 to jump between chapters. SafeSpeak operates quietly in the background while you stream.";
         PrimaryButtonText = "Continue (Y)";
-        PrimaryButtonAutomationName = "Continue after reviewing navigation shortcuts";
+        PrimaryButtonAutomationName = "Continue after reviewing SafeSpeak interface design and navigation";
         KeyboardHelpText =
-            "Keyboard: Tab through shortcuts. Press Y to continue.";
+            "Keyboard: Press Y or Enter to continue to final review.";
     }
 
     private void ConfigureReviewPage()
@@ -971,7 +1067,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         StepProgress = "Step 8 of 8";
         PromptText = "Review setup choices";
         StatusText =
-            "Use Arrow keys to review choices. Finish Setup saves your profile and opens SafeSpeak disarmed.";
+            "Review your setup choices below. Press Y if you agree to save and continue into SafeSpeak, or press N to restart setup from Step 1.";
         PrimaryButtonText = "Finish setup (Y)";
         PrimaryButtonAutomationName = "Save setup and open SafeSpeak";
         KeyboardHelpText =
@@ -1091,7 +1187,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             BuildReviewItems();
             string reviewSummary = string.Join(". ", ReviewItems);
             _announcer.Announce(
-                $"{StepProgress}. {PromptText}. Press Y to confirm your settings and open SafeSpeak, or press N to restart setup. You can also press Control plus 1 through 8 to revisit any step. Here is your configuration summary: {reviewSummary}.",
+                $"{StepProgress}. {PromptText}. Here is your configuration summary: {reviewSummary}. If you agree, press Y to finish setup and enter SafeSpeak, or press N to restart setup. You can also press Control plus 1 through 8 to revisit any step.",
+                interrupt: true);
+        }
+        else if (CurrentPage == AccessibilitySetupPage.Navigation)
+        {
+            _announcer.Announce(
+                $"{StepProgress}. {PromptText}. SafeSpeak features four primary views accessible anytime with Control plus 1 through 4: Live chat on Control 1, Safety filtering on Control 2, Voice selection on Control 3, and Settings on Control 4. Inside any screen, press Alt plus 1 through 9 to jump directly between chapters. SafeSpeak operates quietly in the background while you stream. Press Y or Enter to continue to final review.",
                 interrupt: true);
         }
         else

@@ -74,18 +74,18 @@ public partial class AccessibilitySetupDialog : Window
             return;
         }
 
-        if (_viewModel.IsConfiguringTikTokDirect)
+        if (_viewModel.IsAnyModalOpen)
         {
             if (e.Key == Key.Escape)
             {
-                _viewModel.CancelTikTokDirectConfigCommand.Execute(null);
+                _viewModel.CloseConnectorModalCommand.Execute(null);
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.Enter)
+            if (e.Key is Key.Enter or Key.Return && _viewModel.IsConfiguringTikTokDirect)
             {
-                _viewModel.SaveTikTokDirectConfigCommand.Execute(null);
+                _viewModel.SubmitTikTokUsernameCommand.Execute(null);
                 e.Handled = true;
                 return;
             }
@@ -191,12 +191,21 @@ public partial class AccessibilitySetupDialog : Window
         Dispatcher.BeginInvoke(
             () =>
             {
-                if (_viewModel.CurrentPage == AccessibilitySetupPage.Platform && _viewModel.IsConfiguringTikTokDirect)
+                if (_viewModel.IsConfiguringTikTokDirect)
                 {
                     TikTokUsernameTextBox.Focus();
                     Keyboard.Focus(TikTokUsernameTextBox);
                     return;
                 }
+
+                if (_viewModel.IsPlaceholderModalOpen)
+                {
+                    PlaceholderCloseButton.Focus();
+                    Keyboard.Focus(PlaceholderCloseButton);
+                    return;
+                }
+
+                _focusNarrator.SuppressNextFocusAnnouncement();
 
                 Control target = _viewModel.CurrentPage switch
                 {
@@ -206,7 +215,7 @@ public partial class AccessibilitySetupDialog : Window
                     AccessibilitySetupPage.Voice => VoiceSelectorComboBox,
                     AccessibilitySetupPage.Filtering => AiClassificationCheckBox,
                     AccessibilitySetupPage.Keybinds => KeybindsList,
-                    AccessibilitySetupPage.Navigation => NavigationShortcutsList,
+                    AccessibilitySetupPage.Navigation => PrimaryButton,
                     AccessibilitySetupPage.Review => ReviewList,
                     _ => PrimaryButton
                 };
@@ -214,6 +223,15 @@ public partial class AccessibilitySetupDialog : Window
                 Keyboard.Focus(target);
             },
             DispatcherPriority.Input);
+    }
+
+    private void ModalBackdrop_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_viewModel.IsAnyModalOpen)
+        {
+            _viewModel.CloseConnectorModalCommand.Execute(null);
+            e.Handled = true;
+        }
     }
 
     private void AccessibilitySetupDialog_Closed(object? sender, EventArgs e)

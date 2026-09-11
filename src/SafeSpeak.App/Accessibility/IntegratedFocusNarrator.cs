@@ -27,7 +27,10 @@ public sealed class IntegratedFocusNarrator : IDisposable
     private readonly Func<bool> _typingEchoEnabled;
     private string? _lastAnnouncement;
     private DateTime _lastAnnouncementAt;
+    private bool _suppressNextFocus;
     private bool _disposed;
+
+    public void SuppressNextFocusAnnouncement() => _suppressNextFocus = true;
 
     public IntegratedFocusNarrator(
         Window window,
@@ -193,6 +196,12 @@ public sealed class IntegratedFocusNarrator : IDisposable
 
     private void OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
+        if (_suppressNextFocus)
+        {
+            _suppressNextFocus = false;
+            return;
+        }
+
         if (!_announcer.IsEnhancedAccessibilityEnabled || e.NewFocus is not DependencyObject element)
         {
             return;
