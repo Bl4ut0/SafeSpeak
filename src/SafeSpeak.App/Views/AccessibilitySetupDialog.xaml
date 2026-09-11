@@ -376,40 +376,174 @@
                 <TextBlock Text="Streaming platform connectors"
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,6" />
-                <CheckBox x:Name="TikFinityCheckBox"
-                          TabIndex="1"
-                          MinHeight="50"
-                          IsChecked="{Binding UseTikFinity}"
-                          Content="Use TikFinity for TikTok chat"
-                          AutomationProperties.Name="Use TikFinity for TikTok chat"
-                          AutomationProperties.HelpText="When selected, SafeSpeak will try to connect to the configured local TikFinity connector when it opens." />
-                <CheckBox x:Name="TikTokDirectCheckBox"
-                          TabIndex="2"
-                          MinHeight="50"
-                          Margin="0,6,0,0"
-                          IsChecked="{Binding UseTikTokDirect}"
-                          Content="Use TikTok Direct by username"
-                          AutomationProperties.Name="Use TikTok Direct by username"
-                          AutomationProperties.HelpText="When selected, SafeSpeak adds its self-contained TikTok LIVE connector. TikFinity is not required." />
-                <TextBox x:Name="TikTokUsernameTextBox"
-                         TabIndex="3"
-                         MinHeight="44"
-                         Margin="0,6,0,0"
-                         MaxLength="24"
-                         IsEnabled="{Binding UseTikTokDirect}"
-                         Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="TikTok creator username for TikTok Direct"
-                         AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
+                           Margin="0,0,0,3" />
+                <TextBlock Text="Choose which platforms SafeSpeak listens to for live chat. You can leave them disabled and configure connectors later in Settings."
+                           Style="{StaticResource SecondaryText}"
+                           Margin="0,0,0,10"
+                           TextWrapping="Wrap" />
+
+                <!-- Card 1: TikFinity -->
+                <Border Style="{StaticResource CardPanel}"
+                        Margin="0,0,0,10"
+                        Padding="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" LastChildFill="True">
+                            <Border DockPanel.Dock="Right"
+                                    Style="{StaticResource StatusPill}"
+                                    Padding="10,3"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding TikFinityStatusBadge}"
+                                           FontWeight="SemiBold"
+                                           FontSize="{DynamicResource SafeSpeakFont12}" />
+                            </Border>
+                            <CheckBox x:Name="TikFinityCheckBox"
+                                      TabIndex="1"
+                                      MinHeight="44"
+                                      IsChecked="{Binding UseTikFinity}"
+                                      Content="Use TikFinity for TikTok chat"
+                                      FontWeight="SemiBold"
+                                      AutomationProperties.Name="Use TikFinity for TikTok chat"
+                                      AutomationProperties.HelpText="When selected, SafeSpeak will try to connect to the configured local TikFinity connector when it opens." />
+                        </DockPanel>
+
+                        <TextBlock Grid.Row="1"
+                                   Margin="28,4,0,0"
+                                   Text="Connects to the TikFinity desktop application over a local WebSocket (ws://localhost:21213). Best if you already use TikFinity for overlays, sound alerts, or screen widgets."
+                                   Style="{StaticResource SecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </Grid>
+                </Border>
+
+                <!-- Card 2: TikTok Direct -->
+                <Border Style="{StaticResource CardPanel}"
+                        Margin="0,0,0,10"
+                        Padding="14">
+                    <StackPanel>
+                        <DockPanel LastChildFill="True">
+                            <Border DockPanel.Dock="Right"
+                                    Style="{StaticResource StatusPill}"
+                                    Padding="10,3"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding TikTokDirectStatusBadge}"
+                                           FontWeight="SemiBold"
+                                           FontSize="{DynamicResource SafeSpeakFont12}" />
+                            </Border>
+                            <CheckBox x:Name="TikTokDirectCheckBox"
+                                      TabIndex="2"
+                                      MinHeight="44"
+                                      IsChecked="{Binding UseTikTokDirect}"
+                                      Content="Use TikTok Direct by username"
+                                      FontWeight="SemiBold"
+                                      AutomationProperties.Name="Use TikTok Direct by username"
+                                      AutomationProperties.HelpText="When selected, SafeSpeak adds its self-contained TikTok LIVE connector. TikFinity is not required." />
+                        </DockPanel>
+
+                        <TextBlock Margin="28,4,0,8"
+                                   Text="Direct, self-contained connection to TikTok LIVE chat via creator username. No third-party tools or intermediate apps needed."
+                                   Style="{StaticResource SecondaryText}"
+                                   TextWrapping="Wrap" />
+
+                        <!-- Details section: asks for creator username when enabled -->
+                        <Border Visibility="{Binding UseTikTokDirect, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Background="{DynamicResource SafeSpeakSurfaceAltBrush}"
+                                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="12,10"
+                                Margin="28,4,0,0">
+                            <StackPanel>
+                                <Label Target="{Binding ElementName=TikTokUsernameTextBox}"
+                                       Content="TikTok Creator Username"
+                                       Padding="0"
+                                       Margin="0,0,0,4"
+                                       FontWeight="SemiBold"
+                                       FontSize="{DynamicResource SafeSpeakFont13}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                            BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                            BorderThickness="1,1,0,1"
+                                            CornerRadius="4,0,0,4"
+                                            Padding="10,0"
+                                            MinHeight="44">
+                                        <TextBlock Text="@"
+                                                   FontWeight="Bold"
+                                                   FontSize="{DynamicResource SafeSpeakFont15}"
+                                                   Foreground="{DynamicResource SafeSpeakMutedTextBrush}"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center" />
+                                    </Border>
+                                    <TextBox x:Name="TikTokUsernameTextBox"
+                                             Grid.Column="1"
+                                             TabIndex="3"
+                                             MinHeight="44"
+                                             MaxLength="24"
+                                             IsEnabled="{Binding UseTikTokDirect}"
+                                             Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="TikTok creator username for TikTok Direct"
+                                             AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
+                                </Grid>
+                                <TextBlock Margin="0,4,0,0"
+                                           Text="Enter creator username without '@' (letters, numbers, underscores, periods). SafeSpeak will connect to this creator's live chat."
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
 
                 <!-- Advisory when no connector is checked -->
                 <Border Style="{StaticResource StatusCard}"
-                        Margin="0,8,0,0"
-                        Padding="10"
+                        Margin="0,4,0,0"
+                        Padding="12,10"
                         Visibility="{Binding HasAnyConnectorSelected, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                    <TextBlock Text="Advisory: No connectors are enabled. You can continue setup now, but SafeSpeak will not capture or speak chat messages until you configure a connector in Settings or the Live tab."
-                               Style="{StaticResource SecondaryText}"
-                               TextWrapping="Wrap" />
+                    <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Left"
+                                Style="{StaticResource StatusPill}"
+                                Padding="8,2"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Top">
+                            <TextBlock Text="Optional"
+                                       FontWeight="Bold"
+                                       FontSize="{DynamicResource SafeSpeakFont12}" />
+                        </Border>
+                        <TextBlock Text="No connectors are enabled. You can continue setup now, but SafeSpeak will not capture or speak chat messages until you configure a connector in Settings or the Live tab."
+                                   Style="{StaticResource SecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </DockPanel>
+                </Border>
+
+                <!-- Confirmation when connector(s) are selected -->
+                <Border Style="{StaticResource CardPanel}"
+                        Margin="0,4,0,0"
+                        Padding="12,10"
+                        Visibility="{Binding HasAnyConnectorSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Left"
+                                Style="{StaticResource StatusPill}"
+                                Padding="8,2"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Top">
+                            <TextBlock Text="Ready"
+                                       FontWeight="Bold"
+                                       FontSize="{DynamicResource SafeSpeakFont12}" />
+                        </Border>
+                        <TextBlock Text="Connector selected. SafeSpeak will save your platform choices and prepare them for live speech when setup finishes."
+                                   Style="{StaticResource SecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </DockPanel>
                 </Border>
             </StackPanel>
 

@@ -239,6 +239,20 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool IsQwenInstalled => _qwenRuntime.IsModelInstalled;
     public bool IsQwenSelected => SelectedModerationModel == ModerationModelPreference.Qwen3Guard06BCompressed;
     public bool HasAnyConnectorSelected => UseTikFinity || UseTikTokDirect;
+    public string TikFinityStatusBadge => UseTikFinity ? "Enabled" : "Disabled";
+    public string TikTokDirectStatusBadge => UseTikTokDirect ? "Enabled" : "Disabled";
+
+    partial void OnUseTikFinityChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HasAnyConnectorSelected));
+        OnPropertyChanged(nameof(TikFinityStatusBadge));
+    }
+
+    partial void OnUseTikTokDirectChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HasAnyConnectorSelected));
+        OnPropertyChanged(nameof(TikTokDirectStatusBadge));
+    }
 
     public bool IsInteractionEnabled => !IsBusy;
     public bool IsBackAvailable => CurrentPage != AccessibilitySetupPage.Reader;
