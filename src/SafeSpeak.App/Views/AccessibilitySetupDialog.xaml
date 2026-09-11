@@ -124,6 +124,7 @@
                              Background="Transparent"
                              KeyboardNavigation.TabNavigation="Once"
                              PreviewKeyDown="ThemeList_PreviewKeyDown"
+                             PreviewMouseLeftButtonDown="ThemeList_PreviewMouseLeftButtonDown"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              AutomationProperties.Name="Visual theme selector"
                              AutomationProperties.ItemStatus="{Binding SelectedThemeOption.AutomationName}"
@@ -142,7 +143,7 @@
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                 <Setter Property="VerticalContentAlignment" Value="Stretch" />
                                 <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
-                                <Setter Property="Focusable" Value="False" />
+                                <Setter Property="Focusable" Value="True" />
                                 <Setter Property="IsTabStop" Value="False" />
                                 <Setter Property="AutomationProperties.Name"
                                         Value="{Binding AutomationName}" />
@@ -278,34 +279,23 @@
                               Content="Use TikFinity for TikTok chat"
                               AutomationProperties.Name="Use TikFinity for TikTok chat"
                               AutomationProperties.HelpText="When selected, SafeSpeak will try to connect to the configured local TikFinity connector when it opens." />
-                    <CheckBox TabIndex="2"
-                              MinHeight="58"
-                              Margin="0,10,0,0"
-                              IsEnabled="{Binding UseTikFinity}"
-                              IsChecked="{Binding AutoDetectLocalConnectors}"
-                              Content="Auto-detect TikFinity on this computer — recommended"
-                              AutomationProperties.Name="Allow local TikFinity auto-detection, recommended"
-                              AutomationProperties.HelpText="This is explicit consent to check only approved TikFinity process names and local port 21213. It does not connect, authenticate, arm SafeSpeak, or scan files." />
-
-                    <ListBox ItemsSource="{Binding DetectionResults}"
-                             Margin="0,14,0,0"
-                             MaxHeight="150"
-                             AutomationProperties.Name="Local connector detection results">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="{x:Type ListBoxItem}"
-                                   BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                <Setter Property="AutomationProperties.Name"
-                                        Value="{Binding SafeDescription}" />
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding SafeDescription}"
-                                           TextWrapping="Wrap"
-                                           Margin="8,5" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <CheckBox x:Name="TikTokDirectCheckBox"
+                              TabIndex="2"
+                              MinHeight="50"
+                              Margin="0,8,0,0"
+                              IsChecked="{Binding UseTikTokDirect}"
+                              Content="Use TikTok Direct by username"
+                              AutomationProperties.Name="Use TikTok Direct by username"
+                              AutomationProperties.HelpText="When selected, SafeSpeak adds its self-contained TikTok LIVE connector. TikFinity is not required." />
+                    <TextBox x:Name="TikTokUsernameTextBox"
+                             TabIndex="3"
+                             MinHeight="44"
+                             Margin="0,6,0,0"
+                             MaxLength="24"
+                             IsEnabled="{Binding UseTikTokDirect}"
+                             Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="TikTok creator username for TikTok Direct"
+                             AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
                 </StackPanel>
 
                 <StackPanel Margin="0,12,0,0"
@@ -358,16 +348,13 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                </StackPanel>
 
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsRestartRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Border Style="{StaticResource ContentPanel}" Padding="14">
-                        <TextBlock Text="SafeSpeak will remain closed after this step. Reopen it to provide the second confirmation; the app will then continue setup where you left off."
-                                   TextWrapping="Wrap"
-                                   FontWeight="SemiBold"
-                                   AutomationProperties.Name="Restart required. Reopen SafeSpeak to confirm the same accessibility combination." />
+                    <Border Style="{StaticResource StatusCard}" Margin="0,8,0,0" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Speech Voices &amp; Quality Levels" FontWeight="SemiBold" />
+                            <TextBlock Text="SafeSpeak includes Level 1 (Desktop SAPI) and Level 2 (Windows Natural) voices immediately. After setup, you can install higher-fidelity neural voices (Level 3 Kokoro, ~330 MB) or select custom voices anytime from the Voice tab."
+                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
                     </Border>
                 </StackPanel>
 

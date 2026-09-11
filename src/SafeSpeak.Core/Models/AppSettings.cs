@@ -45,7 +45,7 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 9;
+    public const int CurrentSettingsSchemaVersion = 12;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
@@ -111,6 +111,12 @@ public sealed class AppSettings
     public bool AllowFollowAnnouncementsWhilePaused { get; set; } = true;
     public bool AllowShareAnnouncementsWhilePaused { get; set; } = true;
     public bool AllowSubscriptionAnnouncementsWhilePaused { get; set; } = true;
+    public bool InstantAlertsGifts { get; set; } = true;
+    public bool InstantAlertsFollows { get; set; } = true;
+    public bool InstantAlertsShares { get; set; } = false;
+    public bool InstantAlertsSubscriptions { get; set; } = false;
+    public bool InstantAlertsJoins { get; set; } = false;
+    public bool InstantAlertsLikes { get; set; } = false;
 
     public bool BroadcastOutputEnabled { get; set; } = true;
     public bool HasConsentedToLocalAuditLogging { get; set; }
@@ -122,8 +128,12 @@ public sealed class AppSettings
         set => HasConsentedToLocalAuditLogging = value;
     }
     public string SelectedSourceConnectorId { get; set; } = "tikfinity";
+    public List<string> ConfiguredSourceConnectorIds { get; set; } = ["tikfinity"];
+    public List<string> ActiveSourceConnectorIds { get; set; } = ["tikfinity"];
     public string TikTokUsername { get; set; } = "";
     public bool AutoConnectSource { get; set; } = true;
+    public bool SafetyGuideControlsAtTop { get; set; } = true;
+    public bool SettingsGuideControlsAtTop { get; set; } = true;
     public bool LocalConnectorAutoDetectConsent { get; set; }
     public OnboardingConnectorDetectionStatus LocalConnectorDetectionStatus { get; set; } =
         OnboardingConnectorDetectionStatus.NotChecked;
@@ -157,6 +167,7 @@ public sealed class AppSettings
     public string? SelectedVoiceName { get; set; }
     public int SpeechRate { get; set; } = 0;
     public int SpeechVolume { get; set; } = 100;
+    public int SpeechBoost { get; set; } = 0;
     public int ReaderSpeechRate { get; set; } = 3;
     public int ReaderSpeechVolume { get; set; } = 100;
     public bool NarrateDetailedHelp { get; set; } = true;
@@ -210,6 +221,7 @@ public sealed class AppSettings
         MigrateAndValidateOnboardingStage(root, this);
         MigrateAuditLoggingConsent(root, this);
         MigrateGlobalShortcuts(root, this);
+        MigrateConnectorCollections(root, this);
     }
 
     internal void NormalizeForPersistence()
@@ -236,6 +248,7 @@ public sealed class AppSettings
 
         if (!Enum.IsDefined(OnboardingStage) ||
             (!HasConfirmedAccessibilityPreferences &&
+             !IsAwaitingAccessibilityConfirmation &&
              OnboardingStage != OnboardingStage.Accessibility))
         {
             OnboardingStage = OnboardingStage.Accessibility;
@@ -262,7 +275,16 @@ public sealed class AppSettings
             ModerationModel = ModerationModelPreference.BuiltInHybrid;
         }
         SpeechRate = Math.Clamp(SpeechRate, -5, 5);
-        SpeechVolume = Math.Clamp(SpeechVolume, 0, 150);
+        if (SpeechVolume > 100 && SpeechBoost == 0)
+        {
+            SpeechBoost = Math.Clamp(SpeechVolume - 100, 0, 100);
+            SpeechVolume = 100;
+        }
+        else
+        {
+            SpeechVolume = Math.Clamp(SpeechVolume, 0, 100);
+            SpeechBoost = Math.Clamp(SpeechBoost, 0, 100);
+        }
         ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
         ReaderSpeechVolume = Math.Clamp(ReaderSpeechVolume, 0, 150);
         InterfaceTextScalePercent = Math.Clamp(InterfaceTextScalePercent, 100, 200);
@@ -278,14 +300,17 @@ public sealed class AppSettings
         SpeakUsernames = true;
         AiClassificationEnabled = true;
 
-        if (string.IsNullOrWhiteSpace(SelectedSourceConnectorId) ||
-            SelectedSourceConnectorId.Length > 128)
-        {
-            SelectedSourceConnectorId = "tikfinity";
-        }
+        SelectedSourceConnectorId = NormalizeConnectorId(SelectedSourceConnectorId)
+            ?? "tikfinity";
 
         TikTokUsername = Connectors.TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out string username)
             ? username : "";
+        ConfiguredSourceConnectorIds = NormalizeConnectorIds(
+            ConfiguredSourceConnectorIds);
+        ActiveSourceConnectorIds = NormalizeConnectorIds(
+                ActiveSourceConnectorIds)
+            .Where(id => ConfiguredSourceConnectorIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+            .ToList();
         NormalizeLocalConnectorDetection();
 
         CustomBlockedTerms = (CustomBlockedTerms ?? [])
@@ -302,6 +327,33 @@ public sealed class AppSettings
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(500)
             .ToList();
+    }
+
+    private static List<string> NormalizeConnectorIds(
+        IEnumerable<string>? connectorIds)
+    {
+        string[] supportedIds = ["tikfinity", "tiktok-direct"];
+        List<string> normalized = (connectorIds ?? [])
+            .Select(NormalizeConnectorId)
+            .Where(id => id is not null)
+            .Cast<string>()
+            .Where(id => supportedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return normalized;
+    }
+
+    private static string? NormalizeConnectorId(string? connectorId)
+    {
+        string normalized = (connectorId ?? string.Empty).Trim();
+        if (normalized.Equals("tiktok-live", StringComparison.OrdinalIgnoreCase))
+            return "tiktok-direct";
+        if (normalized.Equals("tiktok-direct", StringComparison.OrdinalIgnoreCase))
+            return "tiktok-direct";
+        if (normalized.Equals("tikfinity", StringComparison.OrdinalIgnoreCase))
+            return "tikfinity";
+        return null;
     }
 
     private void NormalizeLocalConnectorDetection()
@@ -364,6 +416,7 @@ public sealed class AppSettings
             !Enum.IsDefined(settings.OnboardingStage) ||
             (
                 !settings.HasConfirmedAccessibilityPreferences &&
+                !settings.IsAwaitingAccessibilityConfirmation &&
                 settings.OnboardingStage != OnboardingStage.Accessibility
             ))
         {
@@ -390,6 +443,12 @@ public sealed class AppSettings
         {
             settings.HasConsentedToLocalAuditLogging = false;
         }
+        else if (!settings.HasConsentedToLocalAuditLogging &&
+                 TryReadBoolean(root, nameof(EnableStreamAuditLogging), out bool enableLogging) &&
+                 enableLogging)
+        {
+            settings.HasConsentedToLocalAuditLogging = true;
+        }
     }
 
     private static void MigrateGlobalShortcuts(
@@ -400,6 +459,34 @@ public sealed class AppSettings
         {
             settings.GlobalShortcuts = GlobalShortcutCatalog.CreateDefaults();
         }
+    }
+
+    private static void MigrateConnectorCollections(
+        JsonElement root,
+        AppSettings settings)
+    {
+        int schemaVersion = 0;
+        if (root.TryGetProperty(nameof(SettingsSchemaVersion), out JsonElement schemaElement))
+        {
+            _ = schemaElement.TryGetInt32(out schemaVersion);
+        }
+
+        bool hasConfiguredCollection = root.TryGetProperty(
+            nameof(ConfiguredSourceConnectorIds),
+            out _);
+        if (hasConfiguredCollection &&
+            (schemaVersion >= 12 || (settings.ConfiguredSourceConnectorIds?.Count ?? 0) > 0))
+        {
+            return;
+        }
+
+        string legacyId = string.IsNullOrWhiteSpace(settings.SelectedSourceConnectorId)
+            ? "tikfinity"
+            : settings.SelectedSourceConnectorId;
+        settings.ConfiguredSourceConnectorIds = [legacyId];
+        settings.ActiveSourceConnectorIds = settings.AutoConnectSource
+            ? [legacyId]
+            : [];
     }
 
     private static void MigrateLegacyAccessibilitySettings(

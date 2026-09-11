@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using SafeSpeak.App.Accessibility;
 using SafeSpeak.App.ViewModels;
 using SafeSpeak.Core.Accessibility;
+using SafeSpeak.Core.Connectors;
 
 namespace SafeSpeak.App;
 
@@ -22,12 +23,16 @@ public partial class MainWindow : Window
     private IntegratedFocusNarrator? _focusNarrator;
     private bool _shutdownCleanupStarted;
     private bool _globalShortcutGroupActive;
+    private bool _hotkeysSuspendedForShortcutCapture;
     private GlobalShortcutEditorViewModel? _capturingShortcutEditor;
     private string? _firstCapturedShortcut;
-    private string _verifiedShortcut = string.Empty;
-    private bool _shortcutCaptureVerified;
     private ModifierKeys _shortcutCaptureModifiers;
-    private bool _shortcutCapturedNonModifier;
+    private string? _shortcutCaptureKeyName;
+    private bool _shortcutTriggerReleased;
+    private LiveConnectorViewModel? _capturingConnector;
+    private string? _firstConnectorUsername;
+    private LiveConnectorViewModel? _managingConnector;
+    private bool _editingConnectorConfiguration;
 
     public MainWindow()
     {
@@ -41,14 +46,26 @@ public partial class MainWindow : Window
                 () => vm.NarrateTypedCharacters);
             vm.GlobalShortcutsChanged += ViewModel_GlobalShortcutsChanged;
         }
-        Closing += MainWindow_Closing;
+        Closing += (s, e) =>
+        {
+            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", $"MainWindow Closing event triggered (Cancel={e.Cancel}).");
+            MainWindow_Closing(s, e);
+        };
+        Closed += (_, _) =>
+        {
+            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", "MainWindow Closed event triggered.");
+        };
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         PreviewMouseWheel += MainWindow_PreviewMouseWheel;
-        Loaded += (_, _) => Dispatcher.BeginInvoke(() =>
+        Loaded += (_, _) =>
         {
-            HearStatusButton.Focus();
-            Keyboard.Focus(HearStatusButton);
-        }, DispatcherPriority.Input);
+            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", "MainWindow Loaded event triggered.");
+            Dispatcher.BeginInvoke(() =>
+            {
+                HearStatusButton.Focus();
+                Keyboard.Focus(HearStatusButton);
+            }, DispatcherPriority.Input);
+        };
     }
 
     private void ThemeSelector_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -74,6 +91,307 @@ public partial class MainWindow : Window
         selector.SelectedIndex = nextIndex;
         selector.ScrollIntoView(selector.SelectedItem);
         e.Handled = true;
+    }
+
+    private async void SettingsConnectorCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: LiveConnectorViewModel connector } ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (connector.IsConfigured)
+        {
+            BeginInlineConnectorManagement(connector);
+            return;
+        }
+
+        if (
+            string.Equals(connector.Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            BeginInlineConnectorCapture(connector, editing: false);
+            return;
+        }
+
+        CancelInlineConnectorSurfaces();
+        await viewModel.ToggleConnectorConfigurationAsync(connector);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void PositionInlineConnectorPanels(bool forEnabledConnector)
+    {
+        if (Chapter1ConnectorsPanel is null ||
+            InlineConnectorManagementPanel is null ||
+            InlineConnectorCapturePanel is null ||
+            DisabledConnectorsBorder is null)
+        {
+            return;
+        }
+
+        Chapter1ConnectorsPanel.Children.Remove(InlineConnectorManagementPanel);
+        Chapter1ConnectorsPanel.Children.Remove(InlineConnectorCapturePanel);
+
+        int disabledIndex = Chapter1ConnectorsPanel.Children.IndexOf(DisabledConnectorsBorder);
+        if (disabledIndex >= 0)
+        {
+            if (forEnabledConnector)
+            {
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex, InlineConnectorManagementPanel);
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex + 1, InlineConnectorCapturePanel);
+            }
+            else
+            {
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex + 1, InlineConnectorManagementPanel);
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex + 2, InlineConnectorCapturePanel);
+            }
+        }
+        else
+        {
+            Chapter1ConnectorsPanel.Children.Add(InlineConnectorManagementPanel);
+            Chapter1ConnectorsPanel.Children.Add(InlineConnectorCapturePanel);
+        }
+    }
+
+    private void BeginInlineConnectorManagement(LiveConnectorViewModel connector)
+    {
+        PositionInlineConnectorPanels(forEnabledConnector: true);
+        CancelInlineConnectorSurfaces();
+        _managingConnector = connector;
+        InlineConnectorManagementHeading.Text = $"Connector options: {connector.DisplayName}";
+        InlineConnectorManagementPrompt.Text =
+            $"{connector.DisplayName} is enabled. Choose Edit to review its configuration, Delete to disable it, or Cancel.";
+        InlineConnectorManagementPanel.Visibility = Visibility.Visible;
+        InlineConnectorManagementPanel.BringIntoView();
+        Dispatcher.BeginInvoke(
+            () => FocusElement(InlineConnectorEditButton),
+            DispatcherPriority.Input);
+    }
+
+    private void BeginInlineConnectorCapture(
+        LiveConnectorViewModel connector,
+        bool editing)
+    {
+        PositionInlineConnectorPanels(forEnabledConnector: editing || connector.IsConfigured);
+        CloseInlineConnectorManagement();
+        _capturingConnector = connector;
+        _firstConnectorUsername = null;
+        _editingConnectorConfiguration = editing;
+        InlineConnectorUsernameTextBox.Clear();
+        InlineConnectorCapturePrompt.Text =
+            "Enter the TikTok username without the at sign, then press Enter.";
+        InlineConnectorCaptureStatus.Text =
+            "Waiting for the first username entry.";
+        InlineConnectorCapturePanel.Visibility = Visibility.Visible;
+        InlineConnectorCapturePanel.BringIntoView();
+        Dispatcher.BeginInvoke(() =>
+        {
+            FocusElement(InlineConnectorUsernameTextBox);
+        }, DispatcherPriority.Input);
+    }
+
+    private void InlineConnectorEditButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_managingConnector is not { } connector ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (string.Equals(
+                connector.Id,
+                TikTokLiveConnector.ConnectorDescriptor.Id,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            BeginInlineConnectorCapture(connector, editing: true);
+            return;
+        }
+
+        CloseInlineConnectorManagement();
+        viewModel.AnnounceState(
+            "TikFinity has no additional configuration fields. It remains enabled. Focus returned to TikFinity.",
+            interrupt: true);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private async void InlineConnectorDeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_managingConnector is not { } connector ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        CloseInlineConnectorManagement();
+        await viewModel.ToggleConnectorConfigurationAsync(connector);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void InlineConnectorManagementCancelButton_Click(object sender, RoutedEventArgs e)
+        => CancelInlineConnectorManagement(announce: true);
+
+    private void CancelInlineConnectorManagement(bool announce)
+    {
+        LiveConnectorViewModel? connector = _managingConnector;
+        CloseInlineConnectorManagement();
+        if (connector is null)
+        {
+            return;
+        }
+
+        if (announce && DataContext is MainViewModel viewModel)
+        {
+            viewModel.AnnounceState(
+                $"Connector options closed for {connector.DisplayName}. Nothing was changed.",
+                interrupt: true);
+        }
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void CloseInlineConnectorManagement()
+    {
+        InlineConnectorManagementPanel.Visibility = Visibility.Collapsed;
+        _managingConnector = null;
+    }
+
+    private async void InlineConnectorUsernameTextBox_PreviewKeyDown(
+        object sender,
+        KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            CancelInlineConnectorCapture(announce: true);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key is not (Key.Enter or Key.Return) ||
+            _capturingConnector is not { } connector ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (!TikTokLiveConnector.TryNormalizeUsername(
+                InlineConnectorUsernameTextBox.Text,
+                out string username))
+        {
+            SetInlineConnectorStatus(
+                "That username cannot be used. Enter 2 to 24 letters, numbers, periods, or underscores, without the at sign.");
+            InlineConnectorUsernameTextBox.SelectAll();
+            return;
+        }
+
+        if (_firstConnectorUsername is null)
+        {
+            _firstConnectorUsername = username;
+            InlineConnectorUsernameTextBox.Clear();
+            InlineConnectorCapturePrompt.Text =
+                "Enter the same TikTok username again, then press Enter to verify and save.";
+            SetInlineConnectorStatus(
+                $"First entry captured as {username}. Enter the same username again and press Enter.");
+            return;
+        }
+
+        if (!string.Equals(_firstConnectorUsername, username, StringComparison.OrdinalIgnoreCase))
+        {
+            InlineConnectorUsernameTextBox.Clear();
+            SetInlineConnectorStatus(
+                $"The usernames did not match. The first entry was {_firstConnectorUsername}. Enter that username again and press Enter, or press Escape to cancel.");
+            return;
+        }
+
+        InlineConnectorUsernameTextBox.IsEnabled = false;
+        SetInlineConnectorStatus($"Verified {username}. Saving TikTok Direct now.");
+        bool saved;
+        try
+        {
+            saved = await viewModel.ConfigureTikTokDirectAsync(username);
+        }
+        catch (Exception ex)
+        {
+            saved = false;
+            viewModel.AnnounceState(
+                $"TikTok Direct could not be configured. {ex.Message}",
+                interrupt: true);
+        }
+        finally
+        {
+            InlineConnectorUsernameTextBox.IsEnabled = true;
+        }
+
+        bool wasEditing = _editingConnectorConfiguration;
+        CloseInlineConnectorCapture();
+        viewModel.AnnounceState(saved
+            ? wasEditing
+                ? "TikTok Direct username verified and saved. TikTok Direct remains in the Enabled connectors area. Focus returned to TikTok Direct."
+                : "TikTok Direct username verified and saved. TikTok Direct moved to the Enabled connectors area. Focus returned to TikTok Direct."
+            : "TikTok Direct could not be saved. Review the announced error and try again.",
+            interrupt: true);
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void InlineConnectorCancelButton_Click(object sender, RoutedEventArgs e) =>
+        CancelInlineConnectorCapture(announce: true);
+
+    private void CancelInlineConnectorCapture(bool announce)
+    {
+        LiveConnectorViewModel? connector = _capturingConnector;
+        if (connector is null)
+        {
+            return;
+        }
+
+        CloseInlineConnectorCapture();
+        if (announce && DataContext is MainViewModel viewModel)
+        {
+            viewModel.AnnounceState(
+                "TikTok Direct configuration cancelled. Nothing was changed.",
+                interrupt: true);
+        }
+        FocusSettingsConnectorCard(connector);
+    }
+
+    private void CloseInlineConnectorCapture()
+    {
+        InlineConnectorCapturePanel.Visibility = Visibility.Collapsed;
+        InlineConnectorUsernameTextBox.Clear();
+        _capturingConnector = null;
+        _firstConnectorUsername = null;
+        _editingConnectorConfiguration = false;
+    }
+
+    private void CancelInlineConnectorSurfaces()
+    {
+        CloseInlineConnectorCapture();
+        CloseInlineConnectorManagement();
+    }
+
+    private void SetInlineConnectorStatus(string message)
+    {
+        InlineConnectorCaptureStatus.Text = message;
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.Announcer.AnnounceFocus(message);
+        }
+    }
+
+    private void FocusSettingsConnectorCard(LiveConnectorViewModel connector)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            Button? card = EnumerateVisualDescendants(SettingsPanel)
+                .OfType<Button>()
+                .FirstOrDefault(button =>
+                    Equals(button.Tag, "SettingsConnectorCard") &&
+                    ReferenceEquals(button.DataContext, connector));
+            if (card is not null)
+            {
+                card.BringIntoView();
+                FocusElement(card);
+            }
+        }, DispatcherPriority.Loaded);
     }
 
     private void GlobalShortcutGroupEntry_Click(object sender, RoutedEventArgs e) =>
@@ -209,20 +527,18 @@ public partial class MainWindow : Window
         }
 
         viewModel.SelectedGlobalShortcut = editor;
+        _hotkeyService.UnregisterHotkeys();
+        _hotkeysSuspendedForShortcutCapture = true;
         _capturingShortcutEditor = editor;
         _firstCapturedShortcut = null;
-        _verifiedShortcut = string.Empty;
-        _shortcutCaptureVerified = false;
         ResetShortcutCaptureKeys();
 
         InlineShortcutCaptureHeading.Text = $"Change shortcut: {editor.DisplayName}";
         InlineShortcutCaptureDescription.Text = editor.Description;
         InlinePendingShortcutText.Text = "Press the shortcut once";
-        InlineShortcutEnabledCheckBox.IsChecked = editor.IsEnabled;
-        InlineSaveShortcutButton.IsEnabled = false;
         InlineShortcutCapturePanel.Visibility = Visibility.Visible;
         SetInlineShortcutStatus(
-            $"Listening for {editor.DisplayName}. Press the complete shortcut combination once.");
+            $"Listening for {editor.DisplayName}. Press and release the complete shortcut combination once.");
         InlineShortcutCapturePanel.BringIntoView();
         Dispatcher.BeginInvoke(
             () => FocusElement(InlineShortcutCaptureButton),
@@ -237,18 +553,15 @@ public partial class MainWindow : Window
         ModifierKeys keyModifier = GetShortcutModifier(key);
         if (keyModifier != ModifierKeys.None)
         {
-            if (_shortcutCaptureModifiers == ModifierKeys.None)
-            {
-                _shortcutCapturedNonModifier = false;
-            }
-
             _shortcutCaptureModifiers |= keyModifier;
             e.Handled = true;
             return;
         }
 
         ModifierKeys modifiers = Keyboard.Modifiers;
-        if (key == Key.Tab && modifiers is ModifierKeys.None or ModifierKeys.Shift)
+        if (key == Key.Tab &&
+            _shortcutCaptureModifiers == ModifierKeys.None &&
+            modifiers is ModifierKeys.None or ModifierKeys.Shift)
         {
             return;
         }
@@ -261,8 +574,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        ProcessShortcutCapture(FormatShortcutGesture(modifiers, keyName));
-        _shortcutCapturedNonModifier = true;
+        if (_shortcutCaptureKeyName is not null &&
+            !string.Equals(_shortcutCaptureKeyName, keyName, StringComparison.OrdinalIgnoreCase))
+        {
+            SetInlineShortcutStatus(
+                $"Only one trigger key can be used. Release every held key, then try the complete shortcut again.");
+            e.Handled = true;
+            return;
+        }
+
+        _shortcutCaptureModifiers |= modifiers;
+        _shortcutCaptureKeyName = keyName;
+        _shortcutTriggerReleased = false;
         e.Handled = true;
     }
 
@@ -272,22 +595,30 @@ public partial class MainWindow : Window
     {
         Key key = e.Key == Key.System ? e.SystemKey : e.Key;
         ModifierKeys releasedModifier = GetShortcutModifier(key);
-        if (releasedModifier == ModifierKeys.None)
+        if (releasedModifier != ModifierKeys.None)
         {
-            return;
+            _shortcutCaptureModifiers |= releasedModifier;
+        }
+        else if (_shortcutCaptureKeyName is not null &&
+                 TryGetShortcutKeyName(key, out string releasedKeyName) &&
+                 string.Equals(_shortcutCaptureKeyName, releasedKeyName, StringComparison.OrdinalIgnoreCase))
+        {
+            _shortcutTriggerReleased = true;
         }
 
-        _shortcutCaptureModifiers |= releasedModifier;
-        ModifierKeys remainingModifiers = Keyboard.Modifiers & ~releasedModifier;
-        if (remainingModifiers == ModifierKeys.None)
+        ModifierKeys remainingModifiers = releasedModifier == ModifierKeys.None
+            ? Keyboard.Modifiers
+            : Keyboard.Modifiers & ~releasedModifier;
+        bool chordIsComplete = remainingModifiers == ModifierKeys.None &&
+            ((_shortcutCaptureKeyName is not null && _shortcutTriggerReleased) ||
+             (_shortcutCaptureKeyName is null && _shortcutCaptureModifiers != ModifierKeys.None));
+        if (chordIsComplete)
         {
-            if (!_shortcutCapturedNonModifier)
-            {
-                ProcessShortcutCapture(
-                    FormatShortcutGesture(_shortcutCaptureModifiers, null));
-            }
-
+            string candidate = FormatShortcutGesture(
+                _shortcutCaptureModifiers,
+                _shortcutCaptureKeyName);
             ResetShortcutCaptureKeys();
+            ProcessShortcutCapture(candidate);
         }
 
         e.Handled = true;
@@ -316,8 +647,6 @@ public partial class MainWindow : Window
         if (_firstCapturedShortcut is null)
         {
             _firstCapturedShortcut = normalized;
-            _shortcutCaptureVerified = false;
-            InlineSaveShortcutButton.IsEnabled = false;
             InlinePendingShortcutText.Text = $"First entry: {normalized}. Repeat it to confirm.";
             SetInlineShortcutStatus(
                 $"Captured {spoken}.{chapterWarning} Now press the same complete shortcut again to confirm it.");
@@ -326,57 +655,68 @@ public partial class MainWindow : Window
 
         if (!string.Equals(_firstCapturedShortcut, normalized, StringComparison.OrdinalIgnoreCase))
         {
-            _shortcutCaptureVerified = false;
-            InlineSaveShortcutButton.IsEnabled = false;
             SetInlineShortcutStatus(
                 $"The confirmation did not match. First entry was {SpeakableShortcut(_firstCapturedShortcut)}; second entry was {spoken}. Press {SpeakableShortcut(_firstCapturedShortcut)} again, or choose Cancel and start over.");
             return;
         }
 
-        _verifiedShortcut = normalized;
-        _shortcutCaptureVerified = true;
-        InlineShortcutEnabledCheckBox.IsChecked = true;
-        InlineSaveShortcutButton.IsEnabled = true;
         InlinePendingShortcutText.Text = $"Verified: {normalized}";
         SetInlineShortcutStatus(
-            $"Verified {spoken}.{chapterWarning} Tab to Save and close to replace the saved shortcut.");
+            $"Verified {spoken}.{chapterWarning} Saving now.");
+        CommitInlineShortcut(normalized, enabled: true);
     }
 
     private void InlineClearShortcutButton_Click(object sender, RoutedEventArgs e)
     {
-        _firstCapturedShortcut = string.Empty;
-        _verifiedShortcut = string.Empty;
-        _shortcutCaptureVerified = true;
-        InlineShortcutEnabledCheckBox.IsChecked = false;
-        InlineSaveShortcutButton.IsEnabled = true;
-        InlinePendingShortcutText.Text = "Verified: no shortcut";
-        SetInlineShortcutStatus(
-            "Shortcut removal verified by the Clear button. Choose Save and close to disable it.");
+        CommitInlineShortcut(string.Empty, enabled: false);
     }
 
-    private void InlineSaveShortcutButton_Click(object sender, RoutedEventArgs e)
+    private void CommitInlineShortcut(string gesture, bool enabled)
     {
-        if (!_shortcutCaptureVerified ||
-            _capturingShortcutEditor is not { } editor ||
+        if (_capturingShortcutEditor is not { } editor ||
             DataContext is not MainViewModel viewModel)
         {
-            SetInlineShortcutStatus(
-                "The shortcut has not been verified. Press the same key combination twice before saving.");
             return;
         }
 
-        editor.Gesture = _verifiedShortcut;
-        editor.IsEnabled = !string.IsNullOrEmpty(_verifiedShortcut) &&
-            InlineShortcutEnabledCheckBox.IsChecked == true;
+        string previousGesture = editor.Gesture;
+        bool previousEnabled = editor.IsEnabled;
+        bool wasAlreadySaved = previousEnabled == enabled &&
+            string.Equals(previousGesture, gesture, StringComparison.OrdinalIgnoreCase);
+        editor.Gesture = gesture;
+        editor.IsEnabled = enabled && !string.IsNullOrEmpty(gesture);
         editor.Status = editor.IsEnabled
             ? $"Verified {editor.Gesture}; saving and registering with Windows."
             : "Verified cleared and disabled; saving now.";
-        viewModel.ApplyGlobalShortcuts();
-        string result = editor.IsEnabled
-            ? $"Saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The inline listener is closed."
-            : $"Disabled the shortcut for {editor.DisplayName}. The inline listener is closed.";
+
+        if (!viewModel.TryApplyGlobalShortcuts())
+        {
+            editor.Gesture = previousGesture;
+            editor.IsEnabled = previousEnabled;
+            SetInlineShortcutStatus(
+                $"The shortcut for {editor.DisplayName} could not be saved. The previously saved shortcut remains active. {viewModel.GlobalShortcutStatus}");
+            return;
+        }
+
+        bool active = editor.IsEnabled &&
+            editor.Status.StartsWith("Active globally:", StringComparison.OrdinalIgnoreCase);
+        string result = !editor.IsEnabled
+            ? wasAlreadySaved
+                ? $"Verified. The shortcut for {editor.DisplayName} was already disabled. Focus returned to {editor.DisplayName} in the keybind menu."
+                : $"Verified and saved. The shortcut for {editor.DisplayName} is disabled. Focus returned to {editor.DisplayName} in the keybind menu."
+            : active
+                ? wasAlreadySaved
+                    ? $"Verified. {SpeakableShortcut(editor.Gesture)} is already saved for {editor.DisplayName} and is active system-wide. Focus returned to {editor.DisplayName} in the keybind menu."
+                    : $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}. The shortcut is active system-wide. Focus returned to {editor.DisplayName} in the keybind menu."
+                : $"Verified and saved {SpeakableShortcut(editor.Gesture)} for {editor.DisplayName}, but Windows could not activate it. {editor.Status} Focus returned to {editor.DisplayName} in the keybind menu.";
         CloseInlineShortcutCapture();
-        SetShortcutGroupStatus(result + " Continue through the action boxes, or exit the keybind group.");
+        SetShortcutGroupStatus(result);
+        Button? action = ShortcutActionButtons()
+            .FirstOrDefault(button => ReferenceEquals(button.DataContext, editor));
+        if (action is not null)
+        {
+            Dispatcher.BeginInvoke(() => FocusElement(action), DispatcherPriority.Input);
+        }
     }
 
     private void InlineCancelShortcutButton_Click(object sender, RoutedEventArgs e) =>
@@ -413,10 +753,22 @@ public partial class MainWindow : Window
         InlineShortcutCapturePanel.Visibility = Visibility.Collapsed;
         _capturingShortcutEditor = null;
         _firstCapturedShortcut = null;
-        _verifiedShortcut = string.Empty;
-        _shortcutCaptureVerified = false;
-        InlineSaveShortcutButton.IsEnabled = false;
         ResetShortcutCaptureKeys();
+        ResumeGlobalHotkeysAfterShortcutCapture();
+    }
+
+    private void ResumeGlobalHotkeysAfterShortcutCapture()
+    {
+        if (!_hotkeysSuspendedForShortcutCapture)
+        {
+            return;
+        }
+
+        _hotkeysSuspendedForShortcutCapture = false;
+        if (DataContext is MainViewModel viewModel && _windowHandle != nint.Zero)
+        {
+            RegisterCurrentGlobalShortcuts(viewModel, announce: false);
+        }
     }
 
     private IEnumerable<Button> ShortcutActionButtons() =>
@@ -445,7 +797,8 @@ public partial class MainWindow : Window
     private void ResetShortcutCaptureKeys()
     {
         _shortcutCaptureModifiers = ModifierKeys.None;
-        _shortcutCapturedNonModifier = false;
+        _shortcutCaptureKeyName = null;
+        _shortcutTriggerReleased = false;
     }
 
     private static string SpeakableShortcut(string gesture) =>
@@ -576,6 +929,11 @@ public partial class MainWindow : Window
             // A focused, collapsed selector is read-only. This prevents Tab
             // followed by an exploratory Arrow key from silently changing a
             // consequential setting. Open the list before navigating choices.
+            if (DataContext is MainViewModel vm)
+            {
+                vm.Announcer.AnnounceFocus("Press Enter to open the list before choosing.");
+            }
+
             e.Handled = true;
         }
     }
@@ -605,8 +963,9 @@ public partial class MainWindow : Window
                 control.IsEnabled &&
                 control.Focusable &&
                 control.IsTabStop &&
-                KeyboardNavigation.GetTabIndex(control) < int.MaxValue)
-            .OrderBy(KeyboardNavigation.GetTabIndex)
+                (KeyboardNavigation.GetTabIndex(control) < int.MaxValue ||
+                 control.Tag is "SettingsConnectorCard" or "SettingsConnectorInlineControl"))
+            .OrderBy(GetSettingsNavigationOrder)
             .ToList();
         if (orderedStops.Count == 0)
         {
@@ -645,6 +1004,16 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private static int GetSettingsNavigationOrder(Control control)
+    {
+        if (control.Tag is "SettingsConnectorCard" or "SettingsConnectorInlineControl")
+        {
+            return 6;
+        }
+
+        return KeyboardNavigation.GetTabIndex(control);
+    }
+
     private static IEnumerable<DependencyObject> EnumerateVisualDescendants(
         DependencyObject root)
     {
@@ -669,6 +1038,12 @@ public partial class MainWindow : Window
 
         ModifierKeys modifiers = Keyboard.Modifiers;
         Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.Escape && _managingConnector is not null)
+        {
+            CancelInlineConnectorManagement(announce: true);
+            e.Handled = true;
+            return;
+        }
         bool controlOnly = (modifiers & ModifierKeys.Control) != 0 &&
             (modifiers & (ModifierKeys.Alt | ModifierKeys.Shift | ModifierKeys.Windows)) == 0;
         if (controlOnly && TryHandleDirectNavigationShortcut(key))
@@ -723,10 +1098,53 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SelectionComboBox_DropDownOpened(object? sender, EventArgs e)
+    {
+        if (sender is ComboBox comboBox)
+        {
+            comboBox.Focus();
+        }
+    }
+
+    private void SettingsChapterJumpCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox combo && combo.SelectedValue is int chapterNumber)
+        {
+            JumpToChapter(chapterNumber);
+        }
+    }
+
+    private void JumpToChapter(int chapterNumber)
+    {
+        Label[] chapters = EnumerateVisualDescendants(GetSelectedPageContent())
+            .OfType<Label>()
+            .Where(label =>
+                label.IsVisible &&
+                AutomationProperties.GetHeadingLevel(label) == AutomationHeadingLevel.Level2)
+            .ToArray();
+        if (chapterNumber >= 1 && chapterNumber <= chapters.Length)
+        {
+            Label target = chapters[chapterNumber - 1];
+            target.BringIntoView();
+            Dispatcher.BeginInvoke(() => FocusElement(target), DispatcherPriority.Input);
+            if (DataContext is MainViewModel vm)
+            {
+                vm.Announcer.AnnounceFocus($"Jumped to Chapter {chapterNumber}. {target.Content}");
+            }
+        }
+    }
+
     private void MainWindow_PreviewMouseWheel(
         object sender,
         MouseWheelEventArgs e)
     {
+        // When a ComboBox drop-down is open to navigate its list of choices,
+        // do not redirect mouse wheel to the background page scroller.
+        if (IsAnyComboBoxDropDownOpen())
+        {
+            return;
+        }
+
         ScrollViewer? pageScroller = MainNavigation.SelectedIndex switch
         {
             1 => SafetyPageScrollViewer,
@@ -749,6 +1167,13 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private bool IsAnyComboBoxDropDownOpen()
+    {
+        return EnumerateVisualDescendants(GetSelectedPageContent())
+            .OfType<ComboBox>()
+            .Any(c => c.IsDropDownOpen);
+    }
+
     private bool TryHandleDirectNavigationShortcut(Key key)
     {
         int? tabIndex = key switch
@@ -761,6 +1186,7 @@ public partial class MainWindow : Window
         };
         if (tabIndex is not null)
         {
+            CancelInlineConnectorCaptureForNavigation();
             if (_globalShortcutGroupActive)
             {
                 DeactivateGlobalShortcutGroup(
@@ -806,7 +1232,7 @@ public partial class MainWindow : Window
             return false;
         }
 
-        Label[] chapters = EnumerateVisualDescendants(GetSelectedTab())
+        Label[] chapters = EnumerateVisualDescendants(GetSelectedPageContent())
             .OfType<Label>()
             .Where(label =>
                 label.IsVisible &&
@@ -827,10 +1253,20 @@ public partial class MainWindow : Window
                 $"Keybind group exited by Alt plus {chapterNumber.Value % 10}. Any unfinished shortcut capture was cancelled.");
         }
 
+        CancelInlineConnectorCaptureForNavigation();
+
         Label target = chapters[chapterNumber.Value - 1];
         target.BringIntoView();
         FocusElement(target);
         return true;
+    }
+
+    private void CancelInlineConnectorCaptureForNavigation()
+    {
+        if (_capturingConnector is not null || _managingConnector is not null)
+        {
+            CancelInlineConnectorSurfaces();
+        }
     }
 
     private void SelectNavigationTab(int index)
@@ -850,9 +1286,9 @@ public partial class MainWindow : Window
         }, DispatcherPriority.Input);
     }
 
-    private UIElement GetSelectedTab() =>
-        MainNavigation.SelectedItem is TabItem selectedTab
-            ? selectedTab
+    private UIElement GetSelectedPageContent() =>
+        MainNavigation.SelectedContent is UIElement selectedContent
+            ? selectedContent
             : MainNavigation;
 
     private UIElement GetSelectedPageEntryControl() => MainNavigation.SelectedIndex switch
@@ -1054,6 +1490,7 @@ public partial class MainWindow : Window
     {
         if (sender is MainViewModel viewModel)
         {
+            _hotkeysSuspendedForShortcutCapture = false;
             RegisterCurrentGlobalShortcuts(viewModel, announce: true);
         }
     }
@@ -1104,6 +1541,7 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.GlobalShortcutsChanged -= ViewModel_GlobalShortcutsChanged;
+                TryShutdownStep(vm.FlushAllSettingsToDisk);
                 // Backend cancellation, native TTS teardown, connector disposal,
                 // and disk flushing must never hold the WPF window open. Settings
                 // are already persisted as they change, so cleanup is best-effort.

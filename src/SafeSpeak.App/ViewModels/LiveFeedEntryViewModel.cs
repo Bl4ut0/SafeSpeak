@@ -21,6 +21,10 @@ public sealed partial class LiveFeedEntryViewModel : ObservableObject
 
     public ModerationDisposition Disposition => _decision.Disposition;
     public string SafeAuthorDisplayName => _decision.SafeAuthorDisplayName;
+    public string ReviewAuthorDisplayName => IsFiltered && IsFilteredContentRevealed
+        ? RawAuthorDisplayName
+        : SafeAuthorDisplayName;
+    public string PlatformName => _decision.Message.Platform;
     public string SafeDisplayText => _decision.SafeDisplayText;
     public string SafeReasonDescription => _decision.SafeReasonDescription;
     public bool IsFiltered => !_decision.Passed;
@@ -38,11 +42,11 @@ public sealed partial class LiveFeedEntryViewModel : ObservableObject
     public string AccessibleSummary => !IsFiltered
         ? _decision.AccessibleSummary
         : IsFilteredContentRevealed
-            ? $"{Disposition} message from {SafeAuthorDisplayName}. Filtered content revealed: {_decision.Message.RawText}. Reason: {SafeReasonDescription}. Press Enter to hide it."
+            ? $"{Disposition} message from {ReviewAuthorDisplayName} on {PlatformName}. Filtered content revealed: {_decision.Message.RawText}. Reason: {SafeReasonDescription}. Press Enter to hide it."
             : $"{_decision.AccessibleSummary} Press Enter to reveal the original filtered text.";
 
     public string RevealAnnouncement => IsFilteredContentRevealed
-        ? $"Filtered content revealed. {_decision.Message.RawText}. Reason: {SafeReasonDescription}."
+        ? $"Filtered content revealed. {ReviewAuthorDisplayName} on {PlatformName} said: {_decision.Message.RawText}. Reason: {SafeReasonDescription}."
         : "Filtered content hidden again.";
 
     public bool ToggleFilteredContent()
@@ -56,11 +60,28 @@ public sealed partial class LiveFeedEntryViewModel : ObservableObject
         return true;
     }
 
+    public void SetFilteredContentRevealed(bool revealed)
+    {
+        if (IsFiltered)
+        {
+            IsFilteredContentRevealed = revealed;
+        }
+    }
+
     partial void OnIsFilteredContentRevealedChanged(bool value)
     {
         OnPropertyChanged(nameof(ReviewDisplayText));
+        OnPropertyChanged(nameof(ReviewAuthorDisplayName));
         OnPropertyChanged(nameof(RevealInstruction));
         OnPropertyChanged(nameof(AccessibleSummary));
         OnPropertyChanged(nameof(RevealAnnouncement));
     }
+
+
+    private string RawAuthorDisplayName =>
+        string.IsNullOrWhiteSpace(_decision.Message.AuthorDisplayName)
+            ? string.IsNullOrWhiteSpace(_decision.Message.Author)
+                ? "Unknown viewer"
+                : _decision.Message.Author
+            : _decision.Message.AuthorDisplayName;
 }

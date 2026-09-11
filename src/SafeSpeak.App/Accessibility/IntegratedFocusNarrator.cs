@@ -130,7 +130,9 @@ public sealed class IntegratedFocusNarrator : IDisposable
                 break;
 
             case Slider slider:
-                parts.Add(slider.Value.ToString("0.##", CultureInfo.CurrentCulture));
+                string valueText = slider.Value.ToString("0.##", CultureInfo.CurrentCulture);
+                string maxText = slider.Maximum.ToString("0.##", CultureInfo.CurrentCulture);
+                parts.Add($"{valueText} of {maxText}");
                 parts.Add("slider");
                 if (includeHelpText)
                 {

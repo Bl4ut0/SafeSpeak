@@ -32,7 +32,7 @@ public static class AccessibilityPreferencesConfirmation
         if (!hasCompletePendingSelection)
         {
             StorePendingSelection(settings, spokenGuidance, theme);
-            return AccessibilityPreferencesSelectionResult.RestartRequired;
+            return AccessibilityPreferencesSelectionResult.ConfirmationPending;
         }
 
         if (
@@ -40,12 +40,13 @@ public static class AccessibilityPreferencesConfirmation
             settings.PendingTheme == theme)
         {
             ApplyConfirmedPreferences(settings, spokenGuidance, theme);
-            settings.OnboardingStage = OnboardingStage.Platform;
+            if (!settings.HasCompletedOnboarding)
+                settings.OnboardingStage = OnboardingStage.Platform;
             return AccessibilityPreferencesSelectionResult.Confirmed;
         }
 
         StorePendingSelection(settings, spokenGuidance, theme);
-        return AccessibilityPreferencesSelectionResult.ChangedRestartRequired;
+        return AccessibilityPreferencesSelectionResult.ChangedConfirmationPending;
     }
 
     public static string GetDisplayName(SpokenGuidanceMode spokenGuidance) =>
@@ -90,7 +91,8 @@ public static class AccessibilityPreferencesConfirmation
         SpokenGuidanceMode spokenGuidance,
         ThemePreference theme)
     {
-        settings.OnboardingStage = OnboardingStage.Accessibility;
+        if (!settings.HasCompletedOnboarding)
+            settings.OnboardingStage = OnboardingStage.Accessibility;
         settings.SpokenGuidance = SpokenGuidanceMode.Unset;
         settings.Theme = ThemePreference.Unset;
         settings.PendingSpokenGuidance = spokenGuidance;
@@ -111,8 +113,8 @@ public static class AccessibilityPreferencesConfirmation
 
 public enum AccessibilityPreferencesSelectionResult
 {
-    RestartRequired,
-    ChangedRestartRequired,
+    ConfirmationPending,
+    ChangedConfirmationPending,
     Confirmed,
     AppliedFromSettings
 }

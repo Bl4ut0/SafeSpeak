@@ -57,7 +57,7 @@ public sealed class OnboardingAccessibilityContractTests
                 .Where(element => element.Attribute("TabIndex") is not null),
             element => Assert.Contains(
                 element.Name.LocalName,
-                new[] { "Button", "CheckBox", "ListBox" }));
+                new[] { "Button", "CheckBox", "ListBox", "TextBox" }));
     }
 
     [Fact]
@@ -175,14 +175,20 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Equal("True", themeList.Attribute("IsTabStop")?.Value);
         Assert.Equal("Once", Attribute(themeList, "KeyboardNavigation.TabNavigation"));
         Assert.Equal("ThemeList_PreviewKeyDown", themeList.Attribute("PreviewKeyDown")?.Value);
+        Assert.Equal(
+            "ThemeList_PreviewMouseLeftButtonDown",
+            themeList.Attribute("PreviewMouseLeftButtonDown")?.Value);
         Assert.Contains(itemStyle.Descendants(Presentation + "Setter"), setter =>
             setter.Attribute("Property")?.Value == "Focusable" &&
-            setter.Attribute("Value")?.Value == "False");
+            setter.Attribute("Value")?.Value == "True");
         Assert.Contains(itemStyle.Descendants(Presentation + "Setter"), setter =>
             setter.Attribute("Property")?.Value == "IsTabStop" &&
             setter.Attribute("Value")?.Value == "False");
         Assert.Contains("Key.Left or Key.Up", codeBehind);
         Assert.Contains("Key.Right or Key.Down", codeBehind);
+        Assert.Contains("ItemsControl.ContainerFromElement(selector, source)", codeBehind);
+        Assert.Contains("selector.SelectedItem = selected", codeBehind);
+        Assert.Contains("item.Focus()", codeBehind);
         Assert.Contains("\"Light theme, option 1 of 3\"", viewModel);
         Assert.Contains("\"Dark theme, option 2 of 3\"", viewModel);
         Assert.Contains("\"High Contrast theme, option 3 of 3\"", viewModel);

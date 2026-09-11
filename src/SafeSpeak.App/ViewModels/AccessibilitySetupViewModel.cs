@@ -14,8 +14,7 @@ public enum AccessibilitySetupPage
     Theme,
     Platform,
     Filtering,
-    Review,
-    RestartRequired
+    Review
 }
 
 public sealed record ThemeChoiceOption(
@@ -28,10 +27,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 {
     private readonly AppSettings _settings;
     private readonly ScreenReaderAnnouncer _announcer;
-    private readonly LocalConnectorDetector _connectorDetector = new();
     private readonly Action _onCompleted;
-    private readonly Action _onRestartRequired;
     private readonly bool _changeExistingProfile;
+    private readonly bool _confirmationOnly;
     private readonly bool _previousAnnouncerState;
     private readonly AccessibilitySnapshot? _settingsRerunSnapshot;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
@@ -45,14 +43,16 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         AppSettings settings,
         ScreenReaderAnnouncer announcer,
         Action onCompleted,
-        Action onRestartRequired,
         bool changeExistingProfile = false)
     {
         _settings = settings;
         _announcer = announcer;
         _onCompleted = onCompleted;
-        _onRestartRequired = onRestartRequired;
         _changeExistingProfile = changeExistingProfile;
+        _confirmationOnly =
+            !changeExistingProfile &&
+            settings.HasCompletedOnboarding &&
+            settings.IsAwaitingAccessibilityConfirmation;
         _previousAnnouncerState = announcer.IsEnhancedAccessibilityEnabled;
         _settingsRerunSnapshot = changeExistingProfile
             ? AccessibilitySnapshot.Capture(settings)
@@ -85,13 +85,13 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 : _settings.EffectiveTheme;
         SelectedThemeOption =
             ThemeOptions.First(option => option.Value == initialTheme);
-        UseTikFinity = _settings.AutoConnectSource && string.Equals(
-            _settings.SelectedSourceConnectorId,
+        UseTikFinity = _settings.ConfiguredSourceConnectorIds.Contains(
             TikFinityWebSocketClient.ConnectorDescriptor.Id,
-            StringComparison.OrdinalIgnoreCase);
-        AutoDetectLocalConnectors =
-            _settings.LocalConnectorAutoDetectConsent;
-        RestorePersistedDetectionResult();
+            StringComparer.OrdinalIgnoreCase);
+        UseTikTokDirect = _settings.ConfiguredSourceConnectorIds.Contains(
+            TikTokLiveConnector.ConnectorDescriptor.Id,
+            StringComparer.OrdinalIgnoreCase);
+        TikTokUsername = _settings.TikTokUsername;
 
         AccessibilitySetupPage initialPage = _changeExistingProfile
             ? AccessibilitySetupPage.Reader
@@ -103,7 +103,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
     public ScreenReaderAnnouncer Announcer => _announcer;
     public ObservableCollection<ThemeChoiceOption> ThemeOptions { get; }
-    public ObservableCollection<LocalConnectorDetectionResult> DetectionResults { get; } = [];
     public ObservableCollection<string> ReviewItems { get; } = [];
 
     [ObservableProperty]
@@ -119,7 +118,10 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     private bool _useTikFinity = true;
 
     [ObservableProperty]
-    private bool _autoDetectLocalConnectors;
+    private bool _useTikTokDirect;
+
+    [ObservableProperty]
+    private string _tikTokUsername = string.Empty;
 
     [ObservableProperty]
     private string _stepProgress = string.Empty;
@@ -152,7 +154,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     public bool IsPlatformStep => CurrentPage == AccessibilitySetupPage.Platform;
     public bool IsFilteringStep => CurrentPage == AccessibilitySetupPage.Filtering;
     public bool IsReviewStep => CurrentPage == AccessibilitySetupPage.Review;
-    public bool IsRestartRequired => CurrentPage == AccessibilitySetupPage.RestartRequired;
     public bool IsInteractionEnabled => !IsBusy;
     public bool IsBackAvailable =>
         CurrentPage switch
@@ -191,7 +192,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 CompleteThemeStep();
                 break;
             case AccessibilitySetupPage.Platform:
-                await CompletePlatformStepAsync();
+                CompletePlatformStep();
                 break;
             case AccessibilitySetupPage.Filtering:
                 CompleteFilteringStep();
@@ -200,9 +201,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 await PrepareReviewAsync();
                 if (!_modelChecked) return;
                 CompleteOnboarding();
-                break;
-            case AccessibilitySetupPage.RestartRequired:
-                _onRestartRequired();
                 break;
         }
     }
@@ -278,7 +276,15 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 guidance,
                 SelectedThemeOption.Value,
                 applyImmediately: _changeExistingProfile);
+        bool confirmationPending =
+            result is AccessibilityPreferencesSelectionResult.ConfirmationPending or
+            AccessibilityPreferencesSelectionResult.ChangedConfirmationPending;
+
         if (_changeExistingProfile)
+            _settings.OnboardingStage = OnboardingStage.Platform;
+        else if (_confirmationOnly)
+            _settings.OnboardingStage = OnboardingStage.Complete;
+        else if (confirmationPending)
             _settings.OnboardingStage = OnboardingStage.Platform;
 
         if (!_settings.TrySave(out string? error))
@@ -290,18 +296,33 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
 
         ThemeManager.Apply(_settings.EffectiveTheme);
-        if (result is AccessibilityPreferencesSelectionResult.RestartRequired or
-            AccessibilityPreferencesSelectionResult.ChangedRestartRequired)
+        _announcer.IsEnhancedAccessibilityEnabled =
+            _settings.EffectiveSpokenGuidance != SpokenGuidanceMode.Disabled;
+
+        if (_confirmationOnly)
         {
-            NavigateTo(AccessibilitySetupPage.RestartRequired);
+            _completed = true;
+            _announcer.Announce(
+                confirmationPending
+                    ? "Your updated Reader and Theme choices are saved. Confirm them the next time SafeSpeak launches. Opening SafeSpeak now."
+                    : "Reader and Theme choices confirmed. Opening SafeSpeak.",
+                interrupt: true);
+            _onCompleted();
             return;
+        }
+
+        if (confirmationPending)
+        {
+            _announcer.Announce(
+                "Reader and Theme choices saved. SafeSpeak will ask you to confirm them the next time it launches. Continuing setup now.",
+                interrupt: true);
         }
 
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsSpokenGuidanceEnabled;
         NavigateTo(AccessibilitySetupPage.Platform);
     }
 
-    private async Task CompletePlatformStepAsync()
+    private void CompletePlatformStep()
     {
         string previousConnector = _settings.SelectedSourceConnectorId;
         bool previousAutoConnect = _settings.AutoConnectSource;
@@ -312,47 +333,51 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         string previousDetectionSummary =
             _settings.LocalConnectorDetectionSummary;
         OnboardingStage previousStage = _settings.OnboardingStage;
+        List<string> previousConfigured = [.. _settings.ConfiguredSourceConnectorIds];
+        List<string> previousActive = [.. _settings.ActiveSourceConnectorIds];
+        string previousUsername = _settings.TikTokUsername;
 
-        DetectionResults.Clear();
-        if (UseTikFinity && AutoDetectLocalConnectors)
+        if (!UseTikFinity && !UseTikTokDirect)
         {
-            IsBusy = true;
-            StatusText =
-                "Checking only approved local TikFinity process names and the local test connector port.";
-            _announcer.Announce(
-                "Checking for TikFinity on this computer. SafeSpeak will not sign in, open a connection, or scan files.",
-                interrupt: true);
-            try
-            {
-                IReadOnlyList<LocalConnectorDetectionResult> results =
-                    await _connectorDetector.DetectAsync(
-                        userConsented: true,
-                        _lifetimeCancellation.Token);
-                foreach (LocalConnectorDetectionResult result in results)
-                    DetectionResults.Add(result);
-            }
-            catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
-            {
-                return;
-            }
-            finally
-            {
-                IsBusy = false;
-            }
+            StatusText = "Select at least one connector before continuing.";
+            _announcer.Announce(StatusText, interrupt: true);
+            return;
+        }
+
+        string directUsername = string.Empty;
+        if (UseTikTokDirect &&
+            !TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out directUsername))
+        {
+            StatusText = "TikTok Direct needs a valid creator username using letters, numbers, periods, or underscores.";
+            _announcer.Announce(StatusText, interrupt: true);
+            return;
         }
 
         _settings.SelectedSourceConnectorId =
-            TikFinityWebSocketClient.ConnectorDescriptor.Id;
-        _settings.AutoConnectSource = UseTikFinity;
-        _settings.LocalConnectorAutoDetectConsent =
-            AutoDetectLocalConnectors;
-        ApplyDetectionResultToSettings(
-            DetectionResults.FirstOrDefault());
+            UseTikFinity
+                ? TikFinityWebSocketClient.ConnectorDescriptor.Id
+                : TikTokLiveConnector.ConnectorDescriptor.Id;
+        _settings.ConfiguredSourceConnectorIds = [];
+        if (UseTikFinity)
+            _settings.ConfiguredSourceConnectorIds.Add(TikFinityWebSocketClient.ConnectorDescriptor.Id);
+        if (UseTikTokDirect)
+            _settings.ConfiguredSourceConnectorIds.Add(TikTokLiveConnector.ConnectorDescriptor.Id);
+        _settings.ActiveSourceConnectorIds = [.. _settings.ConfiguredSourceConnectorIds];
+        _settings.AutoConnectSource = _settings.ActiveSourceConnectorIds.Count > 0;
+        _settings.TikTokUsername = directUsername;
+        _settings.LocalConnectorAutoDetectConsent = false;
+        _settings.LocalConnectorDetectionStatus =
+            OnboardingConnectorDetectionStatus.NotChecked;
+        _settings.LocalConnectorDetectionSummary =
+            "Local connector detection is not used during setup.";
         _settings.OnboardingStage = OnboardingStage.Filtering;
         if (!_settings.TrySave(out string? error))
         {
             _settings.SelectedSourceConnectorId = previousConnector;
             _settings.AutoConnectSource = previousAutoConnect;
+            _settings.ConfiguredSourceConnectorIds = previousConfigured;
+            _settings.ActiveSourceConnectorIds = previousActive;
+            _settings.TikTokUsername = previousUsername;
             _settings.LocalConnectorAutoDetectConsent =
                 previousDetectionConsent;
             _settings.LocalConnectorDetectionStatus =
@@ -397,8 +422,11 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
 
         _completed = true;
         ThemeManager.Apply(_settings.EffectiveTheme);
+        string confirmationReminder = _settings.IsAwaitingAccessibilityConfirmation
+            ? " Reader and Theme will be confirmed the next time SafeSpeak launches."
+            : string.Empty;
         _announcer.Announce(
-            "Setup complete. SafeSpeak is ready. It remains disarmed until you choose Arm SafeSpeak.",
+            $"Setup complete. SafeSpeak is ready.{confirmationReminder} It remains disarmed until you choose Arm SafeSpeak.",
             interrupt: true);
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsSpokenGuidanceEnabled;
         _onCompleted();
@@ -424,13 +452,16 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 break;
             case AccessibilitySetupPage.Platform:
                 StepProgress = "Step 3 of 5";
-                PromptText = "Choose your streaming connection";
+                PromptText = "Configure your streaming connections";
                 StatusText =
-                    "TikFinity is the supported TikTok connection in this release. SafeSpeak can check for it locally only after you select the consent checkbox.";
+                    (_settings.IsAwaitingAccessibilityConfirmation
+                        ? "Your Reader and Theme choices are saved for this session. SafeSpeak will ask you to confirm them the next time it launches. "
+                        : string.Empty) +
+                    "Select every connector you may use. TikFinity uses its local app; TikTok Direct connects by creator username without TikFinity. You can turn each configured connector on or off from Live.";
                 PrimaryButtonText = "Continue (Y)";
                 PrimaryButtonAutomationName = "Save streaming connection and continue";
                 KeyboardHelpText =
-                    "Keyboard: Tab through the platform and detection checkboxes. Space changes a checkbox. Press Y to save and continue.";
+                    "Keyboard: Tab through the connector choices and username. Space changes a checkbox. Press Y to save and continue.";
                 break;
             case AccessibilitySetupPage.Filtering:
                 StepProgress = "Step 4 of 5";
@@ -447,7 +478,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 StepProgress = "Step 5 of 5";
                 PromptText = "Review your SafeSpeak setup";
                 StatusText =
-                    "Use the arrow keys in the review list to hear each saved choice. Finish Setup saves the result and opens SafeSpeak.";
+                    "Use the arrow keys in the review list to hear each saved choice. Built-in Windows speech voices (Levels 1 & 2) are ready immediately; you can install high-fidelity Level 3 neural voices in the Voice tab anytime. Finish Setup saves the result and opens SafeSpeak.";
                 PrimaryButtonText = "Finish setup (Y)";
                 PrimaryButtonAutomationName = "Save setup and open SafeSpeak";
                 KeyboardHelpText =
@@ -461,18 +492,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                         "Language filtering: verification is in progress.");
                     _ = PrepareReviewAsync();
                 }
-                break;
-            case AccessibilitySetupPage.RestartRequired:
-                StepProgress = "Reader and theme confirmation 1 of 2 saved";
-                PromptText =
-                    $"{AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingSpokenGuidance)} and {AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingTheme)} are saved.";
-                StatusText =
-                    "Close SafeSpeak, reopen it, then answer Step 1 Reader and Step 2 Theme the same way. Choose the same combination to confirm it. A different combination becomes a new first choice. After confirmation, setup continues with your streaming platform.";
-                PrimaryButtonText = "Close SafeSpeak (Y)";
-                PrimaryButtonAutomationName =
-                    "Close SafeSpeak so accessibility choices can be confirmed after reopening";
-                KeyboardHelpText =
-                    "Keyboard: press Y, or Tab to reach Close SafeSpeak, then reopen the app.";
                 break;
         }
 
@@ -519,7 +538,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 $"Last time you chose the {AccessibilityPreferencesConfirmation.GetDisplayName(_settings.PendingTheme)} theme. Choose the same combination to confirm it, or choose a different theme to start a new confirmation.";
         else
             StatusText =
-                "Choose Light, Dark, or High Contrast. Reader and Theme are confirmed together across two launches to protect against an accidental first choice.";
+                "Choose Light, Dark, or High Contrast. SafeSpeak accepts these choices now and asks you to confirm them the next time it launches.";
 
         PrimaryButtonText = "Save and continue (Y)";
         PrimaryButtonAutomationName = "Save Reader and Theme choices and continue";
@@ -591,73 +610,16 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             $"Built-in spoken guidance: {(SpokenGuidanceEnabled ? "On" : "Off")}");
         ReviewItems.Add($"Visual theme: {SelectedThemeOption.Name}");
         ReviewItems.Add(
-            UseTikFinity
-                ? "Streaming platform: TikTok through TikFinity; connect automatically when SafeSpeak opens"
-                : "Streaming platform: TikFinity saved, automatic connection off");
-        ReviewItems.Add(
-            _settings.LocalConnectorAutoDetectConsent
-                ? _settings.LocalConnectorDetectionStatus ==
-                  OnboardingConnectorDetectionStatus.NotChecked
-                    ? "Local connector detection: permission saved; no check was needed because automatic TikFinity connection is off."
-                    : $"Local connector detection: {_settings.LocalConnectorDetectionSummary}"
-                : "Local connector detection: not requested");
+            $"Configured connectors: {string.Join(", ", new[]
+            {
+                UseTikFinity ? "TikFinity" : null,
+                UseTikTokDirect ? "TikTok Direct" : null
+            }.Where(name => name is not null))}. Each can be turned on or off from Live.");
         ReviewItems.Add($"Language filtering: {ModelStatus}");
         ReviewItems.Add(
+            "Speech voices: Built-in Windows voices (Levels 1 & 2) are active out of the box. You can install high-fidelity neural voices (Level 3 Kokoro, ~330 MB) or select custom voices anytime from the Voice tab.");
+        ReviewItems.Add(
             "Safety startup: SafeSpeak opens disarmed and does not process chat until you arm it.");
-    }
-
-    private void ApplyDetectionResultToSettings(
-        LocalConnectorDetectionResult? result)
-    {
-        if (!AutoDetectLocalConnectors || result is null)
-        {
-            _settings.LocalConnectorDetectionStatus =
-                OnboardingConnectorDetectionStatus.NotChecked;
-            _settings.LocalConnectorDetectionSummary =
-                "Local connector detection was not requested.";
-            return;
-        }
-
-        _settings.LocalConnectorDetectionStatus = result.Status switch
-        {
-            LocalConnectorDetectionStatus.Detected =>
-                OnboardingConnectorDetectionStatus.Detected,
-            LocalConnectorDetectionStatus.NotDetected =>
-                OnboardingConnectorDetectionStatus.NotDetected,
-            LocalConnectorDetectionStatus.TimedOut =>
-                OnboardingConnectorDetectionStatus.TimedOut,
-            LocalConnectorDetectionStatus.Failed =>
-                OnboardingConnectorDetectionStatus.Failed,
-            _ => OnboardingConnectorDetectionStatus.NotChecked
-        };
-        _settings.LocalConnectorDetectionSummary = result.SafeDescription;
-    }
-
-    private void RestorePersistedDetectionResult()
-    {
-        if (!_settings.LocalConnectorAutoDetectConsent ||
-            _settings.LocalConnectorDetectionStatus ==
-            OnboardingConnectorDetectionStatus.NotChecked)
-        {
-            return;
-        }
-
-        LocalConnectorDetectionStatus status =
-            _settings.LocalConnectorDetectionStatus switch
-            {
-                OnboardingConnectorDetectionStatus.Detected =>
-                    LocalConnectorDetectionStatus.Detected,
-                OnboardingConnectorDetectionStatus.NotDetected =>
-                    LocalConnectorDetectionStatus.NotDetected,
-                OnboardingConnectorDetectionStatus.TimedOut =>
-                    LocalConnectorDetectionStatus.TimedOut,
-                _ => LocalConnectorDetectionStatus.Failed
-            };
-        DetectionResults.Add(new LocalConnectorDetectionResult(
-            TikFinityWebSocketClient.ConnectorDescriptor.Id,
-            TikFinityWebSocketClient.ConnectorDescriptor.DisplayName,
-            status,
-            _settings.LocalConnectorDetectionSummary));
     }
 
     private void ReportSaveFailure(string? error)
@@ -682,7 +644,6 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         OnPropertyChanged(nameof(IsPlatformStep));
         OnPropertyChanged(nameof(IsFilteringStep));
         OnPropertyChanged(nameof(IsReviewStep));
-        OnPropertyChanged(nameof(IsRestartRequired));
         OnPropertyChanged(nameof(IsBackAvailable));
         OnPropertyChanged(nameof(IsPrimaryButtonVisible));
     }
@@ -713,6 +674,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         ThemePreference PendingTheme,
         OnboardingStage OnboardingStage,
         string SelectedSourceConnectorId,
+        string[] ConfiguredSourceConnectorIds,
+        string[] ActiveSourceConnectorIds,
+        string TikTokUsername,
         bool AutoConnectSource,
         bool LocalConnectorAutoDetectConsent,
         OnboardingConnectorDetectionStatus LocalConnectorDetectionStatus,
@@ -727,6 +691,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 settings.PendingTheme,
                 settings.OnboardingStage,
                 settings.SelectedSourceConnectorId,
+                [.. settings.ConfiguredSourceConnectorIds],
+                [.. settings.ActiveSourceConnectorIds],
+                settings.TikTokUsername,
                 settings.AutoConnectSource,
                 settings.LocalConnectorAutoDetectConsent,
                 settings.LocalConnectorDetectionStatus,
@@ -741,6 +708,9 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
             settings.PendingTheme = PendingTheme;
             settings.OnboardingStage = OnboardingStage;
             settings.SelectedSourceConnectorId = SelectedSourceConnectorId;
+            settings.ConfiguredSourceConnectorIds = [.. ConfiguredSourceConnectorIds];
+            settings.ActiveSourceConnectorIds = [.. ActiveSourceConnectorIds];
+            settings.TikTokUsername = TikTokUsername;
             settings.AutoConnectSource = AutoConnectSource;
             settings.LocalConnectorAutoDetectConsent =
                 LocalConnectorAutoDetectConsent;

@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.Core.Connectors;
@@ -10,7 +11,8 @@ namespace SafeSpeak.Core.Connectors;
 /// </summary>
 public sealed class TikFinityWebSocketClient : ISourceConnector
 {
-    private const int MaximumMessageBytes = 256 * 1024;
+    public const int DefaultMaximumMessageBytes = 2 * 1024 * 1024;
+    private readonly int _maximumMessageBytes;
     private static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan CloseAcknowledgementTimeout = TimeSpan.FromSeconds(1);
     private readonly Uri _serverUri;
@@ -51,9 +53,12 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
     public event EventHandler<LivestreamEvent>? EventReceived;
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 
-    public TikFinityWebSocketClient(string endpointUrl = "ws://localhost:21213/")
+    public TikFinityWebSocketClient(
+        string endpointUrl = "ws://localhost:21213/",
+        int maximumMessageBytes = DefaultMaximumMessageBytes)
     {
         _serverUri = new Uri(endpointUrl);
+        _maximumMessageBytes = maximumMessageBytes > 0 ? maximumMessageBytes : DefaultMaximumMessageBytes;
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
@@ -186,9 +191,9 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
             _state = value;
         }
 
-        // Event handlers may read State, so invoke them after releasing the lock.
         if (shouldRaise)
         {
+            AppLogger.LogInformation("TikFinity", $"State changed to {value}: {message}");
             StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(value, message));
         }
     }
@@ -222,10 +227,10 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
                 }
 
                 ms.Write(buffer, 0, result.Count);
-                if (ms.Length > MaximumMessageBytes)
+                if (ms.Length > _maximumMessageBytes)
                 {
                     throw new InvalidDataException(
-                        $"Connector payload exceeded the {MaximumMessageBytes / 1024} KB safety limit.");
+                        $"Connector payload exceeded the {_maximumMessageBytes / 1024} KB safety limit.");
                 }
             }
             while (!result.EndOfMessage);

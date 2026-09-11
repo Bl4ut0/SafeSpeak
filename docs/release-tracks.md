@@ -105,4 +105,4 @@ Run the keyboard plan with Narrator, NVDA, and JAWS at 100%, 200%, and 400% scal
 
 ### Release environment
 
-Test clean install, upgrade, repair, uninstall, settings preservation, offline launch, missing audio device, clean Windows user, x64, arm64, signed MSIX, Windows App Certification Kit, and Store identity metadata. Existing unsigned artifacts are not release candidates.
+Test clean install, upgrade, repair, uninstall, settings preservation, offline launch, missing audio device, clean Windows user, x64, arm64, Windows App Certification Kit, and Store identity metadata. Partner Center provides the trusted signature for the Store MSIX. GitHub ZIP and MSI downloads are intentionally unsigned, publish SHA-256 checksums, and must clearly explain that Windows will report an unknown publisher.

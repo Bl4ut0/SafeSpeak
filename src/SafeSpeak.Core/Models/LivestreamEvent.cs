@@ -33,9 +33,11 @@ public sealed record LivestreamEvent
         AuthorDisplayName = AuthorDisplayName,
         RawText = Text,
         Platform = Platform,
+        AttributionStyle = SpokenAttributionStyle.SaysOnPlatform,
         IsSubscriber = IsSubscriber,
         IsModerator = IsModerator,
         IsDonor = Type == LivestreamEventType.Gift,
+        EventType = Type,
         AuthorTier = AuthorTier,
         TimestampUtc = TimestampUtc
     };

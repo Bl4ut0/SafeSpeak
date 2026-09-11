@@ -21,7 +21,7 @@ public sealed class AccessibilityPreferencesConfirmationTests
         AccessibilityPreferencesSelectionResult first =
             AccessibilityPreferencesConfirmation.Select(settings, guidance, theme);
 
-        Assert.Equal(AccessibilityPreferencesSelectionResult.RestartRequired, first);
+        Assert.Equal(AccessibilityPreferencesSelectionResult.ConfirmationPending, first);
         Assert.Equal(guidance, settings.PendingSpokenGuidance);
         Assert.Equal(theme, settings.PendingTheme);
         Assert.False(settings.HasConfirmedAccessibilityPreferences);
@@ -63,7 +63,7 @@ public sealed class AccessibilityPreferencesConfirmationTests
                 replacementTheme);
 
         Assert.Equal(
-            AccessibilityPreferencesSelectionResult.ChangedRestartRequired,
+            AccessibilityPreferencesSelectionResult.ChangedConfirmationPending,
             result);
         Assert.Equal(replacementGuidance, settings.PendingSpokenGuidance);
         Assert.Equal(replacementTheme, settings.PendingTheme);
@@ -87,7 +87,7 @@ public sealed class AccessibilityPreferencesConfirmationTests
                 SpokenGuidanceMode.Enabled,
                 ThemePreference.HighContrast);
 
-        Assert.Equal(AccessibilityPreferencesSelectionResult.RestartRequired, result);
+        Assert.Equal(AccessibilityPreferencesSelectionResult.ConfirmationPending, result);
         Assert.Equal(SpokenGuidanceMode.Enabled, settings.PendingSpokenGuidance);
         Assert.Equal(ThemePreference.HighContrast, settings.PendingTheme);
         Assert.True(settings.IsAwaitingAccessibilityConfirmation);
@@ -122,6 +122,37 @@ public sealed class AccessibilityPreferencesConfirmationTests
         Assert.Equal(ThemePreference.Unset, settings.PendingTheme);
         Assert.Equal(OnboardingStage.Complete, settings.OnboardingStage);
         Assert.True(settings.HasCompletedOnboarding);
+    }
+
+    [Fact]
+    public void CompletedOnboardingRemainsCompleteWhileNextLaunchConfirmationIsPending()
+    {
+        var settings = new AppSettings
+        {
+            OnboardingStage = OnboardingStage.Complete
+        };
+
+        AccessibilityPreferencesSelectionResult first =
+            AccessibilityPreferencesConfirmation.Select(
+                settings,
+                SpokenGuidanceMode.Enabled,
+                ThemePreference.Dark);
+
+        Assert.Equal(
+            AccessibilityPreferencesSelectionResult.ConfirmationPending,
+            first);
+        Assert.True(settings.HasCompletedOnboarding);
+        Assert.True(settings.IsAwaitingAccessibilityConfirmation);
+
+        AccessibilityPreferencesSelectionResult second =
+            AccessibilityPreferencesConfirmation.Select(
+                settings,
+                SpokenGuidanceMode.Enabled,
+                ThemePreference.Dark);
+
+        Assert.Equal(AccessibilityPreferencesSelectionResult.Confirmed, second);
+        Assert.True(settings.HasCompletedOnboarding);
+        Assert.False(settings.IsAwaitingAccessibilityConfirmation);
     }
 
     [Fact]

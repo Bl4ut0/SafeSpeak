@@ -46,7 +46,9 @@ public sealed class TikFinityWebSocketClientLifecycleTests
     public async Task OversizedPayload_IsRejectedAndMovesToReconnectState()
     {
         await using var server = new LoopbackWebSocketServer();
-        await using var connector = new TikFinityWebSocketClient(server.EndpointUrl);
+        await using var connector = new TikFinityWebSocketClient(
+            server.EndpointUrl,
+            maximumMessageBytes: 256 * 1024);
         var reconnect = new TaskCompletionSource<string>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         connector.StateChanged += (_, args) =>

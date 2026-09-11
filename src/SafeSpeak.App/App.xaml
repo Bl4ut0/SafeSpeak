@@ -231,6 +231,7 @@
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MaxDropDownHeight" Value="320" />
             <Setter Property="Padding" Value="8,5" />
             <Setter Property="Background" Value="{DynamicResource SafeSpeakSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource SafeSpeakTextBrush}" />
@@ -309,6 +310,9 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ComboRoot" Property="Opacity" Value="0.58" />
+                            </Trigger>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="PART_Popup" Property="IsOpen" Value="False" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

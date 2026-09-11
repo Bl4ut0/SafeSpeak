@@ -7,14 +7,14 @@ SafeSpeak is an accessibility-focused application that turns approved livestream
 
 ## Main release target
 
-SafeSpeak is now available from the [Microsoft Store](https://apps.microsoft.com/detail/9MTFGCPQCQ86). GitHub release candidates provide separate portable ZIP, MSI, and MSIX downloads after their Authenticode signatures and SHA-256 checksums pass the release workflow.
+SafeSpeak is now available from the [Microsoft Store](https://apps.microsoft.com/detail/9MTFGCPQCQ86). Microsoft signs the Store MSIX after certification. GitHub Releases provide portable ZIP and unsigned MSI downloads with SHA-256 checksums; the MSI metadata identifies its manufacturer as **The Project Hub**, while Windows security prompts correctly report **Unknown publisher** because the installer has no Authenticode certificate.
 
 The redesign below is in progress. Items described as targets are not release claims; the living [implementation and execution plan](docs/implementation-execution-plan.md) records the verified checkpoint and acceptance evidence.
 
 - .NET 8 WPF desktop application for Windows 10 build 19041 or later.
 - First launch asks independently whether to use built-in spoken guidance and which visual theme to use: **Light**, **Dark**, or **High Contrast**. After closing and reopening SafeSpeak, the user confirms those pending choices before continuing through platform and filtering setup. Completed setup can be run again from Settings.
 - Tab/Shift+Tab navigation, arrow-key tabs and sliders, access keys, large targets, visible focus, real UI Automation live-region events, and Windows High Contrast support.
-- TikFinity connection and reconnection through a platform-neutral source-connector contract. **TikTok Direct** in Settings connects to a public LIVE stream by creator username without TikFinity or a hosted signing service. SafeSpeak remains disarmed after connecting or changing sources.
+- Multiple independently switchable live connectors through a platform-neutral source contract. Configure TikFinity and **TikTok Direct** in setup or Settings, then turn either or both on from Live. TikTok Direct connects to a public LIVE stream by creator username without TikFinity or a hosted signing service. Spoken chat includes its platform attribution.
 - Local MiniLM/ONNX toxicity classification with four understandable strengths: Relaxed, Balanced, Strong, and Maximum. The bundled model and deterministic fallback are the default moderation foundation. An optional Qwen3Guard 0.6B compressed choice is installed, verified, started, stopped, and removed from the Safety page; no separate application or terminal command is needed. SafeSpeak never downloads it merely because it was selected and keeps the bundled filter active throughout. Chat does not leave the computer for either path.
 - Non-optional severe-abuse and anti-evasion rules plus a keyboard-manageable custom banned-terms list.
 - Every approved chat is attributed as **moderated viewer name says: message**. Names are filtered separately and unsafe names become **A viewer**.
@@ -43,15 +43,16 @@ Build self-contained ZIP, MSI, and MSIX candidates:
 Repository work uses two separate CI tracks. Pushes and pull requests targeting
 `develop` run the non-publishing development workflow and retain an unsigned x64
 portable ZIP for seven days. Pushes and pull requests targeting `main` run the
-full x64/ARM64 release packaging workflow. After a successful push build on
-`main`, the exact verified commit triggers the Microsoft Store publisher. The
-protected `microsoft-store-production` environment requires reviewer approval
-before CI can verify Partner Center access, upload the Store bundle, and commit
-the update for certification. Development CI cannot contact Partner Center.
-Pushing a stable `v<version>` tag or prerelease `v<version>-rc.N` tag publishes
-the verified desktop packages as permanent GitHub Release downloads. Tagged
-releases fail closed unless the executable, MSI, and MSIX have valid
-Authenticode signatures. The MSI supplies Windows-native upgrade, repair, and
+full x64/ARM64 release packaging workflow. A successful push to `main`
+publishes the verified ZIP and unsigned MSI artifacts as a versioned GitHub Release,
+builds the Store-specific bundle, verifies Partner Center access, and commits
+the Store submission for Microsoft certification. GitHub reports failures
+through the repository's normal Actions notifications; no workflow polling is
+required. Development CI cannot contact Partner Center. A manual run exposes
+fallback questions for the release version and release details when they cannot
+be inferred from `Directory.Build.props` and the merged commits. The Store MSIX
+is the trusted installation path because Microsoft signs it after certification.
+The MSI supplies Windows-native upgrade, repair, and
 uninstall while preserving each user's SafeSpeak settings, logs, and downloaded models.
 Its setup screens support Windows Narrator and show the **Windows+Ctrl+Enter**
 shortcut needed to start spoken setup.
@@ -85,7 +86,7 @@ The current four-part desktop version comes from `Directory.Build.props`. To tes
 - TikTok Direct uses TikTok's public web protocol. Its parser, bounds, source switching, and shutdown behavior have automated coverage, but TikTok protocol changes can require connector updates.
 - The development Kokoro package is roughly 326 MB and still needs a pinned source, checksum or signature, cancellation, and cleanup verification before it can be a release option.
 - Custom voice-package archive validation exists, but upload/import is not a usable release feature until at least one supported synthesis backend, atomic install and rollback, consent, licensing, progress, cancellation, preview, persistence, and deletion are complete.
-- Narrator, NVDA, JAWS, 200%/400% scaling, physical Stream Deck, clean-install, and direct-download signing remain human release gates. Microsoft Store submission 1 passed certification on September 2, 2026.
+- Narrator, NVDA, JAWS, 200%/400% scaling, physical Stream Deck, and clean-install checks remain human release gates. Direct GitHub downloads are intentionally unsigned; Microsoft Store submission 1 passed certification on September 2, 2026.
 - Closing during active Windows and Kokoro speech is a manual release gate: input must stop immediately and the app must exit at the five-second cleanup deadline without a dialog or focus trap.
 - Built-in SafeSpeak guidance currently uses the Windows default playback device. Streamers who capture desktop audio must ensure that device is not included in the broadcast mix.
 

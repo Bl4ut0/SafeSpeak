@@ -7,6 +7,7 @@ public sealed record AudioEndpointInfo(string Id, string Name, bool IsDefault, b
 /// </summary>
 public interface IAudioRouter : IDisposable
 {
+    event EventHandler? EndpointsChanged;
     IReadOnlyList<AudioEndpointInfo> GetOutputEndpoints();
     void SelectEndpoint(string? endpointId);
     string? SelectedEndpointId { get; }

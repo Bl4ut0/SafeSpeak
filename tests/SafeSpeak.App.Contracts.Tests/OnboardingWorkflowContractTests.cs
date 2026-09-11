@@ -30,11 +30,12 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("OnboardingStage.Filtering => AccessibilitySetupPage.Filtering", resolver);
         Assert.Contains("OnboardingStage.Review => AccessibilitySetupPage.Review", resolver);
         Assert.Contains("_ => AccessibilitySetupPage.Platform", resolver);
-        Assert.Contains("if (!settings.HasCompletedOnboarding)", startup);
+        Assert.Contains("!settings.HasCompletedOnboarding ||", startup);
+        Assert.Contains("settings.IsAwaitingAccessibilityConfirmation", startup);
     }
 
     [Fact]
-    public void AccessibilityChoices_RequireMatchingSecondLaunchAndExplainCloseReopenFlow()
+    public void AccessibilityChoices_ContinueNowAndRequestConfirmationOnNextLaunch()
     {
         string confirmation = Source(
             "src", "SafeSpeak.Core", "Accessibility",
@@ -46,68 +47,47 @@ public sealed class OnboardingWorkflowContractTests
             confirmation,
             "public static AccessibilityPreferencesSelectionResult Select(");
         Assert.Contains("StorePendingSelection(settings, spokenGuidance, theme)", select);
-        Assert.Contains("AccessibilityPreferencesSelectionResult.RestartRequired", select);
+        Assert.Contains("AccessibilityPreferencesSelectionResult.ConfirmationPending", select);
         Assert.Contains("settings.PendingSpokenGuidance == spokenGuidance", select);
         Assert.Contains("settings.PendingTheme == theme", select);
         Assert.Contains("settings.OnboardingStage = OnboardingStage.Platform", select);
-        Assert.Contains("AccessibilityPreferencesSelectionResult.ChangedRestartRequired", select);
+        Assert.Contains("AccessibilityPreferencesSelectionResult.ChangedConfirmationPending", select);
 
         Assert.Contains("confirmation 2 of 2", wizard);
         Assert.Contains("Choose the same combination to confirm it", wizard);
-        Assert.Contains("PrimaryButtonText = \"Close SafeSpeak (Y)\"", wizard);
-        Assert.Contains("Close SafeSpeak, reopen it", wizard);
-        Assert.Contains("A different combination becomes a new first choice", wizard);
-
-        XElement restartMessage = xaml.Descendants(Presentation + "TextBlock")
-            .Single(element =>
+        Assert.Contains("asks you to confirm them the next time it launches", wizard);
+        Assert.Contains("Continuing setup now", wizard);
+        Assert.Contains("_confirmationOnly", wizard);
+        Assert.Contains("_settings.OnboardingStage = OnboardingStage.Complete", wizard);
+        Assert.Contains("_onCompleted()", wizard);
+        Assert.DoesNotContain("Close SafeSpeak", wizard);
+        Assert.DoesNotContain("RestartRequired", wizard);
+        Assert.DoesNotContain(
+            xaml.Descendants(Presentation + "TextBlock"),
+            element =>
                 (element.Attribute("Text")?.Value ?? string.Empty)
-                .StartsWith("SafeSpeak will remain closed", StringComparison.Ordinal));
-        Assert.Contains("second confirmation", restartMessage.Attribute("Text")!.Value);
-        Assert.Contains(
-            "Restart required",
-            Attribute(restartMessage, "AutomationProperties.Name"));
+                .Contains("remain closed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void ConnectorDetection_IsExplicitlyConsentedAndLimitedToApprovedLocalSignals()
+    public void ConnectorSetup_UsesExplicitTikFinityOrTikTokDirectChoicesWithoutAutoDetection()
     {
         XDocument xaml = LoadWizard();
         string wizard = WizardViewModel();
-        string detector = Source(
-            "src", "SafeSpeak.Core", "Connectors", "LocalConnectorDetector.cs");
 
-        XElement consent = xaml.Descendants(Presentation + "CheckBox")
-            .Single(element =>
-                Attribute(element, "AutomationProperties.Name") ==
-                "Allow local TikFinity auto-detection, recommended");
-        Assert.Equal("{Binding AutoDetectLocalConnectors}", consent.Attribute("IsChecked")?.Value);
-        string help = Attribute(consent, "AutomationProperties.HelpText") ?? string.Empty;
-        Assert.Contains("explicit consent", help);
-        Assert.Contains("approved TikFinity process names", help);
-        Assert.Contains("local port 21213", help);
-        Assert.Contains("does not connect, authenticate, arm SafeSpeak, or scan files", help);
-
-        string platform = Method(wizard, "private async Task CompletePlatformStepAsync()");
-        int consentGuard = platform.IndexOf(
-            "if (UseTikFinity && AutoDetectLocalConnectors)",
-            StringComparison.Ordinal);
-        int detectionCall = platform.IndexOf("_connectorDetector.DetectAsync(", StringComparison.Ordinal);
-        Assert.True(consentGuard >= 0 && detectionCall > consentGuard);
-        Assert.Contains("userConsented: true", platform);
-
-        int refusal = detector.IndexOf("if (!userConsented)", StringComparison.Ordinal);
-        int firstProbe = detector.IndexOf(
-            "_probe.IsAnyApprovedProcessRunningAsync",
-            StringComparison.Ordinal);
-        Assert.True(refusal >= 0 && firstProbe > refusal);
-        Assert.Contains("[\"TikFinity\", \"TikFinityApp\"]", detector);
-        Assert.Contains("[21213]", detector);
-        Assert.Contains("TimeSpan.FromSeconds(1)", detector);
-        Assert.DoesNotContain("HttpClient", detector);
-        Assert.DoesNotContain("TcpClient", detector);
-        Assert.DoesNotContain("ConnectAsync", detector);
-        Assert.DoesNotContain("File.", detector);
-        Assert.DoesNotContain("Directory.", detector);
+        string[] connectorNames = xaml.Descendants(Presentation + "CheckBox")
+            .Select(element => Attribute(element, "AutomationProperties.Name"))
+            .Where(name => name is not null)
+            .Cast<string>()
+            .ToArray();
+        Assert.Contains("Use TikFinity for TikTok chat", connectorNames);
+        Assert.Contains("Use TikTok Direct by username", connectorNames);
+        Assert.DoesNotContain(connectorNames, name =>
+            name.Contains("detect", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("AutoDetectLocalConnectors", wizard);
+        Assert.DoesNotContain("DetectionResults", wizard);
+        Assert.DoesNotContain("LocalConnectorDetector", wizard);
+        Assert.DoesNotContain("DetectAsync", wizard);
     }
 
     [Fact]
@@ -145,8 +125,7 @@ public sealed class OnboardingWorkflowContractTests
 
         Assert.Contains("Built-in spoken guidance:", review);
         Assert.Contains("Visual theme:", review);
-        Assert.Contains("Streaming platform:", review);
-        Assert.Contains("Local connector detection:", review);
+        Assert.Contains("Configured connectors:", review);
         Assert.Contains("Language filtering:", review);
         Assert.Contains("SafeSpeak opens disarmed", review);
 
@@ -238,7 +217,7 @@ public sealed class OnboardingWorkflowContractTests
     {
         string wizard = WizardViewModel();
         AssertPersistsBeforeNavigation(
-            Method(wizard, "private async Task CompletePlatformStepAsync()"),
+            Method(wizard, "private void CompletePlatformStep()"),
             "_settings.OnboardingStage = OnboardingStage.Filtering");
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompleteFilteringStep()"),

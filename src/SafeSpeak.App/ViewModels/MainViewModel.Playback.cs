@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Audio;
+using SafeSpeak.Core.Connectors;
+using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.App.ViewModels;
@@ -151,6 +153,7 @@ public sealed partial class MainViewModel
         }
 
         _ttsQueue.ResumeAutomatic();
+        _alertQueue.ResumeAutomatic();
         AnnounceState("Automatic playback enabled.");
     }
 
@@ -165,6 +168,7 @@ public sealed partial class MainViewModel
         }
 
         _ttsQueue.UseManualAdvance();
+        _alertQueue.ResumeAutomatic();
         AnnounceState(
             "Manual playback enabled. Use Speak next approved message to advance one item at a time.");
     }
@@ -182,11 +186,13 @@ public sealed partial class MainViewModel
         if (_ttsQueue.Mode == TtsPlaybackMode.Paused)
         {
             _ttsQueue.ResumeAutomatic();
+            _alertQueue.ResumeAutomatic();
             AnnounceState("Text to speech resumed in automatic mode.");
             return;
         }
 
         _ttsQueue.SetPaused(true);
+        _alertQueue.SetPaused(true);
         AnnounceState(
             $"Text to speech paused. The current message may finish. {PauseRoutingSummary}");
     }
@@ -195,6 +201,7 @@ public sealed partial class MainViewModel
     public void StopCurrentSpeech()
     {
         _ttsQueue.StopCurrentSpeech();
+        _alertQueue.StopCurrentSpeech();
         AnnounceState("Current speech stopped.");
     }
 
@@ -203,16 +210,19 @@ public sealed partial class MainViewModel
     {
         Interlocked.Increment(ref _monitoringGeneration);
         _ttsQueue.EmergencyStop();
+        _alertQueue.EmergencyStop();
         _announcer.PlayCue(SoundCueType.EmergencyStop);
         AnnounceState(
             "Emergency stop activated. Current speech stopped, the queue was cleared, and SafeSpeak is disarmed. Re-arm SafeSpeak to resume monitoring.",
             interrupt: true);
+        _ = DisconnectActiveConnectorsOnDisarmAsync();
     }
 
     [RelayCommand]
     public void ClearQueue()
     {
         _ttsQueue.ClearQueue();
+        _alertQueue.ClearQueue();
         _announcer.PlayCue(SoundCueType.QueueEmpty);
         AnnounceState("Text to speech queue cleared.");
     }
@@ -246,17 +256,69 @@ public sealed partial class MainViewModel
         _sessionDonors.Clear();
         _pipeline.Rules.ResetCooldowns();
         _ttsQueue.ArmAutomatic();
+        _alertQueue.ArmAutomatic();
         _announcer.PlayCue(SoundCueType.Armed);
         AnnounceState(
             "SafeSpeak armed. Monitoring and automatic moderated text to speech are active.");
+        _ = ConnectEnabledConnectorsOnArmAsync();
     }
 
     private void DisarmSafeSpeak()
     {
         Interlocked.Increment(ref _monitoringGeneration);
         _ttsQueue.Disarm();
+        _alertQueue.Disarm();
         _announcer.PlayCue(SoundCueType.Disarmed);
         AnnounceState(
             "SafeSpeak disarmed. Incoming events are discarded until SafeSpeak is armed again.");
+        _ = DisconnectActiveConnectorsOnDisarmAsync();
+    }
+
+    private async Task ConnectEnabledConnectorsOnArmAsync()
+    {
+        LiveConnectorViewModel[] enabled = _connectorSessions
+            .Where(connector => connector.IsConfigured && connector.IsEnabled && !connector.IsConnected && !connector.IsBusy)
+            .ToArray();
+        foreach (LiveConnectorViewModel connector in enabled)
+        {
+            connector.IsBusy = true;
+            try
+            {
+                connector.ApplyState(ConnectionState.Connecting, "Connecting on arm.");
+                await connector.Host.ConnectAsync();
+            }
+            catch (Exception ex)
+            {
+                connector.ApplyState(ConnectionState.Faulted, ex.Message);
+            }
+            finally
+            {
+                connector.IsBusy = false;
+                RefreshConnectorSummary();
+            }
+        }
+    }
+
+    private async Task DisconnectActiveConnectorsOnDisarmAsync()
+    {
+        LiveConnectorViewModel[] active = _connectorSessions
+            .Where(connector => connector.IsConnected || connector.State == ConnectionState.Connecting || connector.State == ConnectionState.Reconnecting)
+            .ToArray();
+        foreach (LiveConnectorViewModel connector in active)
+        {
+            try
+            {
+                await connector.Host.DisconnectAsync();
+                connector.ApplyState(ConnectionState.Disconnected, "Disconnected on disarm.");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogWarning("MainViewModel", $"Error disconnecting {connector.DisplayName} on disarm: {ex.Message}");
+            }
+            finally
+            {
+                RefreshConnectorSummary();
+            }
+        }
     }
 }

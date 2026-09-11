@@ -72,7 +72,7 @@ public sealed class TikTokLiveConnectorTests
 
         Assert.True(decision.Passed);
         Assert.Equal("Viewer One", decision.SafeAuthorDisplayName);
-        Assert.Equal("Viewer One says: hello stream", decision.SpokenText);
+        Assert.Equal("Viewer One on TikTok LIVE said: hello stream", decision.SpokenText);
     }
 
     [Fact]
@@ -142,8 +142,9 @@ public sealed class TikTokLiveConnectorTests
     }
 
     [Fact]
-    public async Task ViewingCookie_IsRequestedFromCreatorLivePage()
+    public async Task ViewingCookie_IsRequestedFromRootOriginFirst()
     {
+        TikTokLiveSession.ClearCachedTtwid();
         var handler = new RecordingHandler(request =>
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -154,8 +155,127 @@ public sealed class TikTokLiveConnectorTests
 
         string cookie = await TikTokLiveSession.GetCookieAsync(http, "safe_speak", CancellationToken.None);
 
-        Assert.Equal("https://www.tiktok.com/@safe_speak/live", handler.RequestUri?.AbsoluteUri);
+        Assert.Equal("https://www.tiktok.com/", handler.RequestUri?.AbsoluteUri);
         Assert.Equal("ttwid=viewer-cookie", cookie);
+        TikTokLiveSession.ClearCachedTtwid();
+    }
+
+    [Fact]
+    public async Task ViewingCookie_FallsBackToCreatorLivePageWhenRootLacksCookie()
+    {
+        TikTokLiveSession.ClearCachedTtwid();
+        var uris = new List<string>();
+        var handler = new RecordingHandler(request =>
+        {
+            uris.Add(request.RequestUri?.AbsoluteUri ?? "");
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            if (request.RequestUri?.AbsoluteUri.Contains("@safe_speak/live", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                response.Headers.TryAddWithoutValidation("Set-Cookie", "ttwid=creator-cookie; Path=/; Secure");
+            }
+            return response;
+        });
+        using var http = new HttpClient(handler);
+
+        string cookie = await TikTokLiveSession.GetCookieAsync(http, "safe_speak", CancellationToken.None);
+
+        Assert.Equal(2, uris.Count);
+        Assert.Equal("https://www.tiktok.com/", uris[0]);
+        Assert.Equal("https://www.tiktok.com/@safe_speak/live", uris[1]);
+        Assert.Equal("ttwid=creator-cookie", cookie);
+        TikTokLiveSession.ClearCachedTtwid();
+    }
+
+    [Fact]
+    public async Task ViewingCookie_FallsBackToLiveExploreWhenRootAndCreatorLackCookie()
+    {
+        TikTokLiveSession.ClearCachedTtwid();
+        var uris = new List<string>();
+        var handler = new RecordingHandler(request =>
+        {
+            uris.Add(request.RequestUri?.AbsoluteUri ?? "");
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            if (request.RequestUri?.AbsoluteUri == "https://www.tiktok.com/live")
+            {
+                response.Headers.TryAddWithoutValidation("Set-Cookie", "ttwid=live-portal-cookie; Path=/; Secure");
+            }
+            return response;
+        });
+        using var http = new HttpClient(handler);
+
+        string cookie = await TikTokLiveSession.GetCookieAsync(http, "safe_speak", CancellationToken.None);
+
+        Assert.Equal(3, uris.Count);
+        Assert.Equal("https://www.tiktok.com/", uris[0]);
+        Assert.Equal("https://www.tiktok.com/@safe_speak/live", uris[1]);
+        Assert.Equal("https://www.tiktok.com/live", uris[2]);
+        Assert.Equal("ttwid=live-portal-cookie", cookie);
+        TikTokLiveSession.ClearCachedTtwid();
+    }
+
+    [Fact]
+    public async Task ViewingCookie_UsesCachedSessionCookieWhenAvailable()
+    {
+        TikTokLiveSession.ClearCachedTtwid();
+        int requestCount = 0;
+        var handler = new RecordingHandler(request =>
+        {
+            requestCount++;
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            response.Headers.TryAddWithoutValidation("Set-Cookie", "ttwid=cached-session-cookie; Path=/; Secure");
+            return response;
+        });
+        using var http = new HttpClient(handler);
+
+        string cookie1 = await TikTokLiveSession.GetCookieAsync(http, "safe_speak", CancellationToken.None);
+        string cookie2 = await TikTokLiveSession.GetCookieAsync(http, "safe_speak", CancellationToken.None);
+
+        Assert.Equal("ttwid=cached-session-cookie", cookie1);
+        Assert.Equal("ttwid=cached-session-cookie", cookie2);
+        Assert.Equal(1, requestCount);
+        TikTokLiveSession.ClearCachedTtwid();
+    }
+
+    [Theory]
+    [InlineData("ttwid=token123; Path=/; Domain=.tiktok.com", "ttwid=token123")]
+    [InlineData("  ttwid=token_with_spaces ; Path=/", "ttwid=token_with_spaces")]
+    [InlineData("csrfToken=xyz; Path=/, ttwid=token_combined; Domain=.tiktok.com", "ttwid=token_combined")]
+    [InlineData("other=123; ttwid=token_semicolon; Secure", "ttwid=token_semicolon")]
+    [InlineData("TTWID=uppercase_token; Path=/", "ttwid=uppercase_token")]
+    public void ExtractTtwidCookie_ExtractsCorrectly(string header, string expected)
+    {
+        string? result = TikTokLiveSession.ExtractTtwidCookie(header);
+        Assert.NotNull(result);
+        Assert.Equal(expected.ToLowerInvariant(), result.ToLowerInvariant());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("csrfToken=xyz; Path=/")]
+    [InlineData("ttwid=")]
+    [InlineData("not_ttwid=foo")]
+    public void ExtractTtwidCookie_RejectsInvalid(string header)
+    {
+        Assert.Null(TikTokLiveSession.ExtractTtwidCookie(header));
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_ProvidesFastProgressiveStartupRetries()
+    {
+        TimeSpan baseDelay = TimeSpan.FromSeconds(15);
+        Assert.Equal(TimeSpan.FromSeconds(2), TikTokLiveConnector.CalculateRetryDelay(baseDelay, 1));
+        Assert.Equal(TimeSpan.FromSeconds(5), TikTokLiveConnector.CalculateRetryDelay(baseDelay, 2));
+        Assert.Equal(TimeSpan.FromSeconds(10), TikTokLiveConnector.CalculateRetryDelay(baseDelay, 3));
+        Assert.Equal(TimeSpan.FromSeconds(60), TikTokLiveConnector.CalculateRetryDelay(baseDelay, 4));
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_ScalesProportionatelyForShortTestDelays()
+    {
+        TimeSpan baseDelay = TimeSpan.FromMilliseconds(5);
+        Assert.Equal(TimeSpan.FromMilliseconds(5), TikTokLiveConnector.CalculateRetryDelay(baseDelay, 1));
+        Assert.Equal(TimeSpan.FromMilliseconds(10), TikTokLiveConnector.CalculateRetryDelay(baseDelay, 2));
     }
 
     [Fact]
@@ -168,6 +288,49 @@ public sealed class TikTokLiveConnectorTests
         }
 
         Assert.Throws<InvalidDataException>(() => TikTokLiveSession.Decompress(compressed.ToArray()));
+    }
+
+    [Fact]
+    public async Task RepeatedSessionFailures_TripCircuitBreakerAndTransitionToFaulted()
+    {
+        int attempts = 0;
+        var faulted = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var failingSession = new StubFailingSession(() =>
+        {
+            Interlocked.Increment(ref attempts);
+            throw new TikTokConnectionException(
+                "TikTok did not establish a public viewing session. SafeSpeak will retry.",
+                retryable: true);
+        });
+
+        await using var connector = new TikTokLiveConnector(
+            "creator", () => failingSession, TimeSpan.FromMilliseconds(5));
+
+        connector.StateChanged += (_, e) =>
+        {
+            if (e.State == ConnectionState.Faulted)
+            {
+                faulted.TrySetResult(e.Message);
+            }
+        };
+
+        await connector.ConnectAsync();
+        string message = await faulted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        Assert.Equal(TikTokLiveConnector.MaxSessionRetries, attempts);
+        Assert.Contains("rate-limit protection", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ConnectionState.Faulted, connector.State);
+    }
+
+    private sealed class StubFailingSession(Func<bool> action) : ITikTokLiveSession
+    {
+        public Task<bool> RunAsync(string username, TikTokEventDecoder decoder, Action connected,
+            Action<LivestreamEvent> received, CancellationToken cancellationToken)
+        {
+            action();
+            return Task.FromResult(false);
+        }
     }
 
     private static byte[] Chat(string author, string name, string text, ulong id)

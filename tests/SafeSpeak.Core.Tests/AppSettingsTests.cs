@@ -11,6 +11,7 @@ public sealed class AppSettingsTests
         var settings = new AppSettings();
 
         Assert.Equal(100, settings.SpeechVolume);
+        Assert.Equal(0, settings.SpeechBoost);
         Assert.Equal(100, settings.ReaderSpeechVolume);
         Assert.Equal(
             ModerationModelPreference.BuiltInHybrid,
@@ -172,6 +173,85 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void ConnectorSetsAndGuidePlacementRoundTrip()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            AppSettings settings = AppSettings.Load(path);
+            settings.ConfiguredSourceConnectorIds = ["tikfinity", "tiktok-direct"];
+            settings.ActiveSourceConnectorIds = ["tiktok-direct"];
+            settings.TikTokUsername = "creator.name";
+            settings.SafetyGuideControlsAtTop = false;
+            settings.SettingsGuideControlsAtTop = false;
+
+            Assert.True(settings.TrySave(out string? error), error);
+
+            AppSettings reloaded = AppSettings.Load(path);
+            Assert.Equal(["tikfinity", "tiktok-direct"], reloaded.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-direct"], reloaded.ActiveSourceConnectorIds);
+            Assert.Equal("creator.name", reloaded.TikTokUsername);
+            Assert.False(reloaded.SafetyGuideControlsAtTop);
+            Assert.False(reloaded.SettingsGuideControlsAtTop);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void EmptyConfiguredConnectorSetPersistsForCurrentSchema()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            var settings = AppSettings.Load(path);
+            settings.ConfiguredSourceConnectorIds = [];
+            settings.ActiveSourceConnectorIds = [];
+            settings.AutoConnectSource = false;
+
+            Assert.True(settings.TrySave(out string? error), error);
+
+            AppSettings reloaded = AppSettings.Load(path);
+            Assert.Empty(reloaded.ConfiguredSourceConnectorIds);
+            Assert.Empty(reloaded.ActiveSourceConnectorIds);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void Load_MigratesLegacySelectedConnectorIntoConfiguredAndActiveSets()
+    {
+        const string legacyJson = """
+            {
+              "SettingsSchemaVersion": 9,
+              "SelectedSourceConnectorId": "tiktok-live",
+              "TikTokUsername": "creator_name",
+              "AutoConnectSource": true
+            }
+            """;
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(path, legacyJson);
+
+            AppSettings settings = AppSettings.Load(path);
+
+            Assert.Equal("tiktok-direct", settings.SelectedSourceConnectorId);
+            Assert.Equal(["tiktok-direct"], settings.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-direct"], settings.ActiveSourceConnectorIds);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
     public void AccessibilityPreferences_RoundTripCurrentAndPendingSelections()
     {
         string path = CreateTemporarySettingsPath();
@@ -217,6 +297,37 @@ public sealed class AppSettingsTests
                 OnboardingStage.Platform,
                 reloadedConfirmed.OnboardingStage);
             Assert.False(reloadedConfirmed.HasCompletedOnboarding);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void PendingAccessibilityConfirmation_DoesNotResetCompletedOnboardingOrConnectors()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            var settings = AppSettings.Load(path);
+            settings.OnboardingStage = OnboardingStage.Complete;
+            settings.PendingSpokenGuidance = SpokenGuidanceMode.Enabled;
+            settings.PendingTheme = ThemePreference.HighContrast;
+            settings.ConfiguredSourceConnectorIds = ["tiktok-direct"];
+            settings.ActiveSourceConnectorIds = ["tiktok-direct"];
+            settings.SelectedSourceConnectorId = "tiktok-direct";
+            settings.TikTokUsername = "creator_name";
+
+            Assert.True(settings.TrySave(out string? error), error);
+
+            AppSettings reloaded = AppSettings.Load(path);
+            Assert.Equal(OnboardingStage.Complete, reloaded.OnboardingStage);
+            Assert.True(reloaded.IsAwaitingAccessibilityConfirmation);
+            Assert.True(reloaded.HasCompletedOnboarding);
+            Assert.Equal(["tiktok-direct"], reloaded.ConfiguredSourceConnectorIds);
+            Assert.Equal(["tiktok-direct"], reloaded.ActiveSourceConnectorIds);
+            Assert.Equal("creator_name", reloaded.TikTokUsername);
         }
         finally
         {
@@ -402,6 +513,115 @@ public sealed class AppSettingsTests
         Assert.Null(settingsType.GetProperty("PendingAccessibilityProfile"));
         Assert.Null(settingsType.GetProperty("HasCompletedAccessibilitySetup"));
         Assert.Null(settingsType.GetProperty("UseHighContrastTheme"));
+    }
+
+    [Fact]
+    public void AllToggleBoxesRoundTripThroughPersistence()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            var original = new AppSettings();
+            original.AttachToPath(path);
+
+            // Invert every toggle from default
+            original.EnableStreamAuditLogging = true;
+            original.BroadcastOutputEnabled = false;
+            original.AdaptiveInterMessageGap = false;
+            original.NarrateDetailedHelp = false;
+            original.NarrateTypedCharacters = true;
+            original.MessageRateLimitEnabled = false;
+            original.EnglishOnly = false;
+            original.RejectMixedScripts = false;
+            original.AllowDonorsToSpeak = false;
+            original.AnnounceChatMessages = false;
+            original.AnnounceGifts = false;
+            original.AnnounceFollows = false;
+            original.AnnounceShares = false;
+            original.AnnounceSubscriptions = false;
+            original.AnnounceJoins = true;
+            original.AnnounceLikes = true;
+            original.PauseAllTtsWhilePaused = false;
+            original.AllowGiftAnnouncementsWhilePaused = false;
+            original.AllowFollowAnnouncementsWhilePaused = false;
+            original.AllowShareAnnouncementsWhilePaused = false;
+            original.AllowSubscriptionAnnouncementsWhilePaused = false;
+            original.InstantAlertsGifts = false;
+            original.InstantAlertsFollows = false;
+            original.InstantAlertsShares = true;
+            original.InstantAlertsSubscriptions = true;
+            original.InstantAlertsJoins = true;
+            original.InstantAlertsLikes = true;
+            original.SpokenGuidance = SpokenGuidanceMode.Enabled;
+            original.Theme = ThemePreference.Dark;
+            original.AutoConnectSource = false;
+
+            Assert.True(original.TrySave(out string? saveError), saveError);
+
+            AppSettings reloaded = AppSettings.Load(path);
+
+            Assert.True(reloaded.EnableStreamAuditLogging);
+            Assert.True(reloaded.HasConsentedToLocalAuditLogging);
+            Assert.False(reloaded.BroadcastOutputEnabled);
+            Assert.False(reloaded.AdaptiveInterMessageGap);
+            Assert.False(reloaded.NarrateDetailedHelp);
+            Assert.True(reloaded.NarrateTypedCharacters);
+            Assert.False(reloaded.MessageRateLimitEnabled);
+            Assert.False(reloaded.EnglishOnly);
+            Assert.False(reloaded.RejectMixedScripts);
+            Assert.False(reloaded.AllowDonorsToSpeak);
+            Assert.False(reloaded.AnnounceChatMessages);
+            Assert.False(reloaded.AnnounceGifts);
+            Assert.False(reloaded.AnnounceFollows);
+            Assert.False(reloaded.AnnounceShares);
+            Assert.False(reloaded.AnnounceSubscriptions);
+            Assert.True(reloaded.AnnounceJoins);
+            Assert.True(reloaded.AnnounceLikes);
+            Assert.False(reloaded.PauseAllTtsWhilePaused);
+            Assert.False(reloaded.AllowGiftAnnouncementsWhilePaused);
+            Assert.False(reloaded.AllowFollowAnnouncementsWhilePaused);
+            Assert.False(reloaded.AllowShareAnnouncementsWhilePaused);
+            Assert.False(reloaded.AllowSubscriptionAnnouncementsWhilePaused);
+            Assert.False(reloaded.InstantAlertsGifts);
+            Assert.False(reloaded.InstantAlertsFollows);
+            Assert.True(reloaded.InstantAlertsShares);
+            Assert.True(reloaded.InstantAlertsSubscriptions);
+            Assert.True(reloaded.InstantAlertsJoins);
+            Assert.True(reloaded.InstantAlertsLikes);
+            Assert.Equal(SpokenGuidanceMode.Enabled, reloaded.SpokenGuidance);
+            Assert.Equal(ThemePreference.Dark, reloaded.Theme);
+            Assert.False(reloaded.AutoConnectSource);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void MigrateAuditLoggingConsent_SupportsModernEnableStreamAuditLoggingInJson()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(
+                path,
+                """
+                {
+                  "SettingsSchemaVersion": 12,
+                  "EnableStreamAuditLogging": true
+                }
+                """);
+
+            AppSettings loaded = AppSettings.Load(path);
+
+            Assert.True(loaded.EnableStreamAuditLogging);
+            Assert.True(loaded.HasConsentedToLocalAuditLogging);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
     }
 
     [Fact]
