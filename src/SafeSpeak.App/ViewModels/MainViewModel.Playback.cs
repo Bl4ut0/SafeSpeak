@@ -254,6 +254,7 @@ public sealed partial class MainViewModel
     {
         Interlocked.Increment(ref _monitoringGeneration);
         _sessionDonors.Clear();
+        _sessionFollowers.Clear();
         _pipeline.Rules.ResetCooldowns();
         _ttsQueue.ArmAutomatic();
         _alertQueue.ArmAutomatic();

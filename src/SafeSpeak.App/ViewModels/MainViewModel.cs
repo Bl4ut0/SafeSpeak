@@ -50,6 +50,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly CancellationTokenSource _incomingEventCts = new();
     private readonly ConcurrentDictionary<string, byte> _sessionDonors =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _sessionFollowers =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ModerationDecision> _heldLiveFeedDecisions = new();
     private int _moderationGuideSectionIndex;
     private Task _incomingEventPumpTask = Task.CompletedTask;
@@ -2118,6 +2120,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 liveEvent.AuthorDisplayName);
         }
 
+        if (liveEvent.Type is LivestreamEventType.Follow or LivestreamEventType.Subscribe)
+        {
+            TrackSessionFollower(
+                liveEvent.Platform,
+                liveEvent.Author,
+                liveEvent.AuthorDisplayName);
+        }
+
         if (liveEvent.Type == LivestreamEventType.Chat)
         {
             if (AnnounceChatMessages)
@@ -2134,6 +2144,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                         chatMessage.AuthorDisplayName))
                 {
                     chatMessage = chatMessage with { IsDonor = true };
+                }
+                if (IsSessionFollower(
+                        chatMessage.Platform,
+                        chatMessage.Author,
+                        chatMessage.AuthorDisplayName) &&
+                    chatMessage.AuthorTier < AuthorTier.Follower)
+                {
+                    chatMessage = chatMessage with { AuthorTier = AuthorTier.Follower };
                 }
                 await HandleIncomingMessageAsync(
                     chatMessage,
@@ -2190,6 +2208,21 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             LivestreamEventType.Like => InstantAlertsLikes,
             _ => false
         };
+
+        AuthorTier tier = liveEvent.AuthorTier;
+        if (liveEvent.Type == LivestreamEventType.Follow && tier < AuthorTier.Follower)
+        {
+            tier = AuthorTier.Follower;
+        }
+        else if (liveEvent.Type == LivestreamEventType.Subscribe && tier < AuthorTier.Subscriber)
+        {
+            tier = AuthorTier.Subscriber;
+        }
+        else if (IsSessionFollower(liveEvent.Platform, liveEvent.Author, liveEvent.AuthorDisplayName) && tier < AuthorTier.Follower)
+        {
+            tier = AuthorTier.Follower;
+        }
+
         await HandleIncomingMessageAsync(
             new ChatMessage
             {
@@ -2200,8 +2233,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 AttributionStyle = IncludePlatformInSpeech
                     ? SpokenAttributionStyle.LeadingNameOnPlatform
                     : SpokenAttributionStyle.LeadingName,
-                AuthorTier = liveEvent.AuthorTier,
-                IsSubscriber = liveEvent.IsSubscriber,
+                AuthorTier = tier,
+                IsSubscriber = liveEvent.IsSubscriber || liveEvent.Type == LivestreamEventType.Subscribe,
                 IsModerator = liveEvent.IsModerator,
                 EventType = liveEvent.Type,
                 IsDonor = liveEvent.Type == LivestreamEventType.Gift ||
@@ -2328,6 +2361,21 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         string key = DonorKey(platform, author, displayName);
         return key.Length > 0 && _sessionDonors.ContainsKey(key);
+    }
+
+    private void TrackSessionFollower(string platform, string author, string displayName)
+    {
+        string key = DonorKey(platform, author, displayName);
+        if (key.Length > 0)
+        {
+            _sessionFollowers.TryAdd(key, 0);
+        }
+    }
+
+    private bool IsSessionFollower(string platform, string author, string displayName)
+    {
+        string key = DonorKey(platform, author, displayName);
+        return key.Length > 0 && _sessionFollowers.ContainsKey(key);
     }
 
     private static string DonorKey(string platform, string author, string displayName)

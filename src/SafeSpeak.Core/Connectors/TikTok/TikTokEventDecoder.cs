@@ -46,8 +46,8 @@ internal sealed class TikTokEventDecoder
             var identity = data.Message(type == LivestreamEventType.Chat ? 18 : type == LivestreamEventType.Gift ? 32 : 0);
             var attr = user.Message(32);
             bool moderator = identity.Number(5) == 1 || attr.Number(2) == 1 || attr.Number(3) == 1;
-            bool subscriber = identity.Number(2) == 1 || user.Message(63).Number(2) == 1 || user.Number(1090) == 1;
-            bool follower = identity.Number(4) == 1 || user.Number(1029) == 1;
+            bool subscriber = identity.Number(2) == 1 || user.Message(63).Number(2) == 1 || user.Number(1090) == 1 || type == LivestreamEventType.Subscribe;
+            bool follower = identity.Number(4) == 1 || user.Number(1029) == 1 || type == LivestreamEventType.Follow;
             string giftName = "";
             int giftCount = 1;
             int diamonds = 0;

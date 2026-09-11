@@ -87,4 +87,23 @@ public class TikFinityParserTests
 
         Assert.Null(liveEvent);
     }
+
+    [Fact]
+    public void ParseLivestreamEvent_FollowEventHasFollowerAuthorTier()
+    {
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent("""{ "event": "follow", "data": { "nickname": "NewFollower", "uniqueId": "new_follower" } }""");
+        Assert.NotNull(liveEvent);
+        Assert.Equal(LivestreamEventType.Follow, liveEvent.Type);
+        Assert.Equal(AuthorTier.Follower, liveEvent.AuthorTier);
+    }
+
+    [Fact]
+    public void ParseLivestreamEvent_SubscribeEventHasSubscriberAuthorTier()
+    {
+        var liveEvent = TikFinityWebSocketClient.ParseLivestreamEvent("""{ "event": "subscribe", "data": { "nickname": "NewSub", "uniqueId": "new_sub" } }""");
+        Assert.NotNull(liveEvent);
+        Assert.Equal(LivestreamEventType.Subscribe, liveEvent.Type);
+        Assert.Equal(AuthorTier.Subscriber, liveEvent.AuthorTier);
+        Assert.True(liveEvent.IsSubscriber);
+    }
 }
