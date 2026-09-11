@@ -339,22 +339,23 @@
         <StackPanel Grid.Row="1" Margin="24,14" MaxWidth="780">
 
             <!-- STEP 1: READER -->
-            <StackPanel Margin="0,4,0,0"
+            <StackPanel Margin="0,16,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsReaderStep, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="Do you want to use the SafeSpeak built-in screen reader?"
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="Bold"
-                           Margin="0,0,0,4"
+                           Margin="0,0,0,6"
                            TextWrapping="Wrap" />
                 <TextBlock Text="SafeSpeak can announce controls, chat messages, and safety alerts aloud through your headphones."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,14"
+                           FontSize="{DynamicResource SafeSpeakFont15}"
+                           Margin="0,0,0,20"
                            TextWrapping="Wrap" />
-                <UniformGrid Columns="2">
+                <UniformGrid Columns="2" Margin="0,0,0,20">
                     <Button x:Name="ReaderYesButton"
                             TabIndex="1"
-                            MinHeight="64"
+                            MinHeight="76"
                             Margin="0,0,8,0"
                             Style="{StaticResource PrimaryButton}"
                             Command="{Binding ChooseSpokenGuidanceYesCommand}"
@@ -363,30 +364,73 @@
                             AutomationProperties.HelpText="Press Y. SafeSpeak will speak the remaining setup questions." />
                     <Button x:Name="ReaderNoButton"
                             TabIndex="2"
-                            MinHeight="64"
+                            MinHeight="76"
                             Margin="8,0,0,0"
                             Command="{Binding ChooseSpokenGuidanceNoCommand}"
                             Content="No — continue without it (N)"
                             AutomationProperties.Name="No, do not use the SafeSpeak built-in screen reader"
                             AutomationProperties.HelpText="Press N. Setup continues to Theme without SafeSpeak spoken guidance. External screen readers remain supported." />
                 </UniformGrid>
+
+                <Border Style="{StaticResource CardPanel}" Padding="16,14" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="How spoken guidance works"
+                                   FontWeight="Bold"
+                                   FontSize="{DynamicResource SafeSpeakFont14}"
+                                   Margin="0,0,0,10" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="• Self-Voicing Speech" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                <TextBlock Text="Speaks wizard questions, focused UI controls, chat messages, and moderation warnings directly to your audio device."
+                                           Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="10,2,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                <TextBlock Text="• Instant Silence Key" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                <TextBlock Text="Tap the Control key alone at any time to immediately silence the narrator without interrupting game audio."
+                                           Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="10,2,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Windows Narrator, NVDA, and JAWS external screen readers remain supported whether you enable or disable SafeSpeak's built-in reader."
+                                   Style="{StaticResource SecondaryText}"
+                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                   Margin="0,6,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource StatusCard}" Padding="14,10">
+                    <TextBlock Text="You can toggle the screen reader on or off and adjust volume at any time in Settings > Audio."
+                               FontWeight="SemiBold"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
+                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                               TextWrapping="Wrap" />
+                </Border>
             </StackPanel>
 
             <!-- STEP 2: THEME -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,14,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsThemeStep, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="Visual theme"
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,8" />
+                           Margin="0,0,0,4" />
+                <TextBlock Text="Select a color scheme calibrated for low-vision readability, high contrast, and dark-room streaming."
+                           Style="{StaticResource SecondaryText}"
+                           Margin="0,0,0,14"
+                           TextWrapping="Wrap" />
                 <ListBox x:Name="ThemeList"
                          TabIndex="1"
                          Focusable="True"
                          IsTabStop="True"
                          ItemsSource="{Binding ThemeOptions}"
                          SelectedItem="{Binding SelectedThemeOption}"
-                         MinHeight="142"
+                         MinHeight="200"
+                         Margin="0,0,0,16"
                          Padding="0"
                          BorderThickness="0"
                          Background="Transparent"
@@ -405,8 +449,8 @@
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="{x:Type ListBoxItem}"
                                BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                            <Setter Property="MinHeight" Value="136" />
-                            <Setter Property="Margin" Value="0,0,8,0" />
+                            <Setter Property="MinHeight" Value="190" />
+                            <Setter Property="Margin" Value="0,0,10,0" />
                             <Setter Property="Padding" Value="0" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -421,11 +465,11 @@
                                 <Setter.Value>
                                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
                                         <Border x:Name="ChoiceBorder"
-                                                Padding="8"
+                                                Padding="10"
                                                 Background="{DynamicResource SafeSpeakSurfaceBrush}"
                                                 BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                                                 BorderThickness="1"
-                                                CornerRadius="12">
+                                                CornerRadius="10">
                                             <ContentPresenter />
                                         </Border>
                                         <ControlTemplate.Triggers>
@@ -458,33 +502,34 @@
                         <DataTemplate>
                             <StackPanel>
                                 <Border x:Name="ThemePreview"
-                                        Height="58"
-                                        Margin="0,0,0,6"
+                                        Height="96"
+                                        Margin="0,0,0,8"
                                         Background="#FFF7F8FC"
                                         BorderBrush="#FFC7D0E0"
                                         BorderThickness="1"
                                         CornerRadius="7">
-                                    <Grid Margin="7">
+                                    <Grid Margin="8">
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="8" />
+                                            <RowDefinition Height="12" />
                                             <RowDefinition Height="*" />
+                                            <RowDefinition Height="12" />
                                         </Grid.RowDefinitions>
                                         <Border x:Name="PreviewHeader"
                                                 Background="#FFD7DEEA"
-                                                CornerRadius="2" />
-                                        <Grid Grid.Row="1" Margin="0,5,0,0">
+                                                CornerRadius="3" />
+                                        <Grid Grid.Row="1" Margin="0,6,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="38" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel VerticalAlignment="Center">
                                                 <Border x:Name="PreviewLineOne"
-                                                        Height="5" Width="52"
+                                                        Height="6" Width="68"
                                                         HorizontalAlignment="Left"
                                                         Background="#FF9BA8BA"
                                                         CornerRadius="2" />
                                                 <Border x:Name="PreviewLineTwo"
-                                                        Height="5" Width="38"
+                                                        Height="6" Width="48"
                                                         Margin="0,5,0,0"
                                                         HorizontalAlignment="Left"
                                                         Background="#FFC7D0E0"
@@ -492,11 +537,16 @@
                                             </StackPanel>
                                             <Border x:Name="PreviewAction"
                                                     Grid.Column="1"
-                                                    Height="22"
+                                                    Height="28"
                                                     VerticalAlignment="Center"
                                                     Background="#FF2057D4"
                                                     CornerRadius="4" />
                                         </Grid>
+                                        <Border x:Name="PreviewFooter"
+                                                Grid.Row="2"
+                                                Height="8"
+                                                Background="#FFE2E8F0"
+                                                CornerRadius="2" />
                                     </Grid>
                                 </Border>
                                 <TextBlock Text="{Binding Name}"
@@ -508,7 +558,7 @@
                                            TextWrapping="Wrap"
                                            TextAlignment="Center"
                                            FontSize="{DynamicResource SafeSpeakFont12}"
-                                           Margin="0,2,0,0" />
+                                           Margin="0,3,0,0" />
                             </StackPanel>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding Name}" Value="Dark">
@@ -518,6 +568,7 @@
                                     <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFCBD5E1" />
                                     <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FF718096" />
                                     <Setter TargetName="PreviewAction" Property="Background" Value="#FF3B82F6" />
+                                    <Setter TargetName="PreviewFooter" Property="Background" Value="#FF1E293B" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Name}" Value="High Contrast">
                                     <Setter TargetName="ThemePreview" Property="Background" Value="#FF000000" />
@@ -526,24 +577,56 @@
                                     <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFFFFF00" />
                                     <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FFFFFFFF" />
                                     <Setter TargetName="PreviewAction" Property="Background" Value="#FFFFFF00" />
+                                    <Setter TargetName="PreviewFooter" Property="Background" Value="#FFFFFF00" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                <Border Style="{StaticResource CardPanel}" Padding="16,12" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="• High Contrast Standard" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                            <TextBlock Text="Pure black background with vivid yellow focus rings and white typography meeting WCAG AAA contrast."
+                                       Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="10,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                            <TextBlock Text="• Instant Keyboard Preview" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" />
+                            <TextBlock Text="Use Arrow keys to preview theme colors across dialogs and controls instantly. Press Y to save."
+                                       Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="10,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource StatusCard}" Padding="14,10">
+                    <TextBlock Text="Theme settings apply across all views and can be switched anytime in Settings > Theme."
+                               FontWeight="SemiBold"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
+                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                               TextWrapping="Wrap" />
+                </Border>
             </StackPanel>
 
             <!-- STEP 3: CONNECTORS -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,12,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsPlatformStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Livestream connectors &amp; platforms"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4" />
                 <TextBlock Text="Select connectors to capture live chat. Press a connector card to enable or configure it."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,8"
+                           Margin="0,0,0,12"
                            TextWrapping="Wrap" />
 
                 <!-- 3-Wide Connector Grid (9 Platforms) -->
-                <UniformGrid Columns="3" Margin="0,0,0,8">
+                <UniformGrid Columns="3" Margin="0,0,0,10">
                     <!-- 1: TikFinity -->
                     <Border Margin="3" Padding="10,8" CornerRadius="6">
                         <Border.Style>
@@ -961,8 +1044,8 @@
 
                 <!-- Advisory when no connector is checked -->
                 <Border Style="{StaticResource StatusCard}"
-                        Margin="0,4,0,0"
-                        Padding="12,10"
+                        Margin="0,6,0,0"
+                        Padding="14,10"
                         Visibility="{Binding HasAnyConnectorSelected, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                     <DockPanel LastChildFill="True">
                         <Border DockPanel.Dock="Left"
@@ -982,8 +1065,8 @@
 
                 <!-- Confirmation when connector(s) are selected -->
                 <Border Style="{StaticResource CardPanel}"
-                        Margin="0,4,0,0"
-                        Padding="12,10"
+                        Margin="0,6,0,0"
+                        Padding="14,10"
                         Visibility="{Binding HasAnyConnectorSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <DockPanel LastChildFill="True">
                         <Border DockPanel.Dock="Left"
@@ -1003,158 +1086,202 @@
             </StackPanel>
 
             <!-- STEP 4: VOICE SELECTION -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,12,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsVoiceStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-
-                <!-- Voice Selector Row -->
-                <Grid Margin="0,4,0,4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="VoiceSelectorComboBox"
-                              Grid.Column="0"
-                              TabIndex="1"
-                              MinHeight="44"
-                              ItemsSource="{Binding Voices}"
-                              SelectedValuePath="Id"
-                              SelectedValue="{Binding SelectedVoice}"
-                              AutomationProperties.Name="Select speech voice"
-                              AutomationProperties.HelpText="Choose the active TTS voice for SafeSpeak. Displays voice name and quality level.">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <DockPanel LastChildFill="True">
-                                    <Border DockPanel.Dock="Right"
-                                            Style="{StaticResource StatusPill}"
-                                            Padding="8,2"
-                                            Margin="8,0,0,0">
-                                        <TextBlock Text="{Binding LevelBadge}" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                    </Border>
-                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
-                                </DockPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <Button x:Name="PreviewVoiceButton"
-                            Grid.Column="1"
-                            TabIndex="2"
-                            MinHeight="44"
-                            MinWidth="110"
-                            Margin="8,0,0,0"
-                            Command="{Binding PreviewVoiceCommand}"
-                            Content="Test Voice"
-                            AutomationProperties.Name="Test selected voice"
-                            AutomationProperties.HelpText="Play a short sample using the selected voice." />
-                </Grid>
-
-                <!-- Voice Tier Guide Text -->
-                <TextBlock Text="Level 1 = Windows Desktop voices • Level 2 = Windows Natural voices • Level 3 = Studio Kokoro neural voices"
+                <TextBlock Text="Choose your active speech voice"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4" />
+                <TextBlock Text="Select the voice SafeSpeak uses to narrate approved chat messages and safety announcements aloud."
                            Style="{StaticResource SecondaryText}"
-                           FontSize="{DynamicResource SafeSpeakFont12}"
-                           Margin="0,2,0,8"
+                           Margin="0,0,0,14"
                            TextWrapping="Wrap" />
 
+                <!-- Voice Selector Card -->
+                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12" Padding="16,14">
+                    <StackPanel>
+                        <TextBlock Text="Active Text-to-Speech Voice" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" Margin="0,0,0,8" />
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="VoiceSelectorComboBox"
+                                      Grid.Column="0"
+                                      TabIndex="1"
+                                      MinHeight="46"
+                                      ItemsSource="{Binding Voices}"
+                                      SelectedValuePath="Id"
+                                      SelectedValue="{Binding SelectedVoice}"
+                                      AutomationProperties.Name="Select speech voice"
+                                      AutomationProperties.HelpText="Choose the active TTS voice for SafeSpeak. Displays voice name and quality level.">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel LastChildFill="True">
+                                            <Border DockPanel.Dock="Right"
+                                                    Style="{StaticResource StatusPill}"
+                                                    Padding="8,2"
+                                                    Margin="8,0,0,0">
+                                                <TextBlock Text="{Binding LevelBadge}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                            </Border>
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button x:Name="PreviewVoiceButton"
+                                    Grid.Column="1"
+                                    TabIndex="2"
+                                    MinHeight="46"
+                                    MinWidth="120"
+                                    Margin="10,0,0,0"
+                                    Command="{Binding PreviewVoiceCommand}"
+                                    Content="Test Voice"
+                                    AutomationProperties.Name="Test selected voice"
+                                    AutomationProperties.HelpText="Play a short sample using the selected voice." />
+                        </Grid>
+                        <!-- Voice Tier Guide Text -->
+                        <TextBlock Text="Level 1 = Windows Desktop voices • Level 2 = Windows Natural voices • Level 3 = Studio Kokoro neural voices"
+                                   Style="{StaticResource SecondaryText}"
+                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Kokoro Neural Voice Install Action -->
-                <Border Style="{StaticResource CardPanel}" Margin="0,4,0,0" Padding="10">
+                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12" Padding="16,14">
                     <DockPanel LastChildFill="True">
                         <Button x:Name="KokoroInstallButton"
                                 DockPanel.Dock="Right"
                                 TabIndex="3"
-                                MinHeight="44"
+                                MinHeight="46"
                                 MinWidth="180"
-                                Margin="8,0,0,0"
+                                Margin="10,0,0,0"
                                 Command="{Binding InstallKokoroCommand}"
                                 Content="Install Kokoro Voices"
                                 AutomationProperties.Name="Install Kokoro Level 3 Neural Voices"
                                 AutomationProperties.HelpText="Download and install Kokoro high-fidelity neural voices (~330 MB)." />
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Level 3: Kokoro Neural Voices (~330 MB)" FontWeight="Bold" />
-                            <TextBlock Text="{Binding KokoroInstallStatus}" Style="{StaticResource SecondaryText}" Margin="0,2,0,0" />
+                            <TextBlock Text="Level 3: Kokoro Neural Voices (~330 MB)" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" />
+                            <TextBlock Text="{Binding KokoroInstallStatus}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,3,0,0" />
+                            <TextBlock Text="Local 82M parameter neural synthesis with natural human inflection and zero cloud latency." Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont11}" Margin="0,2,0,0" TextWrapping="Wrap" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
-                <!-- Windows Speech Settings Button -->
-                <Button x:Name="WindowsSpeechSettingsButton"
-                        TabIndex="4"
-                        MinHeight="44"
-                        Margin="0,8,0,0"
-                        Command="{Binding OpenWindowsSpeechSettingsCommand}"
-                        Content="Open Windows Speech Settings"
-                        AutomationProperties.Name="Open Windows Speech Settings"
-                        AutomationProperties.HelpText="Open Windows system speech settings to manage installed system voices." />
+                <!-- Windows Speech Settings Card -->
+                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12" Padding="16,12">
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="WindowsSpeechSettingsButton"
+                                DockPanel.Dock="Right"
+                                TabIndex="4"
+                                MinHeight="46"
+                                MinWidth="220"
+                                Margin="10,0,0,0"
+                                Command="{Binding OpenWindowsSpeechSettingsCommand}"
+                                Content="Open Windows Speech Settings"
+                                AutomationProperties.Name="Open Windows Speech Settings"
+                                AutomationProperties.HelpText="Open Windows system speech settings to manage installed system voices." />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Windows System Voices" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
+                            <TextBlock Text="Install additional natural voices and language packs in Windows Settings." Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Border Style="{StaticResource StatusCard}" Padding="14,10">
+                    <TextBlock Text="Tip: Route speech audio exclusively to your headset in Settings > Audio so your stream viewers don't hear TTS duplicated."
+                               FontWeight="SemiBold"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
+                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                               TextWrapping="Wrap" />
+                </Border>
             </StackPanel>
 
             <!-- STEP 5: AI FILTERING -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,12,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsFilteringStep, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="AI and language protection"
                            FontSize="{DynamicResource SafeSpeakFont18}"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,6" />
+                           Margin="0,0,0,4" />
+                <TextBlock Text="Safeguard your broadcast with real-time on-device machine learning, Unicode evasion filters, and customizable moderation strictness."
+                           Style="{StaticResource SecondaryText}"
+                           Margin="0,0,0,14"
+                           TextWrapping="Wrap" />
 
-                <!-- AI Master Toggle -->
-                <CheckBox x:Name="AiClassificationCheckBox"
-                          TabIndex="1"
-                          MinHeight="44"
-                          IsChecked="{Binding AiClassificationEnabled}"
-                          Content="Enable AI on-device content classification"
-                          AutomationProperties.Name="Enable AI content classification"
-                          AutomationProperties.HelpText="When checked, SafeSpeak classifies messages with machine learning in addition to rule-based filtering." />
+                <!-- AI Master Toggle Card -->
+                <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12" Padding="16,14">
+                    <StackPanel>
+                        <CheckBox x:Name="AiClassificationCheckBox"
+                                  TabIndex="1"
+                                  MinHeight="44"
+                                  FontWeight="Bold"
+                                  IsChecked="{Binding AiClassificationEnabled}"
+                                  Content="Enable AI on-device content classification"
+                                  AutomationProperties.Name="Enable AI content classification"
+                                  AutomationProperties.HelpText="When checked, SafeSpeak classifies messages with machine learning in addition to rule-based filtering." />
+                        <TextBlock Text="Classifies incoming chat messages with machine learning in addition to rule-based filtering."
+                                   Style="{StaticResource SecondaryText}"
+                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                   Margin="26,2,0,10"
+                                   TextWrapping="Wrap" />
 
-                <!-- Model Choice Cards -->
-                <Grid Margin="0,6,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Button x:Name="MiniLmCardButton"
-                            Grid.Column="0"
-                            TabIndex="2"
-                            MinHeight="44"
-                            Margin="0,0,4,0"
-                            Command="{Binding SelectMiniLMCommand}"
-                            Content="MiniLM ONNX (Bundled Default)"
-                            AutomationProperties.Name="Select bundled MiniLM ONNX model"
-                            AutomationProperties.HelpText="Use the bundled lightweight MiniLM model for intent and toxic content detection." />
-                    <Button x:Name="QwenCardButton"
-                            Grid.Column="1"
-                            TabIndex="3"
-                            MinHeight="44"
-                            Margin="4,0,0,0"
-                            Command="{Binding SelectQwenCommand}"
-                            Content="Qwen3Guard 0.6B (Advanced)"
-                            AutomationProperties.Name="Select Qwen3Guard 0.6B model"
-                            AutomationProperties.HelpText="Use the advanced Qwen3Guard model for deep reasoning and context analysis." />
-                </Grid>
+                        <!-- Model Choice Cards -->
+                        <Grid Margin="0,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="MiniLmCardButton"
+                                    Grid.Column="0"
+                                    TabIndex="2"
+                                    MinHeight="48"
+                                    Margin="0,0,6,0"
+                                    Command="{Binding SelectMiniLMCommand}"
+                                    Content="MiniLM ONNX (Bundled Default)"
+                                    AutomationProperties.Name="Select bundled MiniLM ONNX model"
+                                    AutomationProperties.HelpText="Use the bundled lightweight MiniLM model for intent and toxic content detection." />
+                            <Button x:Name="QwenCardButton"
+                                    Grid.Column="1"
+                                    TabIndex="3"
+                                    MinHeight="48"
+                                    Margin="6,0,0,0"
+                                    Command="{Binding SelectQwenCommand}"
+                                    Content="Qwen3Guard 0.6B (Advanced)"
+                                    AutomationProperties.Name="Select Qwen3Guard 0.6B model"
+                                    AutomationProperties.HelpText="Use the advanced Qwen3Guard model for deep reasoning and context analysis." />
+                        </Grid>
 
-                <!-- Qwen Install Card (Visible when Qwen is selected) -->
-                <Border Style="{StaticResource CardPanel}"
-                        Margin="0,8,0,0"
-                        Padding="10"
-                        Visibility="{Binding IsQwenSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <DockPanel LastChildFill="True">
-                        <Button x:Name="InstallQwenButton"
-                                DockPanel.Dock="Right"
-                                TabIndex="4"
-                                MinHeight="44"
-                                MinWidth="180"
-                                Margin="8,0,0,0"
-                                Command="{Binding InstallQwenCommand}"
-                                Content="Install Qwen3Guard"
-                                AutomationProperties.Name="Download and install Qwen3Guard model"
-                                AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Qwen3Guard 0.6B LLM" FontWeight="Bold" />
-                            <TextBlock Text="{Binding QwenInstallStatus}" Style="{StaticResource SecondaryText}" Margin="0,2,0,0" />
-                        </StackPanel>
-                    </DockPanel>
+                        <!-- Qwen Install Card (Visible when Qwen is selected) -->
+                        <Border Style="{StaticResource ContentPanel}"
+                                Margin="0,10,0,0"
+                                Padding="12"
+                                Visibility="{Binding IsQwenSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <DockPanel LastChildFill="True">
+                                <Button x:Name="InstallQwenButton"
+                                        DockPanel.Dock="Right"
+                                        TabIndex="4"
+                                        MinHeight="44"
+                                        MinWidth="180"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding InstallQwenCommand}"
+                                        Content="Install Qwen3Guard"
+                                        AutomationProperties.Name="Download and install Qwen3Guard model"
+                                        AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Qwen3Guard 0.6B LLM" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding QwenInstallStatus}" Style="{StaticResource SecondaryText}" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
                 </Border>
 
                 <!-- Model Status / Educational Copy -->
-                <Border Style="{StaticResource ContentPanel}" Margin="0,8,0,0" Padding="10">
+                <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,12" Padding="16,14">
                     <StackPanel>
                         <TextBlock Text="The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required."
                                    TextWrapping="Wrap" />
@@ -1168,19 +1295,28 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Chat @Reply Filter Toggle -->
-                <CheckBox x:Name="IgnoreChatRepliesCheckBox"
-                          TabIndex="5"
-                          MinHeight="44"
-                          Margin="0,8,0,0"
-                          IsChecked="{Binding IgnoreChatReplies}"
-                          Content="Ignore viewer @replies to other chatters"
-                          AutomationProperties.Name="Ignore chatter-to-chatter @replies"
-                          AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
+                <!-- Chat @Reply Filter Toggle Card -->
+                <Border Style="{StaticResource CardPanel}" Padding="16,14">
+                    <StackPanel>
+                        <CheckBox x:Name="IgnoreChatRepliesCheckBox"
+                                  TabIndex="5"
+                                  MinHeight="44"
+                                  FontWeight="Bold"
+                                  IsChecked="{Binding IgnoreChatReplies}"
+                                  Content="Ignore viewer @replies to other chatters"
+                                  AutomationProperties.Name="Ignore chatter-to-chatter @replies"
+                                  AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
+                        <TextBlock Text="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken."
+                                   Style="{StaticResource SecondaryText}"
+                                   FontSize="{DynamicResource SafeSpeakFont12}"
+                                   Margin="26,2,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
             <!-- STEP 6: KEYBINDS -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,12,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsKeybindsStep, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="Primary hotkeys and controls"
@@ -1189,19 +1325,20 @@
                            Margin="0,0,0,4" />
                 <TextBlock Text="SafeSpeak provides instant global hotkeys so you can control chat without switching out of your game or stream."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,6"
+                           Margin="0,0,0,14"
                            TextWrapping="Wrap" />
 
                 <ListBox x:Name="KeybindsList"
                          TabIndex="1"
                          ItemsSource="{Binding Keybinds}"
-                         MinHeight="170"
+                         MinHeight="250"
+                         Margin="0,0,0,14"
                          AutomationProperties.Name="Primary SafeSpeak hotkeys"
                          AutomationProperties.HelpText="Use Up and Down Arrow keys to review global hotkeys.">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="{x:Type ListBoxItem}"
                                BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                            <Setter Property="MinHeight" Value="44" />
+                            <Setter Property="MinHeight" Value="46" />
                             <Setter Property="AutomationProperties.Name"
                                     Value="{Binding AutomationSummary}" />
                         </Style>
@@ -1211,17 +1348,17 @@
                             <Border Background="{DynamicResource SafeSpeakSurfaceBrush}"
                                     BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="10,6"
-                                    Margin="0,2">
+                                    CornerRadius="6"
+                                    Padding="14,8"
+                                    Margin="0,3">
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Right"
                                             Background="{DynamicResource SafeSpeakSurfaceAltBrush}"
                                             BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
-                                            Padding="8,3"
-                                            Margin="8,0,0,0"
+                                            Padding="10,4"
+                                            Margin="10,0,0,0"
                                             VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Gesture}"
                                                    FontWeight="Bold"
@@ -1229,7 +1366,7 @@
                                                    Foreground="{DynamicResource SafeSpeakAccentBrush}" />
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" />
                                         <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </DockPanel>
@@ -1238,16 +1375,23 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Border Style="{StaticResource StatusCard}" Margin="0,6,0,0" Padding="8">
+                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,12" Padding="14,10">
                     <TextBlock Text="Pro Tip: Pressing the Control key alone at any time immediately silences the built-in screen reader narrator."
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                TextWrapping="Wrap" />
                 </Border>
+
+                <Border Style="{StaticResource CardPanel}" Padding="14,10">
+                    <TextBlock Text="Global hotkeys operate across all games and fullscreen applications. You can rebind or disable hotkeys in Settings > Shortcuts."
+                               Style="{StaticResource SecondaryText}"
+                               FontSize="{DynamicResource SafeSpeakFont12}"
+                               TextWrapping="Wrap" />
+                </Border>
             </StackPanel>
 
             <!-- STEP 7: NAVIGATION & SYSTEM DESIGN -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,12,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsNavigationStep, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="How SafeSpeak is organized"
@@ -1256,20 +1400,20 @@
                            Margin="0,0,0,4" />
                 <TextBlock Text="SafeSpeak runs in the background while you broadcast, with 4 main views and instant global hotkeys from any game or screen."
                            Style="{StaticResource SecondaryText}"
-                           Margin="0,0,0,8"
+                           Margin="0,0,0,12"
                            TextWrapping="Wrap" />
 
                 <!-- Graphical Interface Architecture Diagram -->
-                <Border Style="{StaticResource CardPanel}" Padding="10" Margin="0,0,0,6">
+                <Border Style="{StaticResource CardPanel}" Padding="16,14" Margin="0,0,0,12">
                     <StackPanel>
                         <!-- Top Mock App Bar -->
-                        <Border Background="{DynamicResource SafeSpeakWindowBrush}" CornerRadius="4" Padding="8,5" Margin="0,0,0,8">
+                        <Border Background="{DynamicResource SafeSpeakWindowBrush}" CornerRadius="4" Padding="10,6" Margin="0,0,0,12">
                             <DockPanel LastChildFill="True">
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border Background="{DynamicResource SafeSpeakDangerBrush}" CornerRadius="3" Padding="5,2" Margin="0,0,4,0">
+                                    <Border Background="{DynamicResource SafeSpeakDangerBrush}" CornerRadius="3" Padding="6,2" Margin="0,0,6,0">
                                         <TextBlock Text="Emergency: Pause" FontSize="{DynamicResource SafeSpeakFont12}" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakDangerTextBrush}" />
                                     </Border>
-                                    <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="5,2">
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="6,2">
                                         <TextBlock Text="Arm: Ctrl+Shift+A" FontSize="{DynamicResource SafeSpeakFont12}" FontWeight="Bold" Foreground="{DynamicResource SafeSpeakTextBrush}" />
                                     </Border>
                                 </StackPanel>
@@ -1283,62 +1427,62 @@
                         </Border>
 
                         <!-- 4 Navigation Tabs Graphical Grid -->
-                        <TextBlock Text="Primary Application Tabs" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakMutedTextBrush}" Margin="0,0,0,4" />
-                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,8">
+                        <TextBlock Text="Primary Application Tabs" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakMutedTextBrush}" Margin="0,0,0,6" />
+                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
                             <!-- Tab 1: Live -->
-                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakAccentBrush}" BorderThickness="2" CornerRadius="5" Padding="6" Margin="0,0,3,0">
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakAccentBrush}" BorderThickness="2" CornerRadius="6" Padding="10,8" Margin="0,0,4,0" MinHeight="88">
                                 <StackPanel>
-                                    <Border Background="{DynamicResource SafeSpeakAccentSoftBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                    <Border Background="{DynamicResource SafeSpeakAccentSoftBrush}" CornerRadius="3" Padding="4,2" HorizontalAlignment="Left" Margin="0,0,0,4">
                                         <TextBlock Text="Ctrl + 1" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakAccentBrush}" />
                                     </Border>
                                     <TextBlock Text="1. Live Monitoring" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                    <TextBlock Text="Chat queue and active TTS stream" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    <TextBlock Text="Chat queue and active TTS stream" FontSize="{DynamicResource SafeSpeakFont11}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Tab 2: Safety -->
-                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="6" Margin="2,0,2,0">
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="2,0,2,0" MinHeight="88">
                                 <StackPanel>
-                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="4,2" HorizontalAlignment="Left" Margin="0,0,0,4">
                                         <TextBlock Text="Ctrl + 2" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakTextBrush}" />
                                     </Border>
                                     <TextBlock Text="2. Safety &amp; Filter" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                    <TextBlock Text="AI guard, banned words, regex rules" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    <TextBlock Text="AI guard, banned words, regex rules" FontSize="{DynamicResource SafeSpeakFont11}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Tab 3: Voice -->
-                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="6" Margin="2,0,2,0">
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="2,0,2,0" MinHeight="88">
                                 <StackPanel>
-                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="4,2" HorizontalAlignment="Left" Margin="0,0,0,4">
                                         <TextBlock Text="Ctrl + 3" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakTextBrush}" />
                                     </Border>
                                     <TextBlock Text="3. Speech Voice" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                    <TextBlock Text="Kokoro neural and Windows voices" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    <TextBlock Text="Kokoro neural and Windows voices" FontSize="{DynamicResource SafeSpeakFont11}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Tab 4: Settings -->
-                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="6" Margin="3,0,0,0">
+                            <Border Background="{DynamicResource SafeSpeakSurfaceBrush}" BorderBrush="{DynamicResource SafeSpeakBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="4,0,0,0" MinHeight="88">
                                 <StackPanel>
-                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" Margin="0,0,0,3">
+                                    <Border Background="{DynamicResource SafeSpeakSurfaceAltBrush}" CornerRadius="3" Padding="4,2" HorizontalAlignment="Left" Margin="0,0,0,4">
                                         <TextBlock Text="Ctrl + 4" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakTextBrush}" />
                                     </Border>
                                     <TextBlock Text="4. Settings" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                    <TextBlock Text="Audio routing, connectors, profiles" FontSize="{DynamicResource SafeSpeakFont12}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    <TextBlock Text="Audio routing, connectors, profiles" FontSize="{DynamicResource SafeSpeakFont11}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
 
                         <!-- Chapter Navigation Graphic -->
-                        <Border Background="{DynamicResource SafeSpeakWindowBrush}" CornerRadius="4" Padding="8,6">
+                        <Border Background="{DynamicResource SafeSpeakWindowBrush}" CornerRadius="4" Padding="10,8">
                             <DockPanel LastChildFill="True">
-                                <Border DockPanel.Dock="Left" Background="{DynamicResource SafeSpeakAccentBrush}" CornerRadius="3" Padding="5,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Border DockPanel.Dock="Left" Background="{DynamicResource SafeSpeakAccentBrush}" CornerRadius="3" Padding="6,2" Margin="0,0,10,0" VerticalAlignment="Center">
                                     <TextBlock Text="Alt + 1..9" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" Foreground="{DynamicResource SafeSpeakAccentTextBrush}" />
                                 </Border>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="Instant Chapter Jumping" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont12}" />
-                                    <TextBlock Text="Press Alt plus a number to jump directly to any numbered chapter on the active screen." Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" TextWrapping="Wrap" />
+                                    <TextBlock Text="Press Alt plus a number (1-9) to jump directly to any numbered chapter on the active screen." Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont11}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </DockPanel>
                         </Border>
@@ -1346,25 +1490,26 @@
                 </Border>
 
                 <!-- Status advisory card -->
-                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,0" Padding="8">
+                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,0" Padding="14,10">
                     <TextBlock Text="Ready to continue! Press Y or Enter to proceed to the final review."
                                FontWeight="SemiBold"
+                               FontSize="{DynamicResource SafeSpeakFont13}"
                                Foreground="{DynamicResource SafeSpeakAccentBrush}"
                                TextWrapping="Wrap" />
                 </Border>
             </StackPanel>
 
             <!-- STEP 8: REVIEW -->
-            <StackPanel Margin="0,10,0,0"
+            <StackPanel Margin="0,12,0,0"
                         KeyboardNavigation.TabNavigation="Local"
                         Visibility="{Binding IsReviewStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                <DockPanel LastChildFill="True" Margin="0,0,0,14">
                     <Button x:Name="RestartSetupButton"
                             DockPanel.Dock="Right"
                             TabIndex="2"
-                            MinHeight="44"
-                            MinWidth="140"
-                            Margin="8,0,0,0"
+                            MinHeight="46"
+                            MinWidth="150"
+                            Margin="10,0,0,0"
                             Command="{Binding RestartSetupCommand}"
                             Content="Restart Setup (N)"
                             AutomationProperties.Name="Restart setup from step 1"
@@ -1383,13 +1528,14 @@
                 <ListBox x:Name="ReviewList"
                          TabIndex="1"
                          ItemsSource="{Binding ReviewItems}"
-                         MinHeight="170"
+                         MinHeight="250"
+                         Margin="0,0,0,14"
                          AutomationProperties.Name="Setup review choices"
                          AutomationProperties.HelpText="Use Up and Down Arrow to hear each setup choice.">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="{x:Type ListBoxItem}"
                                BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                            <Setter Property="MinHeight" Value="44" />
+                            <Setter Property="MinHeight" Value="46" />
                             <Setter Property="AutomationProperties.Name" Value="{Binding}" />
                         </Style>
                     </ListBox.ItemContainerStyle>
@@ -1398,15 +1544,15 @@
                             <Border Background="{DynamicResource SafeSpeakSurfaceBrush}"
                                     BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="10,6"
-                                    Margin="0,2">
+                                    CornerRadius="6"
+                                    Padding="14,8"
+                                    Margin="0,3">
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Left"
                                             Background="{DynamicResource SafeSpeakAccentSoftBrush}"
-                                            CornerRadius="10"
-                                            Width="20" Height="20"
-                                            Margin="0,0,8,0"
+                                            CornerRadius="11"
+                                            Width="22" Height="22"
+                                            Margin="0,0,10,0"
                                             VerticalAlignment="Center">
                                         <TextBlock Text="✓"
                                                    FontWeight="Bold"
@@ -1418,16 +1564,18 @@
                                     <TextBlock Text="{Binding}"
                                                TextWrapping="Wrap"
                                                VerticalAlignment="Center"
-                                               FontWeight="SemiBold" />
+                                               FontWeight="SemiBold"
+                                               FontSize="{DynamicResource SafeSpeakFont13}" />
                                 </DockPanel>
                             </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Border Style="{StaticResource StatusCard}" Margin="0,6,0,0" Padding="8">
+                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,0" Padding="14,12">
                     <TextBlock Text="Press Y to confirm these settings and open SafeSpeak, or press N to restart setup from Step 1."
                                FontWeight="SemiBold"
+                               FontSize="{DynamicResource SafeSpeakFont13}"
                                TextWrapping="Wrap" />
                 </Border>
             </StackPanel>
