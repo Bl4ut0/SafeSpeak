@@ -111,6 +111,12 @@ public sealed class AppSettings
     public bool AllowFollowAnnouncementsWhilePaused { get; set; } = true;
     public bool AllowShareAnnouncementsWhilePaused { get; set; } = true;
     public bool AllowSubscriptionAnnouncementsWhilePaused { get; set; } = true;
+    public bool InstantAlertsGifts { get; set; } = true;
+    public bool InstantAlertsFollows { get; set; } = true;
+    public bool InstantAlertsShares { get; set; } = false;
+    public bool InstantAlertsSubscriptions { get; set; } = false;
+    public bool InstantAlertsJoins { get; set; } = false;
+    public bool InstantAlertsLikes { get; set; } = false;
 
     public bool BroadcastOutputEnabled { get; set; } = true;
     public bool HasConsentedToLocalAuditLogging { get; set; }
@@ -161,6 +167,7 @@ public sealed class AppSettings
     public string? SelectedVoiceName { get; set; }
     public int SpeechRate { get; set; } = 0;
     public int SpeechVolume { get; set; } = 100;
+    public int SpeechBoost { get; set; } = 0;
     public int ReaderSpeechRate { get; set; } = 3;
     public int ReaderSpeechVolume { get; set; } = 100;
     public bool NarrateDetailedHelp { get; set; } = true;
@@ -268,7 +275,16 @@ public sealed class AppSettings
             ModerationModel = ModerationModelPreference.BuiltInHybrid;
         }
         SpeechRate = Math.Clamp(SpeechRate, -5, 5);
-        SpeechVolume = Math.Clamp(SpeechVolume, 0, 150);
+        if (SpeechVolume > 100 && SpeechBoost == 0)
+        {
+            SpeechBoost = Math.Clamp(SpeechVolume - 100, 0, 100);
+            SpeechVolume = 100;
+        }
+        else
+        {
+            SpeechVolume = Math.Clamp(SpeechVolume, 0, 100);
+            SpeechBoost = Math.Clamp(SpeechBoost, 0, 100);
+        }
         ReaderSpeechRate = Math.Clamp(ReaderSpeechRate, -5, 5);
         ReaderSpeechVolume = Math.Clamp(ReaderSpeechVolume, 0, 150);
         InterfaceTextScalePercent = Math.Clamp(InterfaceTextScalePercent, 100, 200);
@@ -426,6 +442,12 @@ public sealed class AppSettings
         if (schemaVersion < 5)
         {
             settings.HasConsentedToLocalAuditLogging = false;
+        }
+        else if (!settings.HasConsentedToLocalAuditLogging &&
+                 TryReadBoolean(root, nameof(EnableStreamAuditLogging), out bool enableLogging) &&
+                 enableLogging)
+        {
+            settings.HasConsentedToLocalAuditLogging = true;
         }
     }
 

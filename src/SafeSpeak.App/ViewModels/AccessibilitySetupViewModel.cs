@@ -478,7 +478,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 StepProgress = "Step 5 of 5";
                 PromptText = "Review your SafeSpeak setup";
                 StatusText =
-                    "Use the arrow keys in the review list to hear each saved choice. Finish Setup saves the result and opens SafeSpeak.";
+                    "Use the arrow keys in the review list to hear each saved choice. Built-in Windows speech voices (Levels 1 & 2) are ready immediately; you can install high-fidelity Level 3 neural voices in the Voice tab anytime. Finish Setup saves the result and opens SafeSpeak.";
                 PrimaryButtonText = "Finish setup (Y)";
                 PrimaryButtonAutomationName = "Save setup and open SafeSpeak";
                 KeyboardHelpText =
@@ -616,6 +616,8 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
                 UseTikTokDirect ? "TikTok Direct" : null
             }.Where(name => name is not null))}. Each can be turned on or off from Live.");
         ReviewItems.Add($"Language filtering: {ModelStatus}");
+        ReviewItems.Add(
+            "Speech voices: Built-in Windows voices (Levels 1 & 2) are active out of the box. You can install high-fidelity neural voices (Level 3 Kokoro, ~330 MB) or select custom voices anytime from the Voice tab.");
         ReviewItems.Add(
             "Safety startup: SafeSpeak opens disarmed and does not process chat until you arm it.");
     }

@@ -15,6 +15,7 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
         string? VoiceId,
         int Rate,
         int Volume,
+        int Boost,
         TaskCompletionSource Completion);
 
     private readonly ITtsEngine _ttsEngine;
@@ -30,6 +31,7 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
     public string? VoiceId { get; set; }
     public int Rate { get; set; }
     public int Volume { get; set; } = 100;
+    public int Boost { get; set; } = 0;
 
     public PrivateVoicePreviewOutput(ITtsEngine ttsEngine, IAudioRouter audioRouter)
     {
@@ -68,7 +70,8 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
             text,
             VoiceId,
             Math.Clamp(Rate, -5, 5),
-            Math.Clamp(Volume, 0, 150),
+            Math.Clamp(Volume, 0, 100),
+            Math.Clamp(Boost, 0, 100),
             completion);
         if (!_requests.Writer.TryWrite(request))
         {
@@ -123,9 +126,13 @@ public sealed class PrivateVoicePreviewOutput : IPrivateVoiceOutput, IAsyncDispo
                         continue;
                     }
 
+                    float baseVolume = Math.Clamp(request.Volume, 0, 100) / 100.0f;
+                    float boostMultiplier = 1.0f + (Math.Clamp(request.Boost, 0, 100) / 100.0f);
+                    float playbackVolume = baseVolume * boostMultiplier;
+
                     await _audioRouter.PlayWaveStreamAsync(
                         new MemoryStream(waveStream.ToArray(), writable: false),
-                        request.Volume / 100.0f,
+                        playbackVolume,
                         requestCts.Token);
                     request.Completion.TrySetResult();
                 }

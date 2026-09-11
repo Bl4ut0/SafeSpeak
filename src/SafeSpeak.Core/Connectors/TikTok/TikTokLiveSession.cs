@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text.Json;
+using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
 
 namespace SafeSpeak.Core.Connectors.TikTok;
@@ -43,11 +44,34 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
     {
         using var http = _createHttp();
         http.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        http.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+        http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"130\", \"Google Chrome\";v=\"130\", \"Not?A_Brand\";v=\"99\"");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Fetch-Dest", "document");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Fetch-Mode", "navigate");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Fetch-Site", "none");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Sec-Fetch-User", "?1");
+        http.DefaultRequestHeaders.TryAddWithoutValidation("Upgrade-Insecure-Requests", "1");
         using var setup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         setup.CancelAfter(TimeSpan.FromSeconds(20));
+        AppLogger.LogInformation("TikTokLiveSession", $"Resolving room ID for @{username}...");
         string roomId = await ResolveRoomAsync(http, username, setup.Token).ConfigureAwait(false);
+        AppLogger.LogInformation("TikTokLiveSession", $"Resolved room ID {roomId} for @{username}. Obtaining session cookie...");
         string cookie = await GetCookieAsync(http, username, setup.Token).ConfigureAwait(false);
-        using WebSocket socket = await _openSocket(BuildWebSocketUri(roomId), cookie, setup.Token).ConfigureAwait(false);
+        WebSocket socket;
+        try
+        {
+            socket = await _openSocket(BuildWebSocketUri(roomId), cookie, setup.Token).ConfigureAwait(false);
+        }
+        catch
+        {
+            ClearCachedTtwid();
+            throw;
+        }
+        using var _ = socket;
+        AppLogger.LogInformation("TikTokLiveSession", $"WebSocket connected to room {roomId}. Sending handshake...");
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var sendGate = new SemaphoreSlim(1, 1);
         async Task Send(byte[] bytes, CancellationToken ct)
@@ -82,7 +106,7 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
     private static async Task<string> ResolveRoomAsync(HttpClient http, string username, CancellationToken ct)
     {
         string url = "https://www.tiktok.com/api-live/user/room?aid=1988&app_name=tiktok_web&device_platform=web_pc" +
-            "&app_language=en&browser_language=en-US&user_is_login=false&sourceType=54&staleTime=0&uniqueId=" + Uri.EscapeDataString(username);
+            "&app_language=en&browser_language=en-US&user_is_login=false&sourceType=54&staleTime=0&uniqueId=" + Uri.EscapeDataString(username.ToLowerInvariant());
         using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
         CheckStatus(response.StatusCode);
         using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
@@ -117,26 +141,118 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
         }
     }
 
-    internal static async Task<string> GetCookieAsync(HttpClient http, string username, CancellationToken ct)
+    internal static string? CachedTtwid { get; set; }
+
+    internal static void ClearCachedTtwid() => CachedTtwid = null;
+
+    internal static string? ExtractTtwidCookie(string header)
     {
-        var livePage = new Uri("https://www.tiktok.com/@" + Uri.EscapeDataString(username) + "/live");
-        using var response = await http.GetAsync(livePage, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-        CheckStatus(response.StatusCode);
-        if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
+        if (string.IsNullOrWhiteSpace(header)) return null;
+
+        int idx = 0;
+        while (idx < header.Length)
         {
-            foreach (string header in cookies)
+            int found = header.IndexOf("ttwid=", idx, StringComparison.OrdinalIgnoreCase);
+            if (found < 0) break;
+
+            if (found == 0 || header[found - 1] == ' ' || header[found - 1] == ';' || header[found - 1] == ',')
             {
-                if (!header.StartsWith("ttwid=", StringComparison.Ordinal)) continue;
-                string cookie = header.Split(';', 2)[0];
-                if (cookie.Length is > 6 and <= 4096 && !cookie.Any(char.IsControl)) return cookie;
+                int end = header.IndexOfAny([';', ','], found);
+                string candidate = (end < 0 ? header[found..] : header[found..end]).Trim();
+                int eq = candidate.IndexOf('=');
+                if (eq >= 0 && eq + 1 < candidate.Length)
+                {
+                    string value = candidate[(eq + 1)..].Trim();
+                    if (value.Length > 0 && candidate.Length <= 4096 && !candidate.Any(char.IsControl))
+                    {
+                        return "ttwid=" + value;
+                    }
+                }
+            }
+            idx = found + 6;
+        }
+        return null;
+    }
+
+    internal static async Task<string> GetCookieAsync(HttpClient http, string username, CancellationToken ct, bool useCache = true)
+    {
+        if (useCache && !string.IsNullOrEmpty(CachedTtwid))
+        {
+            AppLogger.LogDebug("TikTokLiveSession", "Reusing cached session cookie.");
+            return CachedTtwid;
+        }
+
+        // Endpoint candidates in order of retrieval reliability:
+        // 1. Root origin: https://www.tiktok.com/
+        // 2. Creator live page: https://www.tiktok.com/@username/live
+        // 3. Live exploration portal: https://www.tiktok.com/live
+        // 4. Explore portal: https://www.tiktok.com/explore
+        var endpoints = new[]
+        {
+            new Uri("https://www.tiktok.com/"),
+            new Uri("https://www.tiktok.com/@" + Uri.EscapeDataString(username) + "/live"),
+            new Uri("https://www.tiktok.com/live"),
+            new Uri("https://www.tiktok.com/explore")
+        };
+
+        for (int retry = 0; retry < 2; retry++)
+        {
+            foreach (var uri in endpoints)
+            {
+                if (ct.IsCancellationRequested) break;
+                string? cookie = await TryFetchCookieAsync(http, uri, ct).ConfigureAwait(false);
+                if (cookie is not null)
+                {
+                    AppLogger.LogDebug("TikTokLiveSession", $"Acquired session cookie from {uri.AbsolutePath}.");
+                    if (useCache) CachedTtwid = cookie;
+                    return cookie;
+                }
+            }
+
+            if (retry == 0 && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(500, ct).ConfigureAwait(false);
             }
         }
-        throw new TikTokConnectionException("TikTok did not establish a public viewing session. Direct access may be unavailable.");
+
+        throw new TikTokConnectionException("TikTok did not establish a public viewing session. SafeSpeak will retry.", retryable: true);
+    }
+
+    private static async Task<string?> TryFetchCookieAsync(HttpClient http, Uri uri, CancellationToken ct)
+    {
+        try
+        {
+            using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            AppLogger.LogDebug("TikTokLiveSession", $"Cookie fetch from {uri} returned {(int)response.StatusCode} {response.ReasonPhrase}.");
+            if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
+            {
+                foreach (string header in cookies)
+                {
+                    string? cookie = ExtractTtwidCookie(header);
+                    if (cookie is not null) return cookie;
+                }
+            }
+
+            if ((int)response.StatusCode == 429)
+            {
+                throw new TikTokConnectionException("TikTok is limiting connections. SafeSpeak will retry.", retryable: true);
+            }
+        }
+        catch (TikTokConnectionException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
+        {
+            if (ct.IsCancellationRequested) throw;
+            AppLogger.LogDebug("TikTokLiveSession", $"Cookie fetch from {uri} failed: {ex.Message}");
+        }
+        return null;
     }
 
     private static void CheckStatus(HttpStatusCode status)
     {
-        if ((int)status == 429) throw new TikTokConnectionException("TikTok is limiting connections. Wait before reconnecting.");
+        if ((int)status == 429) throw new TikTokConnectionException("TikTok is limiting connections. SafeSpeak will retry.", retryable: true);
         if (status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
             throw new TikTokConnectionException("TikTok refused direct access. This test supports public LIVE streams only.");
         if ((int)status >= 500) throw new TikTokConnectionException("TikTok is temporarily unavailable. SafeSpeak will retry.", retryable: true);
@@ -205,7 +321,13 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
             if (response.Number(9) != 0)
                 await send(Frame("ack", response.Bytes(5).ToArray(), frame.Number(2)), ct).ConfigureAwait(false);
             // A decoded event response confirms the stream, not merely the TCP handshake.
-            if (!confirmed) { ct.ThrowIfCancellationRequested(); confirmed = true; connected(); }
+            if (!confirmed)
+            {
+                ct.ThrowIfCancellationRequested();
+                confirmed = true;
+                AppLogger.LogInformation("TikTokLiveSession", $"Stream confirmed for room {roomId}. Receiving live events...");
+                connected();
+            }
             int batchCount = 0;
             foreach (var entry in response.Repeated(1))
             {
@@ -215,7 +337,11 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
                 string method = envelope.Text(1, 128);
                 var body = envelope.Bytes(2);
                 bool history = envelope.Number(6) != 0;
-                if (!history && method == "WebcastControlMessage" && new TikTokProtobuf(body).Number(2) == 3) return true;
+                if (!history && method == "WebcastControlMessage" && new TikTokProtobuf(body).Number(2) == 3)
+                {
+                    AppLogger.LogInformation("TikTokLiveSession", $"Stream ended signal received for room {roomId}.");
+                    return true;
+                }
                 if (Environment.TickCount64 - rateWindow >= 1000) { rateCount = 0; rateWindow = Environment.TickCount64; }
                 if (++rateCount > 200) continue;
                 var liveEvent = decoder.Decode(method, body, roomId, envelope.Number(3), history, DateTimeOffset.UtcNow);

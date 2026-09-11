@@ -48,7 +48,7 @@ public sealed class TtsQueue : IAsyncDisposable
     private long _lastAutomaticPlaybackFinishedTimestamp;
     private readonly Task _playbackLoopTask;
 
-    private sealed record SynthesisSettings(string? VoiceId, int Rate, int Volume);
+    private sealed record SynthesisSettings(string? VoiceId, int Rate);
 
     private sealed record PrefetchOperation(
         ModerationDecision Decision,
@@ -92,9 +92,11 @@ public sealed class TtsQueue : IAsyncDisposable
     public string? SelectedVoice { get; set; }
     public int SpeechRate { get; set; }
     public int SpeechVolume { get; set; } = 100;
+    public int SpeechBoost { get; set; } = 0;
     public bool BroadcastOutputEnabled { get; set; } = true;
     public int InterMessageGapMilliseconds { get; set; }
     public bool AdaptiveInterMessageGap { get; set; } = true;
+    public int MaxQueueAgeSeconds { get; set; } = 45;
 
     public TtsQueue(
         ITtsEngine ttsEngine,
@@ -418,20 +420,41 @@ public sealed class TtsQueue : IAsyncDisposable
             {
                 if (_disposed ||
                     _mode == TtsPlaybackMode.Disarmed ||
-                    (requiredMode.HasValue && _mode != requiredMode.Value) ||
-                    !sourceQueue.TryDequeue(out decision) ||
-                    decision is null)
+                    (requiredMode.HasValue && _mode != requiredMode.Value))
                 {
                     return false;
                 }
 
-                _queuedCount--;
-                _isSpeaking = true;
-                _activePlaybackCts?.Dispose();
-                playbackCts = CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken,
-                    _queueLoopCts.Token);
-                _activePlaybackCts = playbackCts;
+                decision = null;
+                while (sourceQueue.TryDequeue(out ModerationDecision? candidate))
+                {
+                    _queuedCount--;
+                    if (candidate is null)
+                    {
+                        continue;
+                    }
+
+                    if (MaxQueueAgeSeconds > 0 &&
+                        DateTimeOffset.UtcNow - candidate.Message.TimestampUtc > TimeSpan.FromSeconds(MaxQueueAgeSeconds))
+                    {
+                        // Discard stale message to catch up to the live stream
+                        continue;
+                    }
+
+                    decision = candidate;
+                    _isSpeaking = true;
+                    _activePlaybackCts?.Dispose();
+                    playbackCts = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        _queueLoopCts.Token);
+                    _activePlaybackCts = playbackCts;
+                    break;
+                }
+
+                if (decision is null || playbackCts is null)
+                {
+                    return false;
+                }
             }
 
             NotifyStateChanged();
@@ -537,8 +560,7 @@ public sealed class TtsQueue : IAsyncDisposable
     {
         var settings = new SynthesisSettings(
             SelectedVoice,
-            SpeechRate,
-            SpeechVolume);
+            SpeechRate);
         byte[] waveBytes = await GetOrSynthesizeWaveAsync(
             decision,
             settings,
@@ -557,9 +579,12 @@ public sealed class TtsQueue : IAsyncDisposable
                 // audibly playing. This removes per-message synthesis from the
                 // gap without overlapping playback or buffering the full queue.
                 StartPrefetch(sourceQueue, requiredMode);
+                float baseVolume = Math.Clamp(SpeechVolume, 0, 100) / 100.0f;
+                float boostMultiplier = 1.0f + (Math.Clamp(SpeechBoost, 0, 100) / 100.0f);
+                float playbackVolume = baseVolume * boostMultiplier;
                 await _audioRouter.PlayWaveStreamAsync(
                     new MemoryStream(waveBytes, writable: false),
-                    settings.Volume / 100.0f,
+                    playbackVolume,
                     cancellationToken);
             }
             finally
@@ -644,7 +669,7 @@ public sealed class TtsQueue : IAsyncDisposable
             waveStream,
             settings.VoiceId,
             settings.Rate,
-            settings.Volume,
+            100,
             cancellationToken);
         return waveStream.ToArray();
     }
@@ -668,10 +693,15 @@ public sealed class TtsQueue : IAsyncDisposable
                 return;
             }
 
+            if (MaxQueueAgeSeconds > 0 &&
+                DateTimeOffset.UtcNow - next.Message.TimestampUtc > TimeSpan.FromSeconds(MaxQueueAgeSeconds))
+            {
+                return;
+            }
+
             var settings = new SynthesisSettings(
                 SelectedVoice,
-                SpeechRate,
-                SpeechVolume);
+                SpeechRate);
             if (_prefetch is not null &&
                 ReferenceEquals(_prefetch.Decision, next) &&
                 _prefetch.Settings == settings)

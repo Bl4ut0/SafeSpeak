@@ -331,6 +331,30 @@ public sealed class VoicePackageManager
         return destinationZipPath;
     }
 
+    public bool DeletePackage(string packageId)
+    {
+        if (string.IsNullOrWhiteSpace(packageId) || !SafeIdPattern.IsMatch(packageId))
+        {
+            return false;
+        }
+
+        string dir = Path.Combine(_voicePacksRoot, packageId);
+        if (Directory.Exists(dir))
+        {
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
     public async Task<VoicePackageInfo> CreateAndInstallPackageAsync(
         VoicePackageManifest manifest,
         string sourceModelPath,

@@ -11,6 +11,7 @@ public sealed class AppSettingsTests
         var settings = new AppSettings();
 
         Assert.Equal(100, settings.SpeechVolume);
+        Assert.Equal(0, settings.SpeechBoost);
         Assert.Equal(100, settings.ReaderSpeechVolume);
         Assert.Equal(
             ModerationModelPreference.BuiltInHybrid,
@@ -512,6 +513,115 @@ public sealed class AppSettingsTests
         Assert.Null(settingsType.GetProperty("PendingAccessibilityProfile"));
         Assert.Null(settingsType.GetProperty("HasCompletedAccessibilitySetup"));
         Assert.Null(settingsType.GetProperty("UseHighContrastTheme"));
+    }
+
+    [Fact]
+    public void AllToggleBoxesRoundTripThroughPersistence()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            var original = new AppSettings();
+            original.AttachToPath(path);
+
+            // Invert every toggle from default
+            original.EnableStreamAuditLogging = true;
+            original.BroadcastOutputEnabled = false;
+            original.AdaptiveInterMessageGap = false;
+            original.NarrateDetailedHelp = false;
+            original.NarrateTypedCharacters = true;
+            original.MessageRateLimitEnabled = false;
+            original.EnglishOnly = false;
+            original.RejectMixedScripts = false;
+            original.AllowDonorsToSpeak = false;
+            original.AnnounceChatMessages = false;
+            original.AnnounceGifts = false;
+            original.AnnounceFollows = false;
+            original.AnnounceShares = false;
+            original.AnnounceSubscriptions = false;
+            original.AnnounceJoins = true;
+            original.AnnounceLikes = true;
+            original.PauseAllTtsWhilePaused = false;
+            original.AllowGiftAnnouncementsWhilePaused = false;
+            original.AllowFollowAnnouncementsWhilePaused = false;
+            original.AllowShareAnnouncementsWhilePaused = false;
+            original.AllowSubscriptionAnnouncementsWhilePaused = false;
+            original.InstantAlertsGifts = false;
+            original.InstantAlertsFollows = false;
+            original.InstantAlertsShares = true;
+            original.InstantAlertsSubscriptions = true;
+            original.InstantAlertsJoins = true;
+            original.InstantAlertsLikes = true;
+            original.SpokenGuidance = SpokenGuidanceMode.Enabled;
+            original.Theme = ThemePreference.Dark;
+            original.AutoConnectSource = false;
+
+            Assert.True(original.TrySave(out string? saveError), saveError);
+
+            AppSettings reloaded = AppSettings.Load(path);
+
+            Assert.True(reloaded.EnableStreamAuditLogging);
+            Assert.True(reloaded.HasConsentedToLocalAuditLogging);
+            Assert.False(reloaded.BroadcastOutputEnabled);
+            Assert.False(reloaded.AdaptiveInterMessageGap);
+            Assert.False(reloaded.NarrateDetailedHelp);
+            Assert.True(reloaded.NarrateTypedCharacters);
+            Assert.False(reloaded.MessageRateLimitEnabled);
+            Assert.False(reloaded.EnglishOnly);
+            Assert.False(reloaded.RejectMixedScripts);
+            Assert.False(reloaded.AllowDonorsToSpeak);
+            Assert.False(reloaded.AnnounceChatMessages);
+            Assert.False(reloaded.AnnounceGifts);
+            Assert.False(reloaded.AnnounceFollows);
+            Assert.False(reloaded.AnnounceShares);
+            Assert.False(reloaded.AnnounceSubscriptions);
+            Assert.True(reloaded.AnnounceJoins);
+            Assert.True(reloaded.AnnounceLikes);
+            Assert.False(reloaded.PauseAllTtsWhilePaused);
+            Assert.False(reloaded.AllowGiftAnnouncementsWhilePaused);
+            Assert.False(reloaded.AllowFollowAnnouncementsWhilePaused);
+            Assert.False(reloaded.AllowShareAnnouncementsWhilePaused);
+            Assert.False(reloaded.AllowSubscriptionAnnouncementsWhilePaused);
+            Assert.False(reloaded.InstantAlertsGifts);
+            Assert.False(reloaded.InstantAlertsFollows);
+            Assert.True(reloaded.InstantAlertsShares);
+            Assert.True(reloaded.InstantAlertsSubscriptions);
+            Assert.True(reloaded.InstantAlertsJoins);
+            Assert.True(reloaded.InstantAlertsLikes);
+            Assert.Equal(SpokenGuidanceMode.Enabled, reloaded.SpokenGuidance);
+            Assert.Equal(ThemePreference.Dark, reloaded.Theme);
+            Assert.False(reloaded.AutoConnectSource);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
+    public void MigrateAuditLoggingConsent_SupportsModernEnableStreamAuditLoggingInJson()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(
+                path,
+                """
+                {
+                  "SettingsSchemaVersion": 12,
+                  "EnableStreamAuditLogging": true
+                }
+                """);
+
+            AppSettings loaded = AppSettings.Load(path);
+
+            Assert.True(loaded.EnableStreamAuditLogging);
+            Assert.True(loaded.HasConsentedToLocalAuditLogging);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
     }
 
     [Fact]

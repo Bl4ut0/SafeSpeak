@@ -78,6 +78,9 @@ public sealed class PrivateVoicePreviewOutputTests
 
     private sealed class RecordingAudioRouter : IAudioRouter
     {
+        public event EventHandler? EndpointsChanged;
+        public void RaiseEndpointsChanged() => EndpointsChanged?.Invoke(this, EventArgs.Empty);
+
         public TaskCompletionSource PlaybackStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 

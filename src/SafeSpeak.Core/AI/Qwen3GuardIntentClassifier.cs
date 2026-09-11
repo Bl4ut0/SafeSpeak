@@ -189,13 +189,13 @@ public sealed partial class Qwen3GuardIntentClassifier : IIntentClassifier
     [GeneratedRegex(
         @"(?im)^\s*Safety\s*:\s*(Safe|Unsafe|Controversial)\s*$",
         RegexOptions.CultureInvariant,
-        matchTimeoutMilliseconds: 50)]
+        matchTimeoutMilliseconds: 500)]
     private static partial Regex SafetyVerdictRegex();
 
     [GeneratedRegex(
         @"(?im)^\s*Categories?\s*:\s*([^\r\n]+)",
         RegexOptions.CultureInvariant,
-        matchTimeoutMilliseconds: 50)]
+        matchTimeoutMilliseconds: 500)]
     private static partial Regex CategoryRegex();
 
     public void Dispose()

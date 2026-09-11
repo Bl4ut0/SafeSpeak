@@ -348,6 +348,14 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <Border Style="{StaticResource StatusCard}" Margin="0,8,0,0" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Speech Voices &amp; Quality Levels" FontWeight="SemiBold" />
+                            <TextBlock Text="SafeSpeak includes Level 1 (Desktop SAPI) and Level 2 (Windows Natural) voices immediately. After setup, you can install higher-fidelity neural voices (Level 3 Kokoro, ~330 MB) or select custom voices anytime from the Voice tab."
+                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <ProgressBar Height="8"

@@ -372,6 +372,36 @@ public sealed class MainShellAccessibilityContractTests
     }
 
     [Fact]
+    public void VoiceTiersExposeLevel2SetupLevel3InstallAndLevel4Upcoming()
+    {
+        XDocument document = LoadMainWindow();
+        string viewModel = File.ReadAllText(
+            RepositoryFile(
+                "src",
+                "SafeSpeak.App",
+                "ViewModels",
+                "MainViewModel.cs"));
+
+        Assert.Contains(document.Descendants(Presentation + "Button"),
+            btn => btn.Attribute("Command")?.Value == "{Binding EnableWindowsOneCoreVoicesCommand}");
+        Assert.Contains(document.Descendants(Presentation + "Button"),
+            btn => btn.Attribute("Command")?.Value == "{Binding OpenWindowsSpeechSettingsCommand}");
+        Assert.Contains(document.Descendants(Presentation + "Button"),
+            btn => btn.Attribute("Command")?.Value == "{Binding DownloadLevel3VoicesCommand}");
+
+        Assert.Contains("Level 4 — Custom Voice Packs (Upcoming)", viewModel);
+        Assert.Contains("LVL 4 • Upcoming", viewModel);
+        Assert.Contains("Level 4 — Custom offline voice packages (Upcoming)", document.ToString());
+
+        Assert.Contains("ShowLevel2SetupPrompt", viewModel);
+        Assert.Contains("ShowLevel3DownloadPrompt", viewModel);
+        Assert.Contains("Level2InstallationStatus", viewModel);
+        Assert.Contains("{Binding Level2InstallationStatus}", document.ToString());
+        Assert.Contains("OpenWindowsSpeechSettings()", viewModel);
+        Assert.Contains("EnableWindowsOneCoreVoicesAsync()", viewModel);
+    }
+
+    [Fact]
     public void MainWindowDisplayedTextDoesNotUseObsoleteProductTerminology()
     {
         XDocument document = LoadMainWindow();
@@ -1166,19 +1196,43 @@ public sealed class MainShellAccessibilityContractTests
     public void VolumeSlidersSupportKeyboardBoostAndExposeCurrentValues()
     {
         XDocument document = LoadMainWindow();
-        foreach (string name in new[] { "VolumeSlider", "ReaderVolumeSlider" })
-        {
-            XElement slider = NamedElement(document, "Slider", name);
-            Assert.Equal("0", slider.Attribute("Minimum")?.Value);
-            Assert.Equal("150", slider.Attribute("Maximum")?.Value);
-            Assert.Equal("5", slider.Attribute("SmallChange")?.Value);
-            Assert.Equal("10", slider.Attribute("LargeChange")?.Value);
-            Assert.Equal("True", slider.Attribute("IsSnapToTickEnabled")?.Value);
-            Assert.Contains("Left and Right Arrow keys",
-                Attribute(slider, "AutomationProperties.HelpText"),
-                StringComparison.OrdinalIgnoreCase);
-        }
 
+        XElement volumeSlider = NamedElement(document, "Slider", "VolumeSlider");
+        Assert.Equal("0", volumeSlider.Attribute("Minimum")?.Value);
+        Assert.Equal("100", volumeSlider.Attribute("Maximum")?.Value);
+        Assert.Equal("5", volumeSlider.Attribute("SmallChange")?.Value);
+        Assert.Equal("10", volumeSlider.Attribute("LargeChange")?.Value);
+        Assert.Equal("True", volumeSlider.Attribute("IsSnapToTickEnabled")?.Value);
+        Assert.Contains("Left and Right Arrow keys",
+            Attribute(volumeSlider, "AutomationProperties.HelpText"),
+            StringComparison.OrdinalIgnoreCase);
+
+        XElement boostSlider = NamedElement(document, "Slider", "BoostSlider");
+        Assert.Equal("0", boostSlider.Attribute("Minimum")?.Value);
+        Assert.Equal("100", boostSlider.Attribute("Maximum")?.Value);
+        Assert.Equal("5", boostSlider.Attribute("SmallChange")?.Value);
+        Assert.Equal("10", boostSlider.Attribute("LargeChange")?.Value);
+        Assert.Equal("True", boostSlider.Attribute("IsSnapToTickEnabled")?.Value);
+        Assert.Contains("Left and Right Arrow keys",
+            Attribute(boostSlider, "AutomationProperties.HelpText"),
+            StringComparison.OrdinalIgnoreCase);
+
+        XElement readerSlider = NamedElement(document, "Slider", "ReaderVolumeSlider");
+        Assert.Equal("0", readerSlider.Attribute("Minimum")?.Value);
+        Assert.Equal("150", readerSlider.Attribute("Maximum")?.Value);
+        Assert.Equal("5", readerSlider.Attribute("SmallChange")?.Value);
+        Assert.Equal("10", readerSlider.Attribute("LargeChange")?.Value);
+        Assert.Equal("True", readerSlider.Attribute("IsSnapToTickEnabled")?.Value);
+        Assert.Contains("Left and Right Arrow keys",
+            Attribute(readerSlider, "AutomationProperties.HelpText"),
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains(document.Descendants(Presentation + "TextBlock"), element =>
+            element.Attribute("Text")?.Value ==
+            "{Binding SpeechVolume, StringFormat={}{0}%}");
+        Assert.Contains(document.Descendants(Presentation + "TextBlock"), element =>
+            element.Attribute("Text")?.Value ==
+            "{Binding SpeechBoostDisplay}");
         Assert.Contains(document.Descendants(Presentation + "TextBlock"), element =>
             element.Attribute("Text")?.Value ==
             "{Binding ReaderSpeechVolume, StringFormat={}{0}%}");
@@ -1235,7 +1289,7 @@ public sealed class MainShellAccessibilityContractTests
 
         Assert.Equal("SettingsPanel_PreviewKeyDown",
             settingsPanel.Attribute("PreviewKeyDown")?.Value);
-        Assert.Equal(Enumerable.Range(1, 54), stops.Select(element =>
+        Assert.Equal(Enumerable.Range(1, 60), stops.Select(element =>
             int.Parse(element.Attribute("TabIndex")!.Value)));
         Assert.Equal("SettingsGuideButton", stops[0].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ReadSettingsGuidePageButton", stops[1].Attribute(Xaml + "Name")?.Value);
@@ -1244,8 +1298,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("SettingsSourceChapterHeading", stops[4].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ThemeSelector", stops[6].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("SpokenGuidanceToggle", stops[7].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("Run Setup Again", stops[48].Attribute("Content")?.Value);
-        Assert.Equal("SettingsGuideButtonAtEnd", stops[50].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("Run Setup Again", stops[54].Attribute("Content")?.Value);
+        Assert.Equal("SettingsGuideButtonAtEnd", stops[56].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButtonAtEnd", stops[^1].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("{Binding ConfiguredConnectors}",
             NamedElement(document, "ItemsControl", "ConfiguredConnectorCards")
@@ -1286,6 +1340,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("ConfigureTikTokDirectAsync(username)", codeBehind);
         Assert.Contains("_firstConnectorUsername", codeBehind);
         Assert.Contains("BeginInlineConnectorManagement(connector)", codeBehind);
+        Assert.Contains("PositionInlineConnectorPanels(forEnabledConnector: true)", codeBehind);
+        Assert.Contains("PositionInlineConnectorPanels(forEnabledConnector: editing || connector.IsConfigured)", codeBehind);
         Assert.Contains("InlineConnectorEditButton_Click", codeBehind);
         Assert.Contains("InlineConnectorDeleteButton_Click", codeBehind);
         string mainViewModel = File.ReadAllText(

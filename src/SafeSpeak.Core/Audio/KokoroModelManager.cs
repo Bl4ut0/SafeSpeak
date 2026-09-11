@@ -18,6 +18,8 @@ public sealed class KokoroModelManager : IDisposable
         "0CFD5E79AAB70A3D8C1A57DC639835110DDB32C9F5FF4FDD1F4DB202EA43BB05";
 
     private readonly SemaphoreSlim _synthesisLock = new(1, 1);
+    private static readonly object _voicesLoadLock = new();
+    private static string? _loadedVoicesDirectory;
     private readonly string _voiceSourceDirectory;
     private KokoroWavSynthesizer? _synthesizer;
     private bool _voiceAssetsPrepared;
@@ -69,7 +71,7 @@ public sealed class KokoroModelManager : IDisposable
     }
 
     private static VoiceInfo Voice(string id, string name, string culture, string gender, string description) =>
-        new(VoicePrefix + id, $"Kokoro — {name} ({culture})", "Kokoro Local Neural", culture, gender, description, true);
+        new(VoicePrefix + id, $"Kokoro — {name} ({culture})", "Kokoro Local Neural", culture, gender, description, true, ComputeLevel: 3);
 
     public async Task InstallAsync(IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -152,7 +154,7 @@ public sealed class KokoroModelManager : IDisposable
             // packaged assets in Local AppData and load only from that writable
             // application-owned location.
             EnsureVoiceAssetsAreAccessible();
-            KokoroVoiceManager.LoadVoicesFromPath(VoiceDirectory);
+            EnsureVoicesLoaded();
             var voice = KokoroVoiceManager.GetVoice(voiceName);
             var config = new KokoroTTSPipelineConfig
             {
@@ -180,6 +182,25 @@ public sealed class KokoroModelManager : IDisposable
         finally
         {
             _synthesisLock.Release();
+        }
+    }
+
+    private void EnsureVoicesLoaded()
+    {
+        if (string.Equals(_loadedVoicesDirectory, VoiceDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        lock (_voicesLoadLock)
+        {
+            if (string.Equals(_loadedVoicesDirectory, VoiceDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            KokoroVoiceManager.LoadVoicesFromPath(VoiceDirectory);
+            _loadedVoicesDirectory = VoiceDirectory;
         }
     }
 

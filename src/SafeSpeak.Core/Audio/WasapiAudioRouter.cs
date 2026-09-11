@@ -1,6 +1,8 @@
 using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.Core.Audio;
 
@@ -12,12 +14,51 @@ public sealed class WasapiAudioRouter : IAudioRouter
     private static readonly TimeSpan PlaybackLeadIn = TimeSpan.FromMilliseconds(100);
     private string? _selectedEndpointId;
     private WasapiOut? _wasapiOut;
+    private MMDevice? _currentDevice;
     private WaveFileReader? _currentFileReader;
     private WaveChannel32? _currentVolumeProvider;
     private IWaveProvider? _currentPlaybackProvider;
     private readonly object _lock = new();
+    private readonly MMDeviceEnumerator? _deviceEnumerator;
+    private readonly AudioEndpointNotificationClient? _notificationClient;
+    private Timer? _debounceTimer;
+
+    public event EventHandler? EndpointsChanged;
 
     public string? SelectedEndpointId => _selectedEndpointId;
+
+    public WasapiAudioRouter()
+    {
+        try
+        {
+            _deviceEnumerator = new MMDeviceEnumerator();
+            _notificationClient = new AudioEndpointNotificationClient(OnNotificationChanged);
+            _deviceEnumerator.RegisterEndpointNotificationCallback(_notificationClient);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.LogWarning("WasapiAudioRouter", $"Could not register audio endpoint notification callback: {ex.Message}");
+        }
+    }
+
+    private void OnNotificationChanged()
+    {
+        lock (_lock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = new Timer(_ =>
+            {
+                try
+                {
+                    EndpointsChanged?.Invoke(this, EventArgs.Empty);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogWarning("WasapiAudioRouter", $"Error invoking EndpointsChanged: {ex.Message}");
+                }
+            }, null, 250, Timeout.Infinite);
+        }
+    }
 
     public IReadOnlyList<AudioEndpointInfo> GetOutputEndpoints()
     {
@@ -25,19 +66,27 @@ public sealed class WasapiAudioRouter : IAudioRouter
 
         try
         {
-            using var enumerator = new MMDeviceEnumerator();
-            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
-            MMDevice? defaultDevice = null;
-            try { defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); } catch { }
-
-            foreach (var dev in devices)
+            MMDeviceEnumerator enumerator = _deviceEnumerator ?? new MMDeviceEnumerator();
+            bool disposeEnumerator = _deviceEnumerator is null;
+            try
             {
-                bool isDefault = defaultDevice != null && dev.ID == defaultDevice.ID;
-                bool isVirtual = dev.FriendlyName.Contains("Cable", StringComparison.OrdinalIgnoreCase) ||
-                                 dev.FriendlyName.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase) ||
-                                 dev.FriendlyName.Contains("Virtual", StringComparison.OrdinalIgnoreCase);
+                var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+                MMDevice? defaultDevice = null;
+                try { defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); } catch { }
 
-                list.Add(new AudioEndpointInfo(dev.ID, dev.FriendlyName, isDefault, isVirtual));
+                foreach (var dev in devices)
+                {
+                    bool isDefault = defaultDevice != null && dev.ID == defaultDevice.ID;
+                    bool isVirtual = dev.FriendlyName.Contains("Cable", StringComparison.OrdinalIgnoreCase) ||
+                                     dev.FriendlyName.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase) ||
+                                     dev.FriendlyName.Contains("Virtual", StringComparison.OrdinalIgnoreCase);
+
+                    list.Add(new AudioEndpointInfo(dev.ID, dev.FriendlyName, isDefault, isVirtual));
+                }
+            }
+            finally
+            {
+                if (disposeEnumerator) enumerator.Dispose();
             }
         }
         catch
@@ -79,7 +128,7 @@ public sealed class WasapiAudioRouter : IAudioRouter
                     _currentFileReader = new WaveFileReader(waveStream);
                     _currentVolumeProvider = new WaveChannel32(_currentFileReader)
                     {
-                        Volume = Math.Clamp(volume, 0f, 1.5f),
+                        Volume = Math.Clamp(volume, 0f, 2.5f),
                         PadWithZeroes = false
                     };
                     var delayedSamples = new OffsetSampleProvider(
@@ -90,21 +139,44 @@ public sealed class WasapiAudioRouter : IAudioRouter
                         // lets the endpoint settle before the viewer name begins.
                         DelayBy = PlaybackLeadIn
                     };
-                    _currentPlaybackProvider = new SampleToWaveProvider(delayedSamples);
 
                     MMDevice? targetDevice = null;
-                    using var enumerator = new MMDeviceEnumerator();
-
-                    if (!string.IsNullOrEmpty(_selectedEndpointId) && _selectedEndpointId != "default")
+                    MMDeviceEnumerator enumerator = _deviceEnumerator ?? new MMDeviceEnumerator();
+                    bool disposeEnumerator = _deviceEnumerator is null;
+                    try
                     {
-                        try { targetDevice = enumerator.GetDevice(_selectedEndpointId); } catch { }
+                        if (!string.IsNullOrEmpty(_selectedEndpointId) && _selectedEndpointId != "default")
+                        {
+                            try { targetDevice = enumerator.GetDevice(_selectedEndpointId); } catch { }
+                        }
+
+                        targetDevice ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    }
+                    finally
+                    {
+                        if (disposeEnumerator) enumerator.Dispose();
                     }
 
-                    targetDevice ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    _currentDevice = targetDevice;
 
-                    // A short shared-mode buffer keeps sequential chat messages
-                    // responsive while retaining enough headroom for stable playback.
-                    var output = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 30);
+                    ISampleProvider playbackSampleProvider = delayedSamples;
+                    try
+                    {
+                        int targetSampleRate = targetDevice?.AudioClient?.MixFormat?.SampleRate ?? 0;
+                        if (targetSampleRate > 0 && targetSampleRate != delayedSamples.WaveFormat.SampleRate)
+                        {
+                            playbackSampleProvider = new WdlResamplingSampleProvider(delayedSamples, targetSampleRate);
+                        }
+                    }
+                    catch
+                    {
+                        playbackSampleProvider = delayedSamples;
+                    }
+                    _currentPlaybackProvider = new SampleToWaveProvider(playbackSampleProvider);
+
+                    // A 100ms shared-mode buffer protects against buffer underruns
+                    // and audio stuttering/glitching during CPU spikes from neural inference.
+                    var output = new WasapiOut(targetDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 100);
                     _wasapiOut = output;
                     output.Init(_currentPlaybackProvider);
 
@@ -162,6 +234,9 @@ public sealed class WasapiAudioRouter : IAudioRouter
             _wasapiOut?.Dispose();
             _wasapiOut = null;
 
+            _currentDevice?.Dispose();
+            _currentDevice = null;
+
             _currentVolumeProvider?.Dispose();
             _currentVolumeProvider = null;
             _currentPlaybackProvider = null;
@@ -174,5 +249,41 @@ public sealed class WasapiAudioRouter : IAudioRouter
     public void Dispose()
     {
         Stop();
+        lock (_lock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+            if (_deviceEnumerator is not null && _notificationClient is not null)
+            {
+                try
+                {
+                    _deviceEnumerator.UnregisterEndpointNotificationCallback(_notificationClient);
+                }
+                catch { }
+            }
+            _deviceEnumerator?.Dispose();
+        }
+    }
+
+    internal sealed class AudioEndpointNotificationClient : IMMNotificationClient
+    {
+        private readonly Action _onChanged;
+
+        public AudioEndpointNotificationClient(Action onChanged)
+        {
+            _onChanged = onChanged;
+        }
+
+        public void OnDeviceStateChanged(string deviceId, DeviceState newState) => _onChanged();
+        public void OnDeviceAdded(string pwstrDeviceId) => _onChanged();
+        public void OnDeviceRemoved(string deviceId) => _onChanged();
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
+        {
+            if (flow is DataFlow.Render or DataFlow.All)
+            {
+                _onChanged();
+            }
+        }
+        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) => _onChanged();
     }
 }

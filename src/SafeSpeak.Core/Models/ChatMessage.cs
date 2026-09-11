@@ -36,4 +36,5 @@ public sealed record ChatMessage
     public bool IsSubscriber { get; init; }
     public bool IsModerator { get; init; }
     public bool IsDonor { get; init; }
+    public LivestreamEventType EventType { get; init; } = LivestreamEventType.Chat;
 }

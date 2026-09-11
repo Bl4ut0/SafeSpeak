@@ -46,14 +46,26 @@ public partial class MainWindow : Window
                 () => vm.NarrateTypedCharacters);
             vm.GlobalShortcutsChanged += ViewModel_GlobalShortcutsChanged;
         }
-        Closing += MainWindow_Closing;
+        Closing += (s, e) =>
+        {
+            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", $"MainWindow Closing event triggered (Cancel={e.Cancel}).");
+            MainWindow_Closing(s, e);
+        };
+        Closed += (_, _) =>
+        {
+            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", "MainWindow Closed event triggered.");
+        };
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         PreviewMouseWheel += MainWindow_PreviewMouseWheel;
-        Loaded += (_, _) => Dispatcher.BeginInvoke(() =>
+        Loaded += (_, _) =>
         {
-            HearStatusButton.Focus();
-            Keyboard.Focus(HearStatusButton);
-        }, DispatcherPriority.Input);
+            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", "MainWindow Loaded event triggered.");
+            Dispatcher.BeginInvoke(() =>
+            {
+                HearStatusButton.Focus();
+                Keyboard.Focus(HearStatusButton);
+            }, DispatcherPriority.Input);
+        };
     }
 
     private void ThemeSelector_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -107,8 +119,43 @@ public partial class MainWindow : Window
         FocusSettingsConnectorCard(connector);
     }
 
+    private void PositionInlineConnectorPanels(bool forEnabledConnector)
+    {
+        if (Chapter1ConnectorsPanel is null ||
+            InlineConnectorManagementPanel is null ||
+            InlineConnectorCapturePanel is null ||
+            DisabledConnectorsBorder is null)
+        {
+            return;
+        }
+
+        Chapter1ConnectorsPanel.Children.Remove(InlineConnectorManagementPanel);
+        Chapter1ConnectorsPanel.Children.Remove(InlineConnectorCapturePanel);
+
+        int disabledIndex = Chapter1ConnectorsPanel.Children.IndexOf(DisabledConnectorsBorder);
+        if (disabledIndex >= 0)
+        {
+            if (forEnabledConnector)
+            {
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex, InlineConnectorManagementPanel);
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex + 1, InlineConnectorCapturePanel);
+            }
+            else
+            {
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex + 1, InlineConnectorManagementPanel);
+                Chapter1ConnectorsPanel.Children.Insert(disabledIndex + 2, InlineConnectorCapturePanel);
+            }
+        }
+        else
+        {
+            Chapter1ConnectorsPanel.Children.Add(InlineConnectorManagementPanel);
+            Chapter1ConnectorsPanel.Children.Add(InlineConnectorCapturePanel);
+        }
+    }
+
     private void BeginInlineConnectorManagement(LiveConnectorViewModel connector)
     {
+        PositionInlineConnectorPanels(forEnabledConnector: true);
         CancelInlineConnectorSurfaces();
         _managingConnector = connector;
         InlineConnectorManagementHeading.Text = $"Connector options: {connector.DisplayName}";
@@ -125,6 +172,7 @@ public partial class MainWindow : Window
         LiveConnectorViewModel connector,
         bool editing)
     {
+        PositionInlineConnectorPanels(forEnabledConnector: editing || connector.IsConfigured);
         CloseInlineConnectorManagement();
         _capturingConnector = connector;
         _firstConnectorUsername = null;
@@ -881,6 +929,11 @@ public partial class MainWindow : Window
             // A focused, collapsed selector is read-only. This prevents Tab
             // followed by an exploratory Arrow key from silently changing a
             // consequential setting. Open the list before navigating choices.
+            if (DataContext is MainViewModel vm)
+            {
+                vm.Announcer.AnnounceFocus("Press Enter to open the list before choosing.");
+            }
+
             e.Handled = true;
         }
     }
@@ -1045,10 +1098,53 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SelectionComboBox_DropDownOpened(object? sender, EventArgs e)
+    {
+        if (sender is ComboBox comboBox)
+        {
+            comboBox.Focus();
+        }
+    }
+
+    private void SettingsChapterJumpCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox combo && combo.SelectedValue is int chapterNumber)
+        {
+            JumpToChapter(chapterNumber);
+        }
+    }
+
+    private void JumpToChapter(int chapterNumber)
+    {
+        Label[] chapters = EnumerateVisualDescendants(GetSelectedPageContent())
+            .OfType<Label>()
+            .Where(label =>
+                label.IsVisible &&
+                AutomationProperties.GetHeadingLevel(label) == AutomationHeadingLevel.Level2)
+            .ToArray();
+        if (chapterNumber >= 1 && chapterNumber <= chapters.Length)
+        {
+            Label target = chapters[chapterNumber - 1];
+            target.BringIntoView();
+            Dispatcher.BeginInvoke(() => FocusElement(target), DispatcherPriority.Input);
+            if (DataContext is MainViewModel vm)
+            {
+                vm.Announcer.AnnounceFocus($"Jumped to Chapter {chapterNumber}. {target.Content}");
+            }
+        }
+    }
+
     private void MainWindow_PreviewMouseWheel(
         object sender,
         MouseWheelEventArgs e)
     {
+        // When a ComboBox drop-down is open to navigate its list of choices,
+        // do not redirect mouse wheel to the background page scroller.
+        if (IsAnyComboBoxDropDownOpen())
+        {
+            return;
+        }
+
         ScrollViewer? pageScroller = MainNavigation.SelectedIndex switch
         {
             1 => SafetyPageScrollViewer,
@@ -1069,6 +1165,13 @@ public partial class MainWindow : Window
         double distance = (e.Delta / 120.0) * linesPerNotch * 16.0;
         pageScroller.ScrollToVerticalOffset(pageScroller.VerticalOffset - distance);
         e.Handled = true;
+    }
+
+    private bool IsAnyComboBoxDropDownOpen()
+    {
+        return EnumerateVisualDescendants(GetSelectedPageContent())
+            .OfType<ComboBox>()
+            .Any(c => c.IsDropDownOpen);
     }
 
     private bool TryHandleDirectNavigationShortcut(Key key)
@@ -1438,6 +1541,7 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.GlobalShortcutsChanged -= ViewModel_GlobalShortcutsChanged;
+                TryShutdownStep(vm.FlushAllSettingsToDisk);
                 // Backend cancellation, native TTS teardown, connector disposal,
                 // and disk flushing must never hold the WPF window open. Settings
                 // are already persisted as they change, so cleanup is best-effort.

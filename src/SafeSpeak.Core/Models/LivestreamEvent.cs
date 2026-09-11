@@ -37,6 +37,7 @@ public sealed record LivestreamEvent
         IsSubscriber = IsSubscriber,
         IsModerator = IsModerator,
         IsDonor = Type == LivestreamEventType.Gift,
+        EventType = Type,
         AuthorTier = AuthorTier,
         TimestampUtc = TimestampUtc
     };

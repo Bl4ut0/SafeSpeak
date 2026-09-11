@@ -106,6 +106,8 @@ public class MockAudioRouter : IAudioRouter
 {
     private int _playbackCount;
 
+    public event EventHandler? EndpointsChanged;
+    public void RaiseEndpointsChanged() => EndpointsChanged?.Invoke(this, EventArgs.Empty);
     public string? SelectedEndpointId { get; private set; }
     public bool WasStopped { get; private set; }
     public int PlaybackCount => Volatile.Read(ref _playbackCount);
@@ -148,6 +150,8 @@ public sealed class BlockingAudioRouter : IAudioRouter
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _playbackCount;
 
+    public event EventHandler? EndpointsChanged;
+    public void RaiseEndpointsChanged() => EndpointsChanged?.Invoke(this, EventArgs.Empty);
     public string? SelectedEndpointId { get; private set; }
     public int PlaybackCount => Volatile.Read(ref _playbackCount);
     public Task FirstPlaybackStarted => _firstPlaybackStarted.Task;
@@ -662,6 +666,54 @@ public class TtsQueueTests
         Assert.Equal(1, mockTts.SpeakCount);
         Assert.Equal(1, mockRouter.PlaybackCount);
         Assert.Equal(0, queue.Count);
+    }
+
+    [Fact]
+    public async Task TryPlayNext_DiscardsStaleMessages_WhenQueueLagsBehindLiveStream()
+    {
+        var mockTts = new MockTtsEngine();
+        var mockRouter = new MockAudioRouter();
+        await using var queue = new TtsQueue(mockTts, mockRouter, capacity: 50);
+        queue.MaxQueueAgeSeconds = 20;
+        queue.ArmAutomatic();
+        queue.UseManualAdvance();
+
+        // Enqueue a stale message (sent 60s ago)
+        var staleDecision = new ModerationDecision
+        {
+            Message = new ChatMessage
+            {
+                RawText = "Old stale message",
+                Author = "stale_viewer",
+                TimestampUtc = DateTimeOffset.UtcNow.AddSeconds(-60)
+            },
+            Disposition = ModerationDisposition.Approved,
+            SpokenText = "Old stale message"
+        };
+
+        // Enqueue a fresh message (sent now)
+        var freshDecision = new ModerationDecision
+        {
+            Message = new ChatMessage
+            {
+                RawText = "Fresh live message",
+                Author = "live_viewer",
+                TimestampUtc = DateTimeOffset.UtcNow
+            },
+            Disposition = ModerationDisposition.Approved,
+            SpokenText = "Fresh live message"
+        };
+
+        Assert.True(queue.Enqueue(staleDecision));
+        Assert.True(queue.Enqueue(freshDecision));
+        Assert.Equal(2, queue.Count);
+
+        // Play next: the stale message should be discarded, and the fresh message played.
+        bool played = await queue.PlayNextManualAsync();
+
+        Assert.True(played);
+        Assert.Equal(1, mockTts.SpeakCount);
+        Assert.Equal(0, queue.Count); // Stale was discarded, fresh was dequeued and played
     }
 
     private static ModerationDecision Approved(string text) => new()
