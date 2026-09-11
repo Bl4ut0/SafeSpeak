@@ -31,7 +31,10 @@ public enum OnboardingStage
     Platform = 1,
     Filtering = 2,
     Review = 3,
-    Complete = 4
+    Complete = 4,
+    Voice = 5,
+    Keybinds = 6,
+    Navigation = 7
 }
 
 public enum OnboardingConnectorDetectionStatus

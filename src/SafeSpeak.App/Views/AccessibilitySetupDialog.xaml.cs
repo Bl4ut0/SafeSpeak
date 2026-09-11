@@ -40,7 +40,36 @@ public partial class AccessibilitySetupDialog : Window
         object sender,
         KeyEventArgs e)
     {
-        if (e.Handled || Keyboard.Modifiers != ModifierKeys.None)
+        if (e.Handled)
+        {
+            return;
+        }
+
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
+            (Keyboard.Modifiers & ~ModifierKeys.Control) == ModifierKeys.None)
+        {
+            int? step = e.Key switch
+            {
+                Key.D1 or Key.NumPad1 => 1,
+                Key.D2 or Key.NumPad2 => 2,
+                Key.D3 or Key.NumPad3 => 3,
+                Key.D4 or Key.NumPad4 => 4,
+                Key.D5 or Key.NumPad5 => 5,
+                Key.D6 or Key.NumPad6 => 6,
+                Key.D7 or Key.NumPad7 => 7,
+                Key.D8 or Key.NumPad8 => 8,
+                _ => null
+            };
+
+            if (step.HasValue)
+            {
+                _viewModel.JumpToStepCommand.Execute(step.Value);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (Keyboard.Modifiers != ModifierKeys.None)
         {
             return;
         }
@@ -59,6 +88,27 @@ public partial class AccessibilitySetupDialog : Window
             }
 
             return;
+        }
+
+        if (_viewModel.CurrentPage == AccessibilitySetupPage.Review)
+        {
+            if (e.Key == Key.Y &&
+                _viewModel.IsPrimaryButtonVisible &&
+                _viewModel.IsInteractionEnabled &&
+                _viewModel.ContinueCommand.CanExecute(null))
+            {
+                _viewModel.ContinueCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+            else if (e.Key == Key.N &&
+                     _viewModel.IsInteractionEnabled &&
+                     _viewModel.RestartSetupCommand.CanExecute(null))
+            {
+                _viewModel.RestartSetupCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
         }
 
         if (e.Key == Key.Y &&
@@ -129,6 +179,10 @@ public partial class AccessibilitySetupDialog : Window
                     AccessibilitySetupPage.Reader => ReaderYesButton,
                     AccessibilitySetupPage.Theme => ThemeList,
                     AccessibilitySetupPage.Platform => TikFinityCheckBox,
+                    AccessibilitySetupPage.Voice => VoiceSelectorComboBox,
+                    AccessibilitySetupPage.Filtering => AiClassificationCheckBox,
+                    AccessibilitySetupPage.Keybinds => KeybindsList,
+                    AccessibilitySetupPage.Navigation => NavigationShortcutsList,
                     AccessibilitySetupPage.Review => ReviewList,
                     _ => PrimaryButton
                 };

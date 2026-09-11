@@ -218,9 +218,18 @@ public sealed class OnboardingWorkflowContractTests
         string wizard = WizardViewModel();
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompletePlatformStep()"),
+            "_settings.OnboardingStage = OnboardingStage.Voice");
+        AssertPersistsBeforeNavigation(
+            Method(wizard, "private void CompleteVoiceStep()"),
             "_settings.OnboardingStage = OnboardingStage.Filtering");
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompleteFilteringStep()"),
+            "_settings.OnboardingStage = OnboardingStage.Keybinds");
+        AssertPersistsBeforeNavigation(
+            Method(wizard, "private void CompleteKeybindsStep()"),
+            "_settings.OnboardingStage = OnboardingStage.Navigation");
+        AssertPersistsBeforeNavigation(
+            Method(wizard, "private void CompleteNavigationStep()"),
             "_settings.OnboardingStage = OnboardingStage.Review");
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompleteOnboarding()"),

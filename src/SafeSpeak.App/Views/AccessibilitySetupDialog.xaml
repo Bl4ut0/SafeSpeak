@@ -2,18 +2,20 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:a11y="clr-namespace:SafeSpeak.App.Accessibility"
+        xmlns:conv="clr-namespace:SafeSpeak.App.Converters"
         Title="SafeSpeak — Setup"
-        Height="700" Width="720"
-        MinHeight="600" MinWidth="600"
-        MaxHeight="860" MaxWidth="920"
+        Height="760" Width="820"
+        MinHeight="620" MinWidth="680"
+        MaxHeight="900" MaxWidth="960"
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="True"
         KeyboardNavigation.TabNavigation="Cycle"
         AutomationProperties.Name="SafeSpeak guided setup"
-        AutomationProperties.HelpText="Five accessible steps configure Reader, Theme, streaming, enhanced local filtering, and review.">
+        AutomationProperties.HelpText="Eight accessible steps configure Reader, Theme, Connectors, Voice, AI Filtering, Keybinds, Navigation, and Review.">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
     </Window.Resources>
 
     <Grid Background="{DynamicResource SafeSpeakWindowBrush}"
@@ -25,8 +27,9 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Top Header Banner -->
         <Border Grid.Row="0"
-                Padding="24,14"
+                Padding="24,12"
                 Background="{DynamicResource SafeSpeakSurfaceBrush}"
                 BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                 BorderThickness="0,0,0,1">
@@ -44,359 +47,752 @@
                                Style="{StaticResource EyebrowText}"
                                Margin="0,0,0,3" />
                     <TextBlock Text="Set up SafeSpeak" Style="{StaticResource PageTitle}" />
-                    <TextBlock Text="Five clear steps. Full keyboard and screen-reader access."
+                    <TextBlock Text="Eight clear steps. Full keyboard and screen-reader access."
                                Style="{StaticResource SecondaryText}"
                                Margin="0,4,0,0" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <StackPanel Grid.Row="1" Margin="24,12" MaxWidth="780">
-                <TextBlock Text="{Binding StepProgress}"
-                           Style="{StaticResource EyebrowText}"
-                           FontWeight="Bold"
-                           Margin="0,0,0,6"
-                           AutomationProperties.Name="{Binding StepProgress}"
-                           AutomationProperties.LiveSetting="Polite"
-                           a11y:LiveRegion.Announcement="{Binding StepProgress}" />
+        <!-- Main Content Area -->
+        <StackPanel Grid.Row="1" Margin="24,10" MaxWidth="780">
 
-                <Border Style="{StaticResource ContentPanel}" Padding="14">
-                    <StackPanel>
-                        <TextBlock Text="{Binding PromptText}"
-                                   FontSize="{DynamicResource SafeSpeakFont24}"
-                                   FontWeight="Bold"
-                                   TextWrapping="Wrap"
-                                   AutomationProperties.Name="{Binding PromptText}" />
-                        <TextBlock Text="{Binding StatusText}"
-                                   Style="{StaticResource SecondaryText}"
-                                   Margin="0,8,0,0"
-                                   TextWrapping="Wrap"
-                                   AutomationProperties.Name="{Binding StatusText}"
-                                   AutomationProperties.LiveSetting="Polite"
-                                   a11y:LiveRegion.Announcement="{Binding StatusText}" />
-                    </StackPanel>
+            <!-- Step Navigation Button Row -->
+            <Border Style="{StaticResource CardPanel}"
+                    Padding="6,4"
+                    Margin="0,0,0,10">
+                <UniformGrid Rows="1" Columns="8">
+                    <Button TabIndex="10"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="1. Reader"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="1"
+                            AutomationProperties.Name="Go to Step 1: Reader (Control+1)"
+                            AutomationProperties.HelpText="Jump directly to Reader setup step." />
+                    <Button TabIndex="11"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="2. Theme"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="2"
+                            AutomationProperties.Name="Go to Step 2: Theme (Control+2)"
+                            AutomationProperties.HelpText="Jump directly to Visual Theme setup step." />
+                    <Button TabIndex="12"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="3. Connect"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="3"
+                            AutomationProperties.Name="Go to Step 3: Connectors (Control+3)"
+                            AutomationProperties.HelpText="Jump directly to Streaming Connectors setup step." />
+                    <Button TabIndex="13"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="4. Voice"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="4"
+                            AutomationProperties.Name="Go to Step 4: Voice (Control+4)"
+                            AutomationProperties.HelpText="Jump directly to Voice Selection setup step." />
+                    <Button TabIndex="14"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="5. AI Filter"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="5"
+                            AutomationProperties.Name="Go to Step 5: AI Moderation (Control+5)"
+                            AutomationProperties.HelpText="Jump directly to AI Filtering setup step." />
+                    <Button TabIndex="15"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="6. Keybinds"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="6"
+                            AutomationProperties.Name="Go to Step 6: Primary Keybinds (Control+6)"
+                            AutomationProperties.HelpText="Jump directly to Primary Keybinds setup step." />
+                    <Button TabIndex="16"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="7. Nav Guide"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="7"
+                            AutomationProperties.Name="Go to Step 7: Navigation Guide (Control+7)"
+                            AutomationProperties.HelpText="Jump directly to Navigation Shortcuts guide." />
+                    <Button TabIndex="17"
+                            MinHeight="44"
+                            Margin="2,0"
+                            Padding="2,0"
+                            FontSize="{DynamicResource SafeSpeakFont13}"
+                            Content="8. Review"
+                            Command="{Binding JumpToStepCommand}"
+                            CommandParameter="8"
+                            AutomationProperties.Name="Go to Step 8: Review Confirmation (Control+8)"
+                            AutomationProperties.HelpText="Jump directly to Review Confirmation setup step." />
+                </UniformGrid>
+            </Border>
+
+            <!-- Step Progress Live Announcement -->
+            <TextBlock Text="{Binding StepProgress}"
+                       Style="{StaticResource EyebrowText}"
+                       FontWeight="Bold"
+                       Margin="0,0,0,4"
+                       AutomationProperties.Name="{Binding StepProgress}"
+                       AutomationProperties.LiveSetting="Polite"
+                       a11y:LiveRegion.Announcement="{Binding StepProgress}" />
+
+            <!-- Prompt & Status Card -->
+            <Border Style="{StaticResource ContentPanel}" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="{Binding PromptText}"
+                               FontSize="{DynamicResource SafeSpeakFont24}"
+                               FontWeight="Bold"
+                               TextWrapping="Wrap"
+                               AutomationProperties.Name="{Binding PromptText}" />
+                    <TextBlock Text="{Binding StatusText}"
+                               Style="{StaticResource SecondaryText}"
+                               Margin="0,6,0,0"
+                               TextWrapping="Wrap"
+                               AutomationProperties.Name="{Binding StatusText}"
+                               AutomationProperties.LiveSetting="Polite"
+                               a11y:LiveRegion.Announcement="{Binding StatusText}" />
+                </StackPanel>
+            </Border>
+
+            <!-- STEP 1: READER -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsReaderStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Reader"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
+                <UniformGrid Columns="2">
+                    <Button x:Name="ReaderYesButton"
+                            TabIndex="1"
+                            MinHeight="64"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding ChooseSpokenGuidanceYesCommand}"
+                            Content="Yes — use spoken guidance (Y)"
+                            AutomationProperties.Name="Yes, use the SafeSpeak built-in screen reader"
+                            AutomationProperties.HelpText="Press Y or activate this button. SafeSpeak will speak the remaining setup questions." />
+                    <Button x:Name="ReaderNoButton"
+                            TabIndex="2"
+                            MinHeight="64"
+                            Margin="8,0,0,0"
+                            Command="{Binding ChooseSpokenGuidanceNoCommand}"
+                            Content="No — continue without it (N)"
+                            AutomationProperties.Name="No, do not use the SafeSpeak built-in screen reader"
+                            AutomationProperties.HelpText="Press N or activate this button. Setup continues to Theme without SafeSpeak spoken guidance. External screen readers remain supported." />
+                </UniformGrid>
+            </StackPanel>
+
+            <!-- STEP 2: THEME -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsThemeStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Visual theme"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
+                <ListBox x:Name="ThemeList"
+                         TabIndex="1"
+                         Focusable="True"
+                         IsTabStop="True"
+                         ItemsSource="{Binding ThemeOptions}"
+                         SelectedItem="{Binding SelectedThemeOption}"
+                         MinHeight="142"
+                         Padding="0"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         KeyboardNavigation.TabNavigation="Once"
+                         PreviewKeyDown="ThemeList_PreviewKeyDown"
+                         PreviewMouseLeftButtonDown="ThemeList_PreviewMouseLeftButtonDown"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         AutomationProperties.Name="Visual theme selector"
+                         AutomationProperties.ItemStatus="{Binding SelectedThemeOption.AutomationName}"
+                         AutomationProperties.HelpText="Tab reaches this selector without changing the theme. Use Left and Right Arrow or Up and Down Arrow to hear and choose Light, Dark, or High Contrast.">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}"
+                               BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="MinHeight" Value="136" />
+                            <Setter Property="Margin" Value="0,0,8,0" />
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                            <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
+                            <Setter Property="Focusable" Value="True" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="AutomationProperties.Name"
+                                    Value="{Binding AutomationName}" />
+                            <Setter Property="AutomationProperties.HelpText"
+                                    Value="{Binding Description}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                        <Border x:Name="ChoiceBorder"
+                                                Padding="8"
+                                                Background="{DynamicResource SafeSpeakSurfaceBrush}"
+                                                BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="12">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ChoiceBorder"
+                                                        Property="Background"
+                                                        Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                                <Setter TargetName="ChoiceBorder"
+                                                        Property="BorderBrush"
+                                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="ChoiceBorder"
+                                                        Property="Background"
+                                                        Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
+                                                <Setter TargetName="ChoiceBorder"
+                                                        Property="BorderBrush"
+                                                        Value="{DynamicResource SafeSpeakAccentBrush}" />
+                                                <Setter TargetName="ChoiceBorder"
+                                                        Property="BorderThickness"
+                                                        Value="3" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <Border x:Name="ThemePreview"
+                                        Height="58"
+                                        Margin="0,0,0,6"
+                                        Background="#FFF7F8FC"
+                                        BorderBrush="#FFC7D0E0"
+                                        BorderThickness="1"
+                                        CornerRadius="7">
+                                    <Grid Margin="7">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="8" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <Border x:Name="PreviewHeader"
+                                                Background="#FFD7DEEA"
+                                                CornerRadius="2" />
+                                        <Grid Grid.Row="1" Margin="0,5,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="38" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <Border x:Name="PreviewLineOne"
+                                                        Height="5" Width="52"
+                                                        HorizontalAlignment="Left"
+                                                        Background="#FF9BA8BA"
+                                                        CornerRadius="2" />
+                                                <Border x:Name="PreviewLineTwo"
+                                                        Height="5" Width="38"
+                                                        Margin="0,5,0,0"
+                                                        HorizontalAlignment="Left"
+                                                        Background="#FFC7D0E0"
+                                                        CornerRadius="2" />
+                                            </StackPanel>
+                                            <Border x:Name="PreviewAction"
+                                                    Grid.Column="1"
+                                                    Height="22"
+                                                    VerticalAlignment="Center"
+                                                    Background="#FF2057D4"
+                                                    CornerRadius="4" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="{DynamicResource SafeSpeakFont15}"
+                                           FontWeight="Bold"
+                                           TextAlignment="Center" />
+                                <TextBlock Text="{Binding Description}"
+                                           Style="{StaticResource SecondaryText}"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           Margin="0,2,0,0" />
+                            </StackPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Name}" Value="Dark">
+                                    <Setter TargetName="ThemePreview" Property="Background" Value="#FF121C2C" />
+                                    <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FF94A3B8" />
+                                    <Setter TargetName="PreviewHeader" Property="Background" Value="#FF28364B" />
+                                    <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFCBD5E1" />
+                                    <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FF718096" />
+                                    <Setter TargetName="PreviewAction" Property="Background" Value="#FF3B82F6" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Name}" Value="High Contrast">
+                                    <Setter TargetName="ThemePreview" Property="Background" Value="#FF000000" />
+                                    <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FFFFFF00" />
+                                    <Setter TargetName="PreviewHeader" Property="Background" Value="#FFFFFFFF" />
+                                    <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFFFFF00" />
+                                    <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FFFFFFFF" />
+                                    <Setter TargetName="PreviewAction" Property="Background" Value="#FFFFFF00" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+
+            <!-- STEP 3: CONNECTORS -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsPlatformStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Streaming platform connectors"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,6" />
+                <CheckBox x:Name="TikFinityCheckBox"
+                          TabIndex="1"
+                          MinHeight="50"
+                          IsChecked="{Binding UseTikFinity}"
+                          Content="Use TikFinity for TikTok chat"
+                          AutomationProperties.Name="Use TikFinity for TikTok chat"
+                          AutomationProperties.HelpText="When selected, SafeSpeak will try to connect to the configured local TikFinity connector when it opens." />
+                <CheckBox x:Name="TikTokDirectCheckBox"
+                          TabIndex="2"
+                          MinHeight="50"
+                          Margin="0,6,0,0"
+                          IsChecked="{Binding UseTikTokDirect}"
+                          Content="Use TikTok Direct by username"
+                          AutomationProperties.Name="Use TikTok Direct by username"
+                          AutomationProperties.HelpText="When selected, SafeSpeak adds its self-contained TikTok LIVE connector. TikFinity is not required." />
+                <TextBox x:Name="TikTokUsernameTextBox"
+                         TabIndex="3"
+                         MinHeight="44"
+                         Margin="0,6,0,0"
+                         MaxLength="24"
+                         IsEnabled="{Binding UseTikTokDirect}"
+                         Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="TikTok creator username for TikTok Direct"
+                         AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
+
+                <!-- Advisory when no connector is checked -->
+                <Border Style="{StaticResource StatusCard}"
+                        Margin="0,8,0,0"
+                        Padding="10"
+                        Visibility="{Binding HasAnyConnectorSelected, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                    <TextBlock Text="Advisory: No connectors are enabled. You can continue setup now, but SafeSpeak will not capture or speak chat messages until you configure a connector in Settings or the Live tab."
+                               Style="{StaticResource SecondaryText}"
+                               TextWrapping="Wrap" />
+                </Border>
+            </StackPanel>
+
+            <!-- STEP 4: VOICE SELECTION -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsVoiceStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Speech voice configuration"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,6" />
+
+                <!-- Voice Quality Level Info Card -->
+                <Border Style="{StaticResource StatusCard}" Margin="0,0,0,8" Padding="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="4,0">
+                            <TextBlock Text="Level 1: Desktop" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
+                            <TextBlock Text="Built-in SAPI5 voices" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="4,0">
+                            <TextBlock Text="Level 2: Natural" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
+                            <TextBlock Text="Windows Natural TTS" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="4,0">
+                            <TextBlock Text="Level 3: Kokoro" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
+                            <TextBlock Text="Neural local (~330 MB)" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Margin="4,0">
+                            <TextBlock Text="Level 4: Custom" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
+                            <TextBlock Text="Custom endpoints" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsReaderStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="Reader"
-                               FontSize="{DynamicResource SafeSpeakFont18}"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,8" />
-                    <UniformGrid Columns="2">
-                        <Button x:Name="ReaderYesButton"
-                                TabIndex="1"
-                                MinHeight="64"
-                                Margin="0,0,8,0"
-                                Style="{StaticResource PrimaryButton}"
-                                Command="{Binding ChooseSpokenGuidanceYesCommand}"
-                                Content="Yes — use spoken guidance (Y)"
-                                AutomationProperties.Name="Yes, use the SafeSpeak built-in screen reader"
-                                AutomationProperties.HelpText="Press Y or activate this button. SafeSpeak will speak the remaining setup questions." />
-                        <Button x:Name="ReaderNoButton"
-                                TabIndex="2"
-                                MinHeight="64"
-                                Margin="8,0,0,0"
-                                Command="{Binding ChooseSpokenGuidanceNoCommand}"
-                                Content="No — continue without it (N)"
-                                AutomationProperties.Name="No, do not use the SafeSpeak built-in screen reader"
-                                AutomationProperties.HelpText="Press N or activate this button. Setup continues to Theme without SafeSpeak spoken guidance. External screen readers remain supported." />
-                    </UniformGrid>
-                </StackPanel>
-
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsThemeStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="Visual theme"
-                               FontSize="{DynamicResource SafeSpeakFont18}"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,8" />
-                    <ListBox x:Name="ThemeList"
-                             TabIndex="1"
-                             Focusable="True"
-                             IsTabStop="True"
-                             ItemsSource="{Binding ThemeOptions}"
-                             SelectedItem="{Binding SelectedThemeOption}"
-                             MinHeight="142"
-                             Padding="0"
-                             BorderThickness="0"
-                             Background="Transparent"
-                             KeyboardNavigation.TabNavigation="Once"
-                             PreviewKeyDown="ThemeList_PreviewKeyDown"
-                             PreviewMouseLeftButtonDown="ThemeList_PreviewMouseLeftButtonDown"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             AutomationProperties.Name="Visual theme selector"
-                             AutomationProperties.ItemStatus="{Binding SelectedThemeOption.AutomationName}"
-                             AutomationProperties.HelpText="Tab reaches this selector without changing the theme. Use Left and Right Arrow or Up and Down Arrow to hear and choose Light, Dark, or High Contrast.">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Rows="1" Columns="3" />
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="{x:Type ListBoxItem}"
-                                   BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                <Setter Property="MinHeight" Value="136" />
-                                <Setter Property="Margin" Value="0,0,8,0" />
-                                <Setter Property="Padding" Value="0" />
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="VerticalContentAlignment" Value="Stretch" />
-                                <Setter Property="FocusVisualStyle" Value="{StaticResource SafeSpeakFocusVisual}" />
-                                <Setter Property="Focusable" Value="True" />
-                                <Setter Property="IsTabStop" Value="False" />
-                                <Setter Property="AutomationProperties.Name"
-                                        Value="{Binding AutomationName}" />
-                                <Setter Property="AutomationProperties.HelpText"
-                                        Value="{Binding Description}" />
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                                            <Border x:Name="ChoiceBorder"
-                                                    Padding="8"
-                                                    Background="{DynamicResource SafeSpeakSurfaceBrush}"
-                                                    BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="12">
-                                                <ContentPresenter />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ChoiceBorder"
-                                                            Property="Background"
-                                                            Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
-                                                    <Setter TargetName="ChoiceBorder"
-                                                            Property="BorderBrush"
-                                                            Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                                </Trigger>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="ChoiceBorder"
-                                                            Property="Background"
-                                                            Value="{DynamicResource SafeSpeakAccentSoftBrush}" />
-                                                    <Setter TargetName="ChoiceBorder"
-                                                            Property="BorderBrush"
-                                                            Value="{DynamicResource SafeSpeakAccentBrush}" />
-                                                    <Setter TargetName="ChoiceBorder"
-                                                            Property="BorderThickness"
-                                                            Value="3" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel>
-                                    <Border x:Name="ThemePreview"
-                                            Height="58"
-                                            Margin="0,0,0,6"
-                                            Background="#FFF7F8FC"
-                                            BorderBrush="#FFC7D0E0"
-                                            BorderThickness="1"
-                                            CornerRadius="7">
-                                        <Grid Margin="7">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="8" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <Border x:Name="PreviewHeader"
-                                                    Background="#FFD7DEEA"
-                                                    CornerRadius="2" />
-                                            <Grid Grid.Row="1" Margin="0,5,0,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="38" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <Border x:Name="PreviewLineOne"
-                                                            Height="5" Width="52"
-                                                            HorizontalAlignment="Left"
-                                                            Background="#FF9BA8BA"
-                                                            CornerRadius="2" />
-                                                    <Border x:Name="PreviewLineTwo"
-                                                            Height="5" Width="38"
-                                                            Margin="0,5,0,0"
-                                                            HorizontalAlignment="Left"
-                                                            Background="#FFC7D0E0"
-                                                            CornerRadius="2" />
-                                                </StackPanel>
-                                                <Border x:Name="PreviewAction"
-                                                        Grid.Column="1"
-                                                        Height="22"
-                                                        VerticalAlignment="Center"
-                                                        Background="#FF2057D4"
-                                                        CornerRadius="4" />
-                                            </Grid>
-                                        </Grid>
-                                    </Border>
-                                    <TextBlock Text="{Binding Name}"
-                                               FontSize="{DynamicResource SafeSpeakFont15}"
-                                               FontWeight="Bold"
-                                               TextAlignment="Center" />
-                                    <TextBlock Text="{Binding Description}"
-                                               Style="{StaticResource SecondaryText}"
-                                               TextWrapping="Wrap"
-                                               TextAlignment="Center"
-                                               FontSize="{DynamicResource SafeSpeakFont12}"
-                                               Margin="0,2,0,0" />
-                                </StackPanel>
-                                <DataTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding Name}" Value="Dark">
-                                        <Setter TargetName="ThemePreview" Property="Background" Value="#FF121C2C" />
-                                        <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FF94A3B8" />
-                                        <Setter TargetName="PreviewHeader" Property="Background" Value="#FF28364B" />
-                                        <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFCBD5E1" />
-                                        <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FF718096" />
-                                        <Setter TargetName="PreviewAction" Property="Background" Value="#FF3B82F6" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Name}" Value="High Contrast">
-                                        <Setter TargetName="ThemePreview" Property="Background" Value="#FF000000" />
-                                        <Setter TargetName="ThemePreview" Property="BorderBrush" Value="#FFFFFF00" />
-                                        <Setter TargetName="PreviewHeader" Property="Background" Value="#FFFFFFFF" />
-                                        <Setter TargetName="PreviewLineOne" Property="Background" Value="#FFFFFF00" />
-                                        <Setter TargetName="PreviewLineTwo" Property="Background" Value="#FFFFFFFF" />
-                                        <Setter TargetName="PreviewAction" Property="Background" Value="#FFFFFF00" />
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </StackPanel>
-
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsPlatformStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="Streaming platform"
-                               FontSize="{DynamicResource SafeSpeakFont18}"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,8" />
-                    <CheckBox x:Name="TikFinityCheckBox"
-                              TabIndex="1"
-                              MinHeight="50"
-                              IsChecked="{Binding UseTikFinity}"
-                              Content="Use TikFinity for TikTok chat"
-                              AutomationProperties.Name="Use TikFinity for TikTok chat"
-                              AutomationProperties.HelpText="When selected, SafeSpeak will try to connect to the configured local TikFinity connector when it opens." />
-                    <CheckBox x:Name="TikTokDirectCheckBox"
-                              TabIndex="2"
-                              MinHeight="50"
-                              Margin="0,8,0,0"
-                              IsChecked="{Binding UseTikTokDirect}"
-                              Content="Use TikTok Direct by username"
-                              AutomationProperties.Name="Use TikTok Direct by username"
-                              AutomationProperties.HelpText="When selected, SafeSpeak adds its self-contained TikTok LIVE connector. TikFinity is not required." />
-                    <TextBox x:Name="TikTokUsernameTextBox"
-                             TabIndex="3"
-                             MinHeight="44"
-                             Margin="0,6,0,0"
-                             MaxLength="24"
-                             IsEnabled="{Binding UseTikTokDirect}"
-                             Text="{Binding TikTokUsername, UpdateSourceTrigger=PropertyChanged}"
-                             AutomationProperties.Name="TikTok creator username for TikTok Direct"
-                             AutomationProperties.HelpText="Enter the creator username without the at sign, using letters, numbers, periods, or underscores." />
-                </StackPanel>
-
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsFilteringStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Border Style="{StaticResource ContentPanel}" Padding="14">
-                        <StackPanel>
-                            <TextBlock Text="Automatic on-device protection"
-                                       FontSize="{DynamicResource SafeSpeakFont18}"
-                                       FontWeight="SemiBold" />
-                            <TextBlock Text="The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required."
-                                       TextWrapping="Wrap"
-                                       Margin="0,8,0,0" />
-                            <TextBlock Text="{Binding ModelStatus}"
-                                       TextWrapping="Wrap"
-                                       FontWeight="SemiBold"
-                                       Margin="0,14,0,0"
-                                       AutomationProperties.Name="{Binding ModelStatus}"
-                                       AutomationProperties.LiveSetting="Polite"
-                                       a11y:LiveRegion.Announcement="{Binding ModelStatus}" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <StackPanel Margin="0,12,0,0"
-                            KeyboardNavigation.TabNavigation="Local"
-                            Visibility="{Binding IsReviewStep, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="Saved choices"
-                               FontSize="{DynamicResource SafeSpeakFont18}"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,8" />
-                    <ListBox x:Name="ReviewList"
-                             TabIndex="1"
-                             ItemsSource="{Binding ReviewItems}"
-                             MinHeight="170"
-                             AutomationProperties.Name="Setup review choices"
-                             AutomationProperties.HelpText="Use Up and Down Arrow to hear each setup choice.">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="{x:Type ListBoxItem}"
-                                   BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                <Setter Property="MinHeight" Value="44" />
-                                <Setter Property="AutomationProperties.Name" Value="{Binding}" />
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}"
-                                           TextWrapping="Wrap"
-                                           Margin="8,6" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <Border Style="{StaticResource StatusCard}" Margin="0,8,0,0" Padding="10">
-                        <StackPanel>
-                            <TextBlock Text="Speech Voices &amp; Quality Levels" FontWeight="SemiBold" />
-                            <TextBlock Text="SafeSpeak includes Level 1 (Desktop SAPI) and Level 2 (Windows Natural) voices immediately. After setup, you can install higher-fidelity neural voices (Level 3 Kokoro, ~330 MB) or select custom voices anytime from the Voice tab."
-                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <ProgressBar Height="8"
-                             Margin="0,10,0,0"
-                             IsIndeterminate="True"
-                             Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
-                             AutomationProperties.Name="Setup task in progress" />
-
-        </StackPanel>
-
-        <Grid Grid.Row="2" Margin="24,0,24,10" MaxWidth="780">
+                <!-- Voice Selector Row -->
+                <Grid Margin="0,4,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="BackButton"
+                    <ComboBox x:Name="VoiceSelectorComboBox"
+                              Grid.Column="0"
+                              TabIndex="1"
+                              MinHeight="44"
+                              ItemsSource="{Binding Voices}"
+                              SelectedValuePath="Id"
+                              SelectedValue="{Binding SelectedVoice}"
+                              AutomationProperties.Name="Select speech voice"
+                              AutomationProperties.HelpText="Choose the active TTS voice for SafeSpeak. Displays voice name and quality level.">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Right"
+                                            Style="{StaticResource StatusPill}"
+                                            Padding="6,1"
+                                            Margin="8,0,0,0">
+                                        <TextBlock Text="{Binding LevelBadge}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                    </Border>
+                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button x:Name="PreviewVoiceButton"
+                            Grid.Column="1"
+                            TabIndex="2"
+                            MinHeight="44"
+                            MinWidth="110"
+                            Margin="8,0,0,0"
+                            Command="{Binding PreviewVoiceCommand}"
+                            Content="Test Voice"
+                            AutomationProperties.Name="Test selected voice"
+                            AutomationProperties.HelpText="Play a short sample using the selected voice." />
+                </Grid>
+
+                <!-- Kokoro Neural Voice Install Action -->
+                <Border Style="{StaticResource CardPanel}" Margin="0,8,0,0" Padding="10">
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="KokoroInstallButton"
+                                DockPanel.Dock="Right"
+                                TabIndex="3"
+                                MinHeight="44"
+                                MinWidth="180"
+                                Margin="8,0,0,0"
+                                Command="{Binding InstallKokoroCommand}"
+                                Content="Install Kokoro Voices"
+                                AutomationProperties.Name="Install Kokoro Level 3 Neural Voices"
+                                AutomationProperties.HelpText="Download and install Kokoro high-fidelity neural voices (~330 MB)." />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Level 3: Kokoro Neural Voices (~330 MB)" FontWeight="Bold" />
+                            <TextBlock Text="{Binding KokoroInstallStatus}" Style="{StaticResource SecondaryText}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Windows Speech Settings Button -->
+                <Button x:Name="WindowsSpeechSettingsButton"
+                        TabIndex="4"
+                        MinHeight="44"
+                        Margin="0,8,0,0"
+                        Command="{Binding OpenWindowsSpeechSettingsCommand}"
+                        Content="Open Windows Speech Settings"
+                        AutomationProperties.Name="Open Windows Speech Settings"
+                        AutomationProperties.HelpText="Open Windows system settings to add more voices and language packs." />
+            </StackPanel>
+
+            <!-- STEP 5: AI FILTERING -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsFilteringStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="AI and language protection"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,6" />
+
+                <!-- AI Master Toggle -->
+                <CheckBox x:Name="AiClassificationCheckBox"
+                          TabIndex="1"
+                          MinHeight="44"
+                          IsChecked="{Binding AiClassificationEnabled}"
+                          Content="Enable AI on-device content classification"
+                          AutomationProperties.Name="Enable AI content classification"
+                          AutomationProperties.HelpText="When checked, SafeSpeak classifies messages with machine learning in addition to rule-based filtering." />
+
+                <!-- Model Choice Cards -->
+                <Grid Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="MiniLmCardButton"
                             Grid.Column="0"
-                            TabIndex="90"
-                            MinHeight="48"
-                            MinWidth="130"
-                            Margin="0,0,12,0"
-                            Visibility="{Binding IsBackAvailable, Converter={StaticResource BooleanToVisibilityConverter}}"
-                            IsEnabled="{Binding IsInteractionEnabled}"
-                            Command="{Binding GoBackCommand}"
-                            Content="Back"
-                            AutomationProperties.Name="Go back one setup step" />
-                    <Button x:Name="PrimaryButton"
-                            Grid.Column="2"
-                            TabIndex="91"
-                            MinHeight="48"
-                            MinWidth="190"
-                            Style="{StaticResource PrimaryButton}"
-                            IsEnabled="{Binding IsInteractionEnabled}"
-                            Visibility="{Binding IsPrimaryButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
-                            Command="{Binding ContinueCommand}"
-                            Content="{Binding PrimaryButtonText}"
-                            AutomationProperties.Name="{Binding PrimaryButtonAutomationName}"
-                            AutomationProperties.HelpText="Press Y from anywhere on this setup page to activate this action." />
+                            TabIndex="2"
+                            MinHeight="44"
+                            Margin="0,0,4,0"
+                            Command="{Binding SelectMiniLMCommand}"
+                            Content="MiniLM ONNX (Bundled Default)"
+                            AutomationProperties.Name="Select bundled MiniLM ONNX model"
+                            AutomationProperties.HelpText="Use the bundled lightweight MiniLM model for intent and toxic content detection." />
+                    <Button x:Name="QwenCardButton"
+                            Grid.Column="1"
+                            TabIndex="3"
+                            MinHeight="44"
+                            Margin="4,0,0,0"
+                            Command="{Binding SelectQwenCommand}"
+                            Content="Qwen3Guard 0.6B (Advanced)"
+                            AutomationProperties.Name="Select Qwen3Guard 0.6B model"
+                            AutomationProperties.HelpText="Use the advanced Qwen3Guard model for deep reasoning and context analysis." />
+                </Grid>
+
+                <!-- Qwen Install Card (Visible when Qwen is selected) -->
+                <Border Style="{StaticResource CardPanel}"
+                        Margin="0,8,0,0"
+                        Padding="10"
+                        Visibility="{Binding IsQwenSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="InstallQwenButton"
+                                DockPanel.Dock="Right"
+                                TabIndex="4"
+                                MinHeight="44"
+                                MinWidth="180"
+                                Margin="8,0,0,0"
+                                Command="{Binding InstallQwenCommand}"
+                                Content="Install Qwen3Guard"
+                                AutomationProperties.Name="Download and install Qwen3Guard model"
+                                AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Qwen3Guard 0.6B LLM" FontWeight="Bold" />
+                            <TextBlock Text="{Binding QwenInstallStatus}" Style="{StaticResource SecondaryText}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Model Status / Educational Copy -->
+                <Border Style="{StaticResource ContentPanel}" Margin="0,8,0,0" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="The bundled model complements Unicode-aware rules, banned words, and moderation strictness. No model download or cloud account is required."
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding ModelStatus}"
+                                   TextWrapping="Wrap"
+                                   FontWeight="SemiBold"
+                                   Margin="0,6,0,0"
+                                   AutomationProperties.Name="{Binding ModelStatus}"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   a11y:LiveRegion.Announcement="{Binding ModelStatus}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- STEP 6: KEYBINDS -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsKeybindsStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Primary hotkeys and controls"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4" />
+                <TextBlock Text="SafeSpeak provides instant global hotkeys so you can control chat without switching out of your game or stream."
+                           Style="{StaticResource SecondaryText}"
+                           Margin="0,0,0,6"
+                           TextWrapping="Wrap" />
+
+                <ListBox x:Name="KeybindsList"
+                         TabIndex="1"
+                         ItemsSource="{Binding KeybindList}"
+                         MinHeight="170"
+                         AutomationProperties.Name="Primary SafeSpeak hotkeys"
+                         AutomationProperties.HelpText="Use Up and Down Arrow keys to review global hotkeys.">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}"
+                               BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="MinHeight" Value="44" />
+                            <Setter Property="AutomationProperties.Name"
+                                    Value="{Binding AutomationSummary}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="6,4">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Shortcut}"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Border Style="{StaticResource StatusCard}" Margin="0,6,0,0" Padding="8">
+                    <TextBlock Text="Pro Tip: Pressing the Control key alone at any time immediately silences the built-in screen reader narrator."
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource SafeSpeakAccentBrush}"
+                               TextWrapping="Wrap" />
+                </Border>
+            </StackPanel>
+
+            <!-- STEP 7: NAVIGATION GUIDE -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsNavigationStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Navigation shortcuts guide"
+                           FontSize="{DynamicResource SafeSpeakFont18}"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4" />
+                <TextBlock Text="SafeSpeak is fully keyboard-accessible with dedicated shortcuts to navigate tabs, settings chapters, and setup steps."
+                           Style="{StaticResource SecondaryText}"
+                           Margin="0,0,0,6"
+                           TextWrapping="Wrap" />
+
+                <ListBox x:Name="NavigationShortcutsList"
+                         TabIndex="1"
+                         ItemsSource="{Binding NavigationShortcuts}"
+                         MinHeight="170"
+                         AutomationProperties.Name="SafeSpeak navigation shortcuts"
+                         AutomationProperties.HelpText="Use Up and Down Arrow keys to review navigation shortcuts.">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}"
+                               BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="MinHeight" Value="44" />
+                            <Setter Property="AutomationProperties.Name"
+                                    Value="{Binding AutomationSummary}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="6,4">
+                                <Border DockPanel.Dock="Right"
+                                        Style="{StaticResource StatusPill}"
+                                        Padding="8,2"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Shortcut}"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource SafeSpeakAccentBrush}" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+
+            <!-- STEP 8: REVIEW -->
+            <StackPanel Margin="0,10,0,0"
+                        KeyboardNavigation.TabNavigation="Local"
+                        Visibility="{Binding IsReviewStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                    <Button x:Name="RestartSetupButton"
+                            DockPanel.Dock="Right"
+                            TabIndex="2"
+                            MinHeight="44"
+                            MinWidth="140"
+                            Margin="8,0,0,0"
+                            Command="{Binding RestartSetupCommand}"
+                            Content="Restart Setup (N)"
+                            AutomationProperties.Name="Restart setup from step 1"
+                            AutomationProperties.HelpText="Press N or activate this button to reset choices and return to Step 1." />
+                    <TextBlock Text="Saved setup choices"
+                               FontSize="{DynamicResource SafeSpeakFont18}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+
+                <ListBox x:Name="ReviewList"
+                         TabIndex="1"
+                         ItemsSource="{Binding ReviewItems}"
+                         MinHeight="170"
+                         AutomationProperties.Name="Setup review choices"
+                         AutomationProperties.HelpText="Use Up and Down Arrow to hear each setup choice.">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}"
+                               BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="MinHeight" Value="44" />
+                            <Setter Property="AutomationProperties.Name" Value="{Binding}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       TextWrapping="Wrap"
+                                       Margin="8,6" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Border Style="{StaticResource StatusCard}" Margin="0,6,0,0" Padding="8">
+                    <TextBlock Text="Press Y to confirm these settings and open SafeSpeak, or press N to restart setup from Step 1."
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap" />
+                </Border>
+            </StackPanel>
+
+            <!-- Busy Indicator -->
+            <ProgressBar Height="8"
+                         Margin="0,8,0,0"
+                         IsIndeterminate="True"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Setup task in progress" />
+
+        </StackPanel>
+
+        <!-- Bottom Action Bar -->
+        <Grid Grid.Row="2" Margin="24,0,24,10" MaxWidth="780">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="BackButton"
+                    Grid.Column="0"
+                    TabIndex="90"
+                    MinHeight="48"
+                    MinWidth="130"
+                    Margin="0,0,12,0"
+                    Visibility="{Binding IsBackAvailable, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    IsEnabled="{Binding IsInteractionEnabled}"
+                    Command="{Binding GoBackCommand}"
+                    Content="Back"
+                    AutomationProperties.Name="Go back one setup step" />
+            <Button x:Name="PrimaryButton"
+                    Grid.Column="2"
+                    TabIndex="91"
+                    MinHeight="48"
+                    MinWidth="190"
+                    Style="{StaticResource PrimaryButton}"
+                    IsEnabled="{Binding IsInteractionEnabled}"
+                    Visibility="{Binding IsPrimaryButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Command="{Binding ContinueCommand}"
+                    Content="{Binding PrimaryButtonText}"
+                    AutomationProperties.Name="{Binding PrimaryButtonAutomationName}"
+                    AutomationProperties.HelpText="Press Y from anywhere on this setup page to activate this action." />
         </Grid>
 
+        <!-- Bottom Keyboard Help Banner -->
         <Border Grid.Row="3"
                 Padding="24,8"
                 Background="{DynamicResource SafeSpeakSurfaceBrush}"

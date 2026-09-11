@@ -29,7 +29,7 @@ public sealed class OnboardingAccessibilityContractTests
             .Order()
             .ToArray();
 
-        Assert.Equal(new[] { 90, 91 }, persistentIndexes);
+        Assert.Equal(new[] { 10, 11, 12, 13, 14, 15, 16, 17, 90, 91 }, persistentIndexes);
         Assert.Equal(persistentIndexes.Length, persistentIndexes.Distinct().Count());
 
         XElement[] stepPanels = document
@@ -38,7 +38,7 @@ public sealed class OnboardingAccessibilityContractTests
                 (element.Attribute("Visibility")?.Value ?? string.Empty)
                 .Contains("Step", StringComparison.Ordinal))
             .ToArray();
-        Assert.Equal(5, stepPanels.Length);
+        Assert.Equal(8, stepPanels.Length);
         Assert.All(stepPanels, panel =>
         {
             Assert.Equal("Local", Attribute(panel, "KeyboardNavigation.TabNavigation"));
@@ -57,7 +57,7 @@ public sealed class OnboardingAccessibilityContractTests
                 .Where(element => element.Attribute("TabIndex") is not null),
             element => Assert.Contains(
                 element.Name.LocalName,
-                new[] { "Button", "CheckBox", "ListBox", "TextBox" }));
+                new[] { "Button", "CheckBox", "ListBox", "TextBox", "ComboBox" }));
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Contains("CompleteReaderStep(enabled: false)", viewModel);
         Assert.Contains("_announcer.IsEnhancedAccessibilityEnabled = enabled", viewModel);
         Assert.Contains("NavigateTo(AccessibilitySetupPage.Theme)", viewModel);
-        Assert.Contains("Step 1 of 5", viewModel);
-        Assert.Contains("Step 2 of 5", viewModel);
+        Assert.Contains("Step 1 of 8", viewModel);
+        Assert.Contains("Step 2 of 8", viewModel);
         Assert.Contains("e.Key == Key.Y", codeBehind);
         Assert.Contains("e.Key == Key.N", codeBehind);
         Assert.Contains("_viewModel.ContinueCommand.CanExecute(null)", codeBehind);
