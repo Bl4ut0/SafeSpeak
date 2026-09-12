@@ -1840,7 +1840,10 @@
                                                Content="Chapter 6 — Stream announcements"
                                                AutomationProperties.Name="Settings chapter 6 of 9, stream announcements"
                                                AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose which stream events may enter speech, including behavior while paused. Use Alt plus 6 to return here." />
-                                        <UniformGrid Columns="2" Margin="0,5,0,0">
+                                        <TextBlock Text="Announce stream events" FontWeight="SemiBold" Margin="0,5,0,0" />
+                                        <TextBlock Text="Choose which events enter the text-to-speech queue when received."
+                                                   Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,4" />
+                                        <UniformGrid Columns="2">
                                             <CheckBox TabIndex="32" IsChecked="{Binding AnnounceChatMessages}" Margin="0,3"
                                                       Content="Chat" AutomationProperties.Name="Announce chat messages"
                                                       AutomationProperties.HelpText="Controls whether approved chat messages enter the text-to-speech queue." />
@@ -1862,10 +1865,15 @@
                                             <CheckBox TabIndex="38" IsChecked="{Binding AnnounceLikes}" Margin="0,3"
                                                       Content="Likes" AutomationProperties.Name="Announce likes"
                                                       AutomationProperties.HelpText="Controls spoken like announcements." />
-                                            <CheckBox TabIndex="39" IsChecked="{Binding IgnoreChatReplies}" Margin="0,3"
-                                                      Content="Ignore @replies" AutomationProperties.Name="Ignore chatter-to-chatter @replies"
-                                                      AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
                                         </UniformGrid>
+                                        <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
+                                                BorderThickness="0,1,0,0" Margin="0,7,0,5" />
+                                        <TextBlock Text="Chat @replies" FontWeight="SemiBold" />
+                                        <CheckBox TabIndex="39" IsChecked="{Binding IgnoreChatReplies}" Margin="0,5,0,2"
+                                                  Content="Ignore chatter-to-chatter @replies" AutomationProperties.Name="Ignore chatter-to-chatter @replies"
+                                                  AutomationProperties.HelpText="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken." />
+                                        <TextBlock Text="When checked, messages starting with @user directed at other chatters are not read aloud by TTS. Direct messages to your channel are still spoken."
+                                                   Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="24,0,0,2" />
                                         <Border BorderBrush="{DynamicResource SafeSpeakBorderBrush}"
                                                 BorderThickness="0,1,0,0" Margin="0,7,0,5" />
                                         <TextBlock Text="While paused" FontWeight="SemiBold" />
