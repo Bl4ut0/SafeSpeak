@@ -116,11 +116,23 @@ public sealed class AppSettingsTests
 
         AppSettings settings = JsonSerializer.Deserialize<AppSettings>(legacyJson)!;
 
-        Assert.False(settings.EnableStreamAuditLogging);
+        Assert.True(settings.EnableStreamAuditLogging);
         Assert.Equal("local_hybrid", settings.SelectedIntentEngineId);
         Assert.Null(settings.PerspectiveApiKey);
         Assert.Equal("http://localhost:11434", settings.LocalLlmEndpointUrl);
         Assert.Equal("llama3.2:1b", settings.LocalLlmModelName);
+    }
+
+    [Fact]
+    public void DefaultSettings_HasAutomaticLoggingAndEmptyConnectors()
+    {
+        var settings = new AppSettings();
+
+        Assert.True(settings.EnableStreamAuditLogging);
+        Assert.True(settings.HasConsentedToLocalAuditLogging);
+        Assert.Equal(string.Empty, settings.SelectedSourceConnectorId);
+        Assert.Empty(settings.ConfiguredSourceConnectorIds);
+        Assert.Empty(settings.ActiveSourceConnectorIds);
     }
 
     [Fact]
@@ -625,6 +637,32 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void MigrateAuditLoggingConsent_SupportsDisablingStreamAuditLoggingInJson()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(
+                path,
+                """
+                {
+                  "SettingsSchemaVersion": 12,
+                  "EnableStreamAuditLogging": false
+                }
+                """);
+
+            AppSettings loaded = AppSettings.Load(path);
+
+            Assert.False(loaded.EnableStreamAuditLogging);
+            Assert.False(loaded.HasConsentedToLocalAuditLogging);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
     public void ObsoletePrivateMonitorSettingsAreNotPublic()
     {
         Type settingsType = typeof(AppSettings);
@@ -633,6 +671,87 @@ public sealed class AppSettingsTests
         Assert.Null(settingsType.GetProperty("MirrorApprovedMessagesToPrivateMonitor"));
         Assert.Null(settingsType.GetProperty("PrivateModerationNoticesEnabled"));
         Assert.Null(settingsType.GetProperty("SelectedPrivateEndpointId"));
+    }
+
+    [Fact]
+    public void ShouldPromptSetupUpdate_BehavesCorrectlyAcrossLifecycleAndVersionIncrements()
+    {
+        // Fresh settings: onboarding is not complete -> do not prompt
+        var settings = new AppSettings();
+        Assert.False(settings.HasCompletedOnboarding);
+        Assert.False(settings.ShouldPromptSetupUpdate);
+
+        // Existing completed profile with default (version 0) acknowledged -> should prompt
+        settings.OnboardingStage = OnboardingStage.Complete;
+        Assert.True(settings.HasCompletedOnboarding);
+        Assert.Equal(0, settings.LastAcknowledgedSetupVersion);
+        Assert.True(settings.ShouldPromptSetupUpdate);
+
+        // Awaiting accessibility confirmation takes precedence over prompt
+        settings.PendingSpokenGuidance = SpokenGuidanceMode.Enabled;
+        settings.PendingTheme = ThemePreference.Light;
+        settings.SpokenGuidance = SpokenGuidanceMode.Unset;
+        settings.Theme = ThemePreference.Unset;
+        Assert.True(settings.IsAwaitingAccessibilityConfirmation);
+        Assert.False(settings.ShouldPromptSetupUpdate);
+
+        // Restoring confirmation state
+        settings.SpokenGuidance = SpokenGuidanceMode.Enabled;
+        settings.Theme = ThemePreference.Light;
+        Assert.False(settings.IsAwaitingAccessibilityConfirmation);
+        Assert.True(settings.ShouldPromptSetupUpdate);
+
+        // User acknowledges current setup guide version -> should NOT prompt again
+        settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
+        Assert.False(settings.ShouldPromptSetupUpdate);
+
+        // Persists and round-trips via JSON serialization
+        string json = JsonSerializer.Serialize(settings);
+        AppSettings reloaded = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.Equal(AppSettings.CurrentSetupGuideVersion, reloaded.LastAcknowledgedSetupVersion);
+        Assert.False(reloaded.ShouldPromptSetupUpdate);
+    }
+
+    [Fact]
+    public void ResetIncompleteOnboarding_ClearsAllPartialSetupStateAndRestoresDefaults()
+    {
+        var settings = new AppSettings
+        {
+            OnboardingStage = OnboardingStage.Filtering,
+            SpokenGuidance = SpokenGuidanceMode.Enabled,
+            Theme = ThemePreference.Dark,
+            PendingSpokenGuidance = SpokenGuidanceMode.Disabled,
+            PendingTheme = ThemePreference.Light,
+            SelectedSourceConnectorId = "tiktok-direct",
+            ConfiguredSourceConnectorIds = ["tiktok-direct"],
+            ActiveSourceConnectorIds = ["tiktok-direct"],
+            AutoConnectSource = true,
+            TikTokUsername = "some_streamer",
+            SelectedVoiceName = "Kokoro:af_heart",
+            ModerationModel = ModerationModelPreference.Qwen3Guard06BCompressed,
+            AiClassificationEnabled = true,
+            IgnoreChatReplies = true
+        };
+
+        settings.ResetIncompleteOnboarding();
+
+        Assert.Equal(OnboardingStage.Accessibility, settings.OnboardingStage);
+        Assert.False(settings.HasCompletedOnboarding);
+        Assert.Equal(SpokenGuidanceMode.Unset, settings.SpokenGuidance);
+        Assert.Equal(ThemePreference.Unset, settings.Theme);
+        Assert.Equal(SpokenGuidanceMode.Unset, settings.PendingSpokenGuidance);
+        Assert.Equal(ThemePreference.Unset, settings.PendingTheme);
+        Assert.Empty(settings.ConfiguredSourceConnectorIds);
+        Assert.Empty(settings.ActiveSourceConnectorIds);
+        Assert.Equal(string.Empty, settings.SelectedSourceConnectorId);
+        Assert.False(settings.AutoConnectSource);
+        Assert.Equal(string.Empty, settings.TikTokUsername);
+        Assert.Equal(string.Empty, settings.SelectedVoiceName);
+        Assert.Equal(ModerationModelPreference.BuiltInHybrid, settings.ModerationModel);
+        Assert.True(settings.AiClassificationEnabled);
+        Assert.True(settings.IgnoreChatReplies);
+        Assert.NotNull(settings.GlobalShortcuts);
+        Assert.NotEmpty(settings.GlobalShortcuts);
     }
 
     private static string CreateTemporarySettingsPath() => Path.Combine(

@@ -51,6 +51,13 @@ public partial class App : Application
             if (!settings.HasCompletedOnboarding ||
                 settings.IsAwaitingAccessibilityConfirmation)
             {
+                if (!settings.HasCompletedOnboarding)
+                {
+                    AppLogger.LogInformation("App", "Incomplete onboarding detected on startup. Starting over with clean initial settings.");
+                    settings.ResetIncompleteOnboarding();
+                    settings.TrySave(out _);
+                }
+
                 AppLogger.LogInformation("App", "Launching AccessibilitySetupDialog...");
                 var tempAnnouncer = new ScreenReaderAnnouncer();
                 tempAnnouncer.SpeechRate = settings.ReaderSpeechRate;
@@ -74,6 +81,59 @@ public partial class App : Application
                 wizard.Closed += (_, _) => tempAnnouncer.Dispose();
                 MainWindow = wizard;
                 wizard.Show();
+            }
+            else if (settings.ShouldPromptSetupUpdate)
+            {
+                AppLogger.LogInformation("App", "Settings update detected. Launching SetupUpdatePromptDialog...");
+                var promptAnnouncer = new ScreenReaderAnnouncer();
+                promptAnnouncer.SpeechRate = settings.ReaderSpeechRate;
+                promptAnnouncer.SpeechVolume = settings.ReaderSpeechVolume;
+                promptAnnouncer.SelectAudioEndpoint(settings.SelectedGuidanceAudioEndpointId);
+                SetupUpdatePromptDialog? promptDialog = null;
+
+                promptDialog = new SetupUpdatePromptDialog(
+                    settings,
+                    promptAnnouncer,
+                    onAccepted: () =>
+                    {
+                        AppLogger.LogInformation("App", "User accepted setup update. Launching AccessibilitySetupDialog...");
+                        var setupAnnouncer = new ScreenReaderAnnouncer();
+                        setupAnnouncer.SpeechRate = settings.ReaderSpeechRate;
+                        setupAnnouncer.SpeechVolume = settings.ReaderSpeechVolume;
+                        setupAnnouncer.SelectAudioEndpoint(settings.SelectedGuidanceAudioEndpointId);
+                        AccessibilitySetupDialog? wizard = null;
+
+                        var setupVm = new AccessibilitySetupViewModel(
+                            settings,
+                            setupAnnouncer,
+                            onCompleted: () =>
+                            {
+                                AppLogger.LogInformation("App", "AccessibilitySetupDialog completed. Showing MainWindow...");
+                                var mainWindow = new MainWindow();
+                                MainWindow = mainWindow;
+                                mainWindow.Show();
+                                wizard?.Close();
+                            },
+                            changeExistingProfile: true);
+
+                        wizard = new AccessibilitySetupDialog(setupVm);
+                        wizard.Closed += (_, _) => setupAnnouncer.Dispose();
+                        MainWindow = wizard;
+                        wizard.Show();
+                        promptDialog?.Close();
+                    },
+                    onDeclined: () =>
+                    {
+                        AppLogger.LogInformation("App", "User declined setup update. Initializing MainWindow...");
+                        var mainWindow = new MainWindow();
+                        MainWindow = mainWindow;
+                        mainWindow.Show();
+                        promptDialog?.Close();
+                    });
+
+                promptDialog.Closed += (_, _) => promptAnnouncer.Dispose();
+                MainWindow = promptDialog;
+                promptDialog.Show();
             }
             else
             {

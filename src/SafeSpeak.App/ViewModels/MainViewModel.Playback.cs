@@ -285,7 +285,10 @@ public sealed partial class MainViewModel
             try
             {
                 connector.ApplyState(ConnectionState.Connecting, "Connecting on arm.");
-                await connector.Host.ConnectAsync();
+                if (connector.Host is not null)
+                {
+                    await connector.Host.ConnectAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -308,7 +311,10 @@ public sealed partial class MainViewModel
         {
             try
             {
-                await connector.Host.DisconnectAsync();
+                if (connector.Host is not null)
+                {
+                    await connector.Host.DisconnectAsync();
+                }
                 connector.ApplyState(ConnectionState.Disconnected, "Disconnected on disarm.");
             }
             catch (Exception ex)

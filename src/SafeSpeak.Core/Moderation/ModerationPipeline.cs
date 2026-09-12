@@ -72,7 +72,7 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 1. Length Validation
-        if (message.RawText.Length > Config.MaxMessageLength)
+        if (!isSystemEvent && message.EventType == LivestreamEventType.Chat && message.RawText.Length > Config.MaxMessageLength)
         {
             return new ModerationDecision
             {
@@ -86,7 +86,10 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 2. Audience Eligibility Rule
-        if (!_ruleEngine.IsAudienceEligible(
+        // Non-chat stream events (donations, follows, shares, subscriptions, etc.) and system events
+        // bypass audience eligibility restrictions so they can be announced regardless of chat audience mode.
+        if (!isSystemEvent && message.EventType == LivestreamEventType.Chat &&
+            !_ruleEngine.IsAudienceEligible(
                 message,
                 Config.AudienceMode,
                 Config.AllowDonorsToSpeak))
@@ -103,9 +106,9 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 3. Adjustable per-viewer and whole-stream sliding rate limits.
-        // Positive community contributions (donations and follows) bypass rate limiting.
+        // Positive community contributions (donations and follows) and non-chat stream events bypass rate limiting.
         bool exemptFromRateLimit = isSystemEvent || message.IsDonor ||
-            message.EventType is LivestreamEventType.Gift or LivestreamEventType.Follow;
+            message.EventType != LivestreamEventType.Chat;
         if (Config.MessageRateLimitEnabled && !exemptFromRateLimit)
         {
             int windowSeconds = Config.MessageRateWindow == MessageRateWindow.OneSecond ? 1 : 10;
@@ -149,7 +152,36 @@ public sealed partial class ModerationPipeline : IDisposable
             };
         }
 
-        // 5. Mention Resolution & Sanitization
+        // 5. Chatter @Reply Filtering
+        // When IgnoreChatReplies is true, messages that start with @recipient directed
+        // at other chatters are ignored so viewer-to-viewer conversations are not spoken aloud.
+        // Direct messages to the streamer (matching StreamerUsername) are not considered replies.
+        if (Config.IgnoreChatReplies && !isSystemEvent && message.EventType == LivestreamEventType.Chat)
+        {
+            var replyMatch = ReplyPrefixRegex().Match(message.RawText);
+            if (replyMatch.Success)
+            {
+                string handle = replyMatch.Groups["handle"].Value;
+                string? streamerHandle = Config.StreamerUsername?.Trim().TrimStart('@');
+                bool isDirectToStreamer = !string.IsNullOrWhiteSpace(streamerHandle) &&
+                    string.Equals(handle.TrimStart('@'), streamerHandle, StringComparison.OrdinalIgnoreCase);
+
+                if (!isDirectToStreamer)
+                {
+                    return new ModerationDecision
+                    {
+                        Message = message,
+                        Disposition = ModerationDisposition.Rejected,
+                        ReasonCode = ModerationReasonCode.ChatReply,
+                        ReasonDescription = $"Message is an @reply to @{handle} and chatter-to-chatter replies are disabled",
+                        SpokenText = string.Empty,
+                        NormalizedText = message.RawText
+                    };
+                }
+            }
+        }
+
+        // 6. Mention Resolution & Sanitization
         // Mentions are treated like author display names: if a mentioned name contains
         // mixed scripts, disallowed non-Latin characters, or toxic patterns, it is filtered
         // to "a player" so innocent chat messages are not rejected, provided the message is safe.
@@ -245,7 +277,7 @@ public sealed partial class ModerationPipeline : IDisposable
         // enforced; the user-facing moderation level controls only uncertain
         // contextual hostility. System events with static phrases skip this step.
         IntentClassificationResult intentResult;
-        if (isSystemEvent)
+        if (isSystemEvent || message.EventType != LivestreamEventType.Chat)
         {
             intentResult = new IntentClassificationResult
             {
@@ -357,6 +389,9 @@ public sealed partial class ModerationPipeline : IDisposable
 
     [GeneratedRegex(@"(?<=^|\s|[(\[{'""/])@(?<handle>[^\s]+)", RegexOptions.Compiled)]
     private static partial Regex MentionRegex();
+
+    [GeneratedRegex(@"^\s*[.(\[{'""/]*@(?<handle>[^\s,:;!?)]+)", RegexOptions.Compiled)]
+    private static partial Regex ReplyPrefixRegex();
 
     private async Task<(string SanitizedText, bool HadUnsafeMentions, bool MatchedBlockedTermInMention, string NonMentionText)> SanitizeMentionsAsync(
         string rawText,

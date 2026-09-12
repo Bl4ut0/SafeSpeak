@@ -31,7 +31,10 @@ public enum OnboardingStage
     Platform = 1,
     Filtering = 2,
     Review = 3,
-    Complete = 4
+    Complete = 4,
+    Voice = 5,
+    Keybinds = 6,
+    Navigation = 7
 }
 
 public enum OnboardingConnectorDetectionStatus
@@ -46,8 +49,10 @@ public enum OnboardingConnectorDetectionStatus
 public sealed class AppSettings
 {
     public const int CurrentSettingsSchemaVersion = 12;
+    public const int CurrentSetupGuideVersion = 1;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
+    public int LastAcknowledgedSetupVersion { get; set; } = 0;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
     public SpokenGuidanceMode SpokenGuidance { get; set; } = SpokenGuidanceMode.Unset;
     public ThemePreference Theme { get; set; } = ThemePreference.Unset;
@@ -86,12 +91,19 @@ public sealed class AppSettings
     [JsonIgnore]
     public bool HasCompletedOnboarding => OnboardingStage == OnboardingStage.Complete;
 
+    [JsonIgnore]
+    public bool ShouldPromptSetupUpdate =>
+        HasCompletedOnboarding &&
+        !IsAwaitingAccessibilityConfirmation &&
+        LastAcknowledgedSetupVersion < CurrentSetupGuideVersion;
+
     public AudienceMode AudienceMode { get; set; } = AudienceMode.All;
     public ModerationStrictness Strictness { get; set; } = ModerationStrictness.High;
     public bool EnglishOnly { get; set; } = true;
     public bool RejectMixedScripts { get; set; } = true;
     public bool StripUrls { get; set; } = true;
     public bool AllowDonorsToSpeak { get; set; } = true;
+    public bool IgnoreChatReplies { get; set; } = true;
     public bool SpeakUsernames { get; set; } = true;
     public bool AiClassificationEnabled { get; set; } = true;
     public double AiToxicityThreshold { get; set; } = 0.65;
@@ -119,7 +131,7 @@ public sealed class AppSettings
     public bool InstantAlertsLikes { get; set; } = false;
 
     public bool BroadcastOutputEnabled { get; set; } = true;
-    public bool HasConsentedToLocalAuditLogging { get; set; }
+    public bool HasConsentedToLocalAuditLogging { get; set; } = true;
 
     [JsonIgnore]
     public bool EnableStreamAuditLogging
@@ -127,9 +139,9 @@ public sealed class AppSettings
         get => HasConsentedToLocalAuditLogging;
         set => HasConsentedToLocalAuditLogging = value;
     }
-    public string SelectedSourceConnectorId { get; set; } = "tikfinity";
-    public List<string> ConfiguredSourceConnectorIds { get; set; } = ["tikfinity"];
-    public List<string> ActiveSourceConnectorIds { get; set; } = ["tikfinity"];
+    public string SelectedSourceConnectorId { get; set; } = "";
+    public List<string> ConfiguredSourceConnectorIds { get; set; } = [];
+    public List<string> ActiveSourceConnectorIds { get; set; } = [];
     public string TikTokUsername { get; set; } = "";
     public bool AutoConnectSource { get; set; } = true;
     public bool SafetyGuideControlsAtTop { get; set; } = true;
@@ -429,24 +441,26 @@ public sealed class AppSettings
         AppSettings settings)
     {
         int schemaVersion = 0;
-        if (root.TryGetProperty(
-                nameof(SettingsSchemaVersion),
-                out JsonElement schemaElement))
+        if (root.TryGetProperty(nameof(SettingsSchemaVersion), out JsonElement schemaElement))
         {
             _ = schemaElement.TryGetInt32(out schemaVersion);
         }
 
-        // Schema 4 and earlier treated logging as a hidden secondary-track
-        // setting. Neither its obsolete property nor a prematurely injected
-        // current property is evidence of informed consent.
         if (schemaVersion < 5)
         {
             settings.HasConsentedToLocalAuditLogging = false;
         }
-        else if (!settings.HasConsentedToLocalAuditLogging &&
-                 TryReadBoolean(root, nameof(EnableStreamAuditLogging), out bool enableLogging) &&
-                 enableLogging)
+        else if (TryReadBoolean(root, nameof(EnableStreamAuditLogging), out bool enableLogging))
         {
+            settings.HasConsentedToLocalAuditLogging = enableLogging;
+        }
+        else if (TryReadBoolean(root, nameof(HasConsentedToLocalAuditLogging), out bool hasConsented))
+        {
+            settings.HasConsentedToLocalAuditLogging = hasConsented;
+        }
+        else
+        {
+            // Logging is automatic by default for modern schemas
             settings.HasConsentedToLocalAuditLogging = true;
         }
     }
@@ -480,13 +494,19 @@ public sealed class AppSettings
             return;
         }
 
-        string legacyId = string.IsNullOrWhiteSpace(settings.SelectedSourceConnectorId)
-            ? "tikfinity"
-            : settings.SelectedSourceConnectorId;
-        settings.ConfiguredSourceConnectorIds = [legacyId];
-        settings.ActiveSourceConnectorIds = settings.AutoConnectSource
-            ? [legacyId]
-            : [];
+        if (!string.IsNullOrWhiteSpace(settings.SelectedSourceConnectorId))
+        {
+            string legacyId = settings.SelectedSourceConnectorId;
+            settings.ConfiguredSourceConnectorIds = [legacyId];
+            settings.ActiveSourceConnectorIds = settings.AutoConnectSource
+                ? [legacyId]
+                : [];
+        }
+        else
+        {
+            settings.ConfiguredSourceConnectorIds = [];
+            settings.ActiveSourceConnectorIds = [];
+        }
     }
 
     private static void MigrateLegacyAccessibilitySettings(
@@ -677,6 +697,8 @@ public sealed class AppSettings
         RejectMixedScripts = RejectMixedScripts,
         StripUrls = StripUrls,
         AllowDonorsToSpeak = AllowDonorsToSpeak,
+        IgnoreChatReplies = IgnoreChatReplies,
+        StreamerUsername = TikTokUsername,
         SpeakUsernames = true,
         AiClassificationEnabled = true,
         AiToxicityThreshold = Math.Clamp(AiToxicityThreshold, 0.3, 0.95),
@@ -699,6 +721,7 @@ public sealed class AppSettings
         RejectMixedScripts = config.RejectMixedScripts;
         StripUrls = config.StripUrls;
         AllowDonorsToSpeak = config.AllowDonorsToSpeak;
+        IgnoreChatReplies = config.IgnoreChatReplies;
         SpeakUsernames = true;
         AiClassificationEnabled = true;
         AiToxicityThreshold = Math.Clamp(config.AiToxicityThreshold, 0.3, 0.95);
@@ -728,5 +751,23 @@ public sealed class AppSettings
         Theme = ThemePreference.Unset;
         PendingSpokenGuidance = SpokenGuidanceMode.Unset;
         PendingTheme = ThemePreference.Unset;
+    }
+
+    public void ResetIncompleteOnboarding()
+    {
+        ResetOnboarding();
+        SelectedSourceConnectorId = string.Empty;
+        ConfiguredSourceConnectorIds = [];
+        ActiveSourceConnectorIds = [];
+        AutoConnectSource = false;
+        TikTokUsername = string.Empty;
+        LocalConnectorAutoDetectConsent = false;
+        LocalConnectorDetectionStatus = OnboardingConnectorDetectionStatus.NotChecked;
+        LocalConnectorDetectionSummary = "Local connector detection is not used during setup.";
+        SelectedVoiceName = string.Empty;
+        ModerationModel = ModerationModelPreference.BuiltInHybrid;
+        AiClassificationEnabled = true;
+        IgnoreChatReplies = true;
+        GlobalShortcuts = GlobalShortcutCatalog.CreateDefaults();
     }
 }

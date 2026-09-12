@@ -45,6 +45,17 @@ public sealed class ModerationConfig
     public bool StripUrls { get; set; } = true;
     public bool AllowDonorsToSpeak { get; set; } = true;
     /// <summary>
+    /// When true, messages that are @replies directed at other chatters
+    /// (starting with @username) are ignored from speech output so viewer-to-viewer
+    /// conversations are not read aloud by TTS.
+    /// </summary>
+    public bool IgnoreChatReplies { get; set; } = false;
+    /// <summary>
+    /// Optional username of the streamer. When set, direct replies to the streamer
+    /// (e.g. "@streamer thanks!") are not considered chatter-to-chatter replies.
+    /// </summary>
+    public string? StreamerUsername { get; set; }
+    /// <summary>
     /// Compatibility property. The main release always speaks a moderated
     /// author label so listeners can attribute chat safely.
     /// </summary>

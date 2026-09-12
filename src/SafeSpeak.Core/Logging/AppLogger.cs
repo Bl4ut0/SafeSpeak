@@ -90,6 +90,7 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
     private readonly AppLogEntry[] _ringBuffer;
     private int _ringBufferStart;
     private int _ringBufferCount;
+    private DateTime _currentLogDate = DateTime.Today;
     private bool _disposed;
 
     public event Action<AppLogEntry>? EntryLogged;
@@ -194,6 +195,8 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         try
         {
             Directory.CreateDirectory(_logsDirectory);
+            CheckAndArchivePreviousDayLog();
+            LogRetentionManager.CleanOldLogs(_logsDirectory);
             writer = OpenWriter();
 
             var reader = _channel.Reader;
@@ -256,6 +259,16 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
 
     private void WriteEntry(ref StreamWriter? writer, AppLogEntry entry)
     {
+        DateTime today = DateTime.Today;
+        if (today > _currentLogDate)
+        {
+            writer?.Dispose();
+            writer = null;
+            ArchiveLogFile(_currentLogDate);
+            _currentLogDate = today;
+            LogRetentionManager.CleanOldLogs(_logsDirectory);
+        }
+
         if (writer is not null && writer.BaseStream.Length >= _maxFileSizeBytes)
         {
             writer.Dispose();
@@ -275,6 +288,46 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         return new StreamWriter(stream, Encoding.UTF8);
     }
 
+    private void CheckAndArchivePreviousDayLog()
+    {
+        try
+        {
+            if (File.Exists(_logFilePath))
+            {
+                var fileInfo = new FileInfo(_logFilePath);
+                if (fileInfo.Length > 0 && fileInfo.LastWriteTime.Date < DateTime.Today)
+                {
+                    ArchiveLogFile(fileInfo.LastWriteTime.Date);
+                }
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void ArchiveLogFile(DateTime logDate)
+    {
+        try
+        {
+            if (!File.Exists(_logFilePath)) return;
+
+            string targetName = $"debug_{logDate:yyyy-MM-dd}.log";
+            string targetPath = Path.Combine(_logsDirectory, targetName);
+
+            if (File.Exists(targetPath))
+            {
+                string timestampedName = $"debug_{logDate:yyyy-MM-dd}_{DateTime.Now:HH-mm-ss}.log";
+                targetPath = Path.Combine(_logsDirectory, timestampedName);
+            }
+
+            File.Move(_logFilePath, targetPath);
+        }
+        catch
+        {
+        }
+    }
+
     private void RotateLogFiles()
     {
         try
@@ -285,8 +338,16 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
             }
             if (File.Exists(_logFilePath))
             {
+                // Archive with timestamp for 10-day retention
+                string archivePath = Path.Combine(
+                    _logsDirectory,
+                    $"debug_{DateTime.Today:yyyy-MM-dd}_{DateTime.Now:HH-mm-ss-fff}.log");
+
+                File.Copy(_logFilePath, archivePath, overwrite: true);
                 File.Move(_logFilePath, _oldLogFilePath);
             }
+
+            LogRetentionManager.CleanOldLogs(_logsDirectory);
         }
         catch
         {

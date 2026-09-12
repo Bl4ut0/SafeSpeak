@@ -1289,7 +1289,7 @@ public sealed class MainShellAccessibilityContractTests
 
         Assert.Equal("SettingsPanel_PreviewKeyDown",
             settingsPanel.Attribute("PreviewKeyDown")?.Value);
-        Assert.Equal(Enumerable.Range(1, 60), stops.Select(element =>
+        Assert.Equal(Enumerable.Range(1, 61), stops.Select(element =>
             int.Parse(element.Attribute("TabIndex")!.Value)));
         Assert.Equal("SettingsGuideButton", stops[0].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ReadSettingsGuidePageButton", stops[1].Attribute(Xaml + "Name")?.Value);
@@ -1298,8 +1298,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("SettingsSourceChapterHeading", stops[4].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ThemeSelector", stops[6].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("SpokenGuidanceToggle", stops[7].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("Run Setup Again", stops[54].Attribute("Content")?.Value);
-        Assert.Equal("SettingsGuideButtonAtEnd", stops[56].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("Run Setup Again", stops[55].Attribute("Content")?.Value);
+        Assert.Equal("SettingsGuideButtonAtEnd", stops[57].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButtonAtEnd", stops[^1].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("{Binding ConfiguredConnectors}",
             NamedElement(document, "ItemsControl", "ConfiguredConnectorCards")
@@ -1326,6 +1326,12 @@ public sealed class MainShellAccessibilityContractTests
                 .Descendants(Presentation + "UniformGrid")
                 .Single()
                 .Attribute("Columns")?.Value);
+        XElement availableCards = NamedElement(document, "ItemsControl", "AvailableConnectorCards");
+        Assert.Contains("{Binding Tag}", availableCards.ToString());
+        Assert.Contains("StatusPill", availableCards.ToString());
+        Assert.DoesNotContain("PlannedConnectorsBorder", document.ToString());
+        Assert.DoesNotContain("PlannedConnectorCards", document.ToString());
+        Assert.DoesNotContain("InlineConnectorRoadmapPanel", document.ToString());
         Assert.True(runSetup.IsBefore(visibleGuide));
         Assert.True(visibleGuide.IsBefore(guideButtonsAtEnd));
 
@@ -1337,6 +1343,9 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains(".OrderBy(GetSettingsNavigationOrder)", codeBehind);
         Assert.Contains("SettingsConnectorCard", codeBehind);
         Assert.Contains("SettingsConnectorInlineControl", codeBehind);
+        Assert.DoesNotContain("SettingsPlaceholderCard_Click", codeBehind);
+        Assert.DoesNotContain("InlineConnectorRoadmapCloseButton_Click", codeBehind);
+        Assert.Contains("connector.IsPlanned", codeBehind);
         Assert.Contains("ConfigureTikTokDirectAsync(username)", codeBehind);
         Assert.Contains("_firstConnectorUsername", codeBehind);
         Assert.Contains("BeginInlineConnectorManagement(connector)", codeBehind);

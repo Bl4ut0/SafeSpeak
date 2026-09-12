@@ -29,7 +29,7 @@ public sealed class OnboardingAccessibilityContractTests
             .Order()
             .ToArray();
 
-        Assert.Equal(new[] { 90, 91 }, persistentIndexes);
+        Assert.Equal(new[] { 10, 11, 12, 13, 14, 15, 16, 17, 90, 91 }, persistentIndexes);
         Assert.Equal(persistentIndexes.Length, persistentIndexes.Distinct().Count());
 
         XElement[] stepPanels = document
@@ -38,7 +38,7 @@ public sealed class OnboardingAccessibilityContractTests
                 (element.Attribute("Visibility")?.Value ?? string.Empty)
                 .Contains("Step", StringComparison.Ordinal))
             .ToArray();
-        Assert.Equal(5, stepPanels.Length);
+        Assert.Equal(8, stepPanels.Length);
         Assert.All(stepPanels, panel =>
         {
             Assert.Equal("Local", Attribute(panel, "KeyboardNavigation.TabNavigation"));
@@ -57,7 +57,7 @@ public sealed class OnboardingAccessibilityContractTests
                 .Where(element => element.Attribute("TabIndex") is not null),
             element => Assert.Contains(
                 element.Name.LocalName,
-                new[] { "Button", "CheckBox", "ListBox", "TextBox" }));
+                new[] { "Button", "CheckBox", "ListBox", "TextBox", "ComboBox", "Slider" }));
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Contains("CompleteReaderStep(enabled: false)", viewModel);
         Assert.Contains("_announcer.IsEnhancedAccessibilityEnabled = enabled", viewModel);
         Assert.Contains("NavigateTo(AccessibilitySetupPage.Theme)", viewModel);
-        Assert.Contains("Step 1 of 5", viewModel);
-        Assert.Contains("Step 2 of 5", viewModel);
+        Assert.Contains("Step 1 of 8", viewModel);
+        Assert.Contains("Step 2 of 8", viewModel);
         Assert.Contains("e.Key == Key.Y", codeBehind);
         Assert.Contains("e.Key == Key.N", codeBehind);
         Assert.Contains("_viewModel.ContinueCommand.CanExecute(null)", codeBehind);
@@ -218,7 +218,7 @@ public sealed class OnboardingAccessibilityContractTests
     }
 
     [Fact]
-    public void Wizard_FilteringStepIsClearlyEducational()
+    public void Wizard_FilteringStepOffersEngineChoiceAndModerationStrengthSlider()
     {
         string viewModel = File.ReadAllText(
             RepositoryFile(
@@ -226,9 +226,22 @@ public sealed class OnboardingAccessibilityContractTests
                 "SafeSpeak.App",
                 "ViewModels",
                 "AccessibilitySetupViewModel.cs"));
+        XDocument wizard = LoadWizard();
 
-        Assert.Contains("This step is educational; there is no choice to make", viewModel);
-        Assert.Contains("Continue after learning how enhanced filtering works", viewModel);
+        Assert.Contains("Choose your on-device AI moderation engine and filtering strictness", viewModel);
+        Assert.Contains("Save AI engine and moderation settings and continue", viewModel);
+
+        // Slider is present and bound to ModerationLevel with accessible settings
+        XElement slider = wizard.Descendants(Presentation + "Slider")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "ModerationSlider");
+        Assert.Equal("{Binding ModerationLevel, UpdateSourceTrigger=PropertyChanged}", slider.Attribute("Value")?.Value);
+        Assert.Equal("4", slider.Attribute("TabIndex")?.Value);
+        Assert.True(double.Parse(slider.Attribute("MinHeight")!.Value) >= 44);
+
+        // Checkbox for IgnoreChatReplies is removed from wizard Step 5
+        Assert.DoesNotContain(
+            wizard.Descendants(Presentation + "CheckBox"),
+            element => element.Attribute(Xaml + "Name")?.Value == "IgnoreChatRepliesCheckBox");
     }
 
     [Fact]
@@ -270,7 +283,7 @@ public sealed class OnboardingAccessibilityContractTests
             "AccessibilitySetupPage.Theme => ThemeList",
             codeBehind);
         Assert.Contains(
-            "AccessibilitySetupPage.Platform => TikFinityCheckBox",
+            "AccessibilitySetupPage.Platform => TikFinityButton",
             codeBehind);
         Assert.Contains(
             "AccessibilitySetupPage.Review => ReviewList",
@@ -302,6 +315,36 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Contains("FocusRequested?.Invoke", method);
     }
 
+    [Fact]
+    public void Wizard_AllStaticResourcesAreDefined()
+    {
+        XDocument wizard = LoadWizard();
+        XDocument app = XDocument.Load(RepositoryFile("src", "SafeSpeak.App", "App.xaml"));
+
+        HashSet<string> definedKeys = wizard.Descendants()
+            .Where(e => e.Ancestors().Any(a => a.Name.LocalName.EndsWith(".Resources", StringComparison.Ordinal)))
+            .Select(e => e.Attribute(Xaml + "Key")?.Value)
+            .Concat(app.Descendants()
+                .Where(e => e.Ancestors().Any(a => a.Name.LocalName.EndsWith(".Resources", StringComparison.Ordinal)))
+                .Select(e => e.Attribute(Xaml + "Key")?.Value))
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Select(k => k!)
+            .ToHashSet();
+
+        System.Text.RegularExpressions.MatchCollection staticResourceMatches =
+            System.Text.RegularExpressions.Regex.Matches(
+                File.ReadAllText(RepositoryFile("src", "SafeSpeak.App", "Views", "AccessibilitySetupDialog.xaml")),
+                @"\{StaticResource\s+([A-Za-z0-9_]+)\}");
+
+        foreach (System.Text.RegularExpressions.Match match in staticResourceMatches)
+        {
+            string resourceKey = match.Groups[1].Value;
+            Assert.True(
+                definedKeys.Contains(resourceKey),
+                $"StaticResource '{resourceKey}' used in AccessibilitySetupDialog.xaml is not defined in Window.Resources or App.xaml.");
+        }
+    }
+
     private static XDocument LoadWizard() =>
         XDocument.Load(
             RepositoryFile(
@@ -316,6 +359,22 @@ public sealed class OnboardingAccessibilityContractTests
             .FirstOrDefault(attribute =>
                 attribute.Name.LocalName == localName)
             ?.Value;
+
+    [Fact]
+    public void Wizard_ControlKeySilencesNarratorDuringStartupGuide()
+    {
+        string codeBehind = File.ReadAllText(
+            RepositoryFile(
+                "src",
+                "SafeSpeak.App",
+                "Views",
+                "AccessibilitySetupDialog.xaml.cs"));
+
+        Assert.Contains("key is Key.LeftCtrl or Key.RightCtrl", codeBehind);
+        Assert.Contains("_viewModel.Announcer.StopSpeaking()", codeBehind);
+        Assert.Contains("HotkeyAction.StopBuiltInGuidance", codeBehind);
+        Assert.Contains("_hotkeyService.RegisterHotkeys", codeBehind);
+    }
 
     private static int Count(string text, string value)
     {

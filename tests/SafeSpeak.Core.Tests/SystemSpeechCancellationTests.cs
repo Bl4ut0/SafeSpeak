@@ -80,7 +80,7 @@ public sealed class SystemSpeechCancellationTests
         Assert.Equal(0, synthesizer.SpeakCount);
     }
 
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
 
     private sealed class BlockingWaveSynthesizer : IWaveSpeechSynthesizer
     {

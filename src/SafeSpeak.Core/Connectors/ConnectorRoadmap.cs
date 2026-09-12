@@ -29,6 +29,16 @@ public static class ConnectorRoadmap
             "Direct connector using the official YouTube Live APIs."),
         new("twitch", "Twitch", ConnectorAvailability.Planned,
             "Direct connector using official Twitch authentication and chat APIs."),
+        new("kick", "Kick", ConnectorAvailability.Planned,
+            "Direct connector for Kick streaming live chat."),
+        new("facebook-live", "Facebook Live", ConnectorAvailability.Planned,
+            "Live video comments integration via Facebook Graph API."),
+        new("instagram-live", "Instagram Live", ConnectorAvailability.Planned,
+            "Live broadcast comments integration via Instagram Graph API."),
+        new("x-live", "X / Twitter Live", ConnectorAvailability.Planned,
+            "Live audio spaces and broadcast chat integration."),
+        new("trovo", "Trovo", ConnectorAvailability.Planned,
+            "Direct connector using official Trovo chat API."),
         new("tiktok-live", "TikTok LIVE", ConnectorAvailability.AccessRequired,
             "Direct mobile access requires an approved and policy-compliant TikTok integration.")
     ];

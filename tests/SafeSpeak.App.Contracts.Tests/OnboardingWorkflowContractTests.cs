@@ -75,7 +75,7 @@ public sealed class OnboardingWorkflowContractTests
         XDocument xaml = LoadWizard();
         string wizard = WizardViewModel();
 
-        string[] connectorNames = xaml.Descendants(Presentation + "CheckBox")
+        string[] connectorNames = xaml.Descendants(Presentation + "Button")
             .Select(element => Attribute(element, "AutomationProperties.Name"))
             .Where(name => name is not null)
             .Cast<string>()
@@ -218,14 +218,152 @@ public sealed class OnboardingWorkflowContractTests
         string wizard = WizardViewModel();
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompletePlatformStep()"),
+            "_settings.OnboardingStage = OnboardingStage.Voice");
+        AssertPersistsBeforeNavigation(
+            Method(wizard, "private void CompleteVoiceStep()"),
             "_settings.OnboardingStage = OnboardingStage.Filtering");
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompleteFilteringStep()"),
+            "_settings.OnboardingStage = OnboardingStage.Keybinds");
+        AssertPersistsBeforeNavigation(
+            Method(wizard, "private void CompleteKeybindsStep()"),
+            "_settings.OnboardingStage = OnboardingStage.Navigation");
+        AssertPersistsBeforeNavigation(
+            Method(wizard, "private void CompleteNavigationStep()"),
             "_settings.OnboardingStage = OnboardingStage.Review");
         AssertPersistsBeforeNavigation(
             Method(wizard, "private void CompleteOnboarding()"),
             "_settings.OnboardingStage = OnboardingStage.Complete",
             navigationMarker: "_onCompleted()");
+    }
+
+    [Fact]
+    public void SetupRerun_DoesNotAutoOpenConnectorModalUntilUserInteraction()
+    {
+        string wizard = WizardViewModel();
+        string constructor = Method(wizard, "public AccessibilitySetupViewModel(");
+        string onTikTokChanged = Method(wizard, "partial void OnUseTikTokDirectChanged(bool value)");
+        string restart = Method(wizard, "public void RestartSetup()");
+
+        // State initialization order in constructor: TikTokUsername must be assigned before UseTikTokDirect
+        int usernameIndex = constructor.IndexOf("TikTokUsername = _settings.TikTokUsername;", StringComparison.Ordinal);
+        int useTikTokIndex = constructor.IndexOf("UseTikTokDirect = _settings.ConfiguredSourceConnectorIds.Contains(", StringComparison.Ordinal);
+        Assert.True(usernameIndex >= 0 && useTikTokIndex > usernameIndex, "TikTokUsername must be initialized before UseTikTokDirect");
+
+        // ActiveModalConnectorId must be guaranteed null before initialization ends
+        Assert.Contains("ActiveModalConnectorId = null;", constructor);
+
+        // OnUseTikTokDirectChanged must guard modal launch so it never auto-triggers during initialization or non-platform steps
+        Assert.Contains("_initialized", onTikTokChanged);
+        Assert.Contains("CurrentPage == AccessibilitySetupPage.Platform", onTikTokChanged);
+        Assert.Contains("string.IsNullOrWhiteSpace(TikTokUsername)", onTikTokChanged);
+
+        // RestartSetup must cleanly reset modal state
+        Assert.Contains("ActiveModalConnectorId = null;", restart);
+    }
+
+    [Fact]
+    public void Startup_PromptsExistingUsersOnSetupUpdateWithAccessibleYesAndDeclineActions()
+    {
+        string startup = Source("src", "SafeSpeak.App", "App.xaml.cs");
+        string dialogXaml = Source("src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml");
+        string dialogCode = Source("src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml.cs");
+
+        // App.xaml.cs handles ShouldPromptSetupUpdate
+        Assert.Contains("else if (settings.ShouldPromptSetupUpdate)", startup);
+        Assert.Contains("new SetupUpdatePromptDialog(", startup);
+        Assert.Contains("changeExistingProfile: true", startup);
+
+        // Dialog markup defines Yes and Decline buttons with accessible hotkeys and minimum hit targets
+        XDocument xaml = XDocument.Parse(dialogXaml);
+        XElement yesButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "YesButton");
+        XElement declineButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "DeclineButton");
+
+        Assert.Equal("1", yesButton.Attribute("TabIndex")?.Value);
+        Assert.Equal("2", declineButton.Attribute("TabIndex")?.Value);
+        Assert.True(double.Parse(yesButton.Attribute("MinHeight")!.Value) >= 44);
+        Assert.True(double.Parse(declineButton.Attribute("MinHeight")!.Value) >= 44);
+        Assert.Contains("(Y)", yesButton.Attribute("Content")!.Value);
+        Assert.Contains("(N)", declineButton.Attribute("Content")!.Value);
+
+        // Codebehind handles keyboard Y, N, Enter, Escape, and saves LastAcknowledgedSetupVersion
+        Assert.Contains("e.Key == Key.Y", dialogCode);
+        Assert.Contains("e.Key is Key.N or Key.Escape", dialogCode);
+        Assert.Contains("_settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;", dialogCode);
+        Assert.Contains("_settings.TrySave(out _);", dialogCode);
+    }
+
+    [Fact]
+    public void IncompleteOnboarding_StartsOverCleanlyAndStartupResetsUncommittedChanges()
+    {
+        string startup = Source("src", "SafeSpeak.App", "App.xaml.cs");
+        string wizard = WizardViewModel();
+
+        // Startup checks for incomplete onboarding and resets uncommitted state
+        Assert.Contains("settings.ResetIncompleteOnboarding();", startup);
+
+        // Wizard initializes snapshot for uncompleted runs and forces initialPage to Reader
+        string constructor = Method(wizard, "public AccessibilitySetupViewModel(");
+        Assert.Contains("_initialOnboardingSnapshot = !settings.HasCompletedOnboarding", constructor);
+        Assert.Contains("!_settings.HasCompletedOnboarding", constructor);
+        Assert.Contains("? AccessibilitySetupPage.Reader", constructor);
+
+        // ResolveInitialPage guards uncompleted onboarding from resuming midway
+        string resolver = Method(wizard, "private AccessibilitySetupPage ResolveInitialPage()");
+        Assert.Contains("!_settings.HasCompletedOnboarding", resolver);
+
+        // Dispose reverts uncompleted onboarding session to clean state when closed without completion
+        string dispose = Method(wizard, "public void Dispose()");
+        Assert.Contains("else if (!_settings.HasCompletedOnboarding)", dispose);
+        Assert.Contains("initialSnapshot.Restore(_settings);", dispose);
+        Assert.Contains("_settings.OnboardingStage = OnboardingStage.Accessibility;", dispose);
+    }
+
+    [Fact]
+    public void Step4_TestVoiceAndKokoroInstallDetection_WiredCorrectly()
+    {
+        XDocument xaml = LoadWizard();
+        string wizard = WizardViewModel();
+
+        // PreviewVoiceButton must bind to TestVoiceCommand and CanTestVoice
+        XElement previewButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "PreviewVoiceButton");
+        Assert.Equal("{Binding TestVoiceCommand}", previewButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding CanTestVoice}", previewButton.Attribute("IsEnabled")?.Value);
+
+        // KokoroInstallButton must bind to InstallKokoroCommand, CanInstallKokoro, and dynamic text
+        XElement kokoroButton = xaml.Descendants(Presentation + "Button")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == "KokoroInstallButton");
+        Assert.Equal("{Binding InstallKokoroCommand}", kokoroButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding CanInstallKokoro}", kokoroButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{Binding KokoroInstallButtonText}", kokoroButton.Attribute("Content")?.Value);
+
+        // ViewModel exposes command alias and wires VoiceId on preview output
+        Assert.Contains("public IRelayCommand PreviewVoiceCommand => TestVoiceCommand;", wizard);
+        Assert.Contains("public bool CanTestVoice =>", wizard);
+        Assert.Contains("public bool CanInstallKokoro => !IsKokoroInstalled", wizard);
+        Assert.Contains("public string KokoroInstallButtonText => IsKokoroInstalled", wizard);
+        Assert.Contains("public string KokoroInstallStatus => IsKokoroInstalled", wizard);
+
+        string testVoice = Method(wizard, "public async Task TestVoiceAsync()");
+        Assert.Contains("_previewOutput.VoiceId = SelectedVoice;", testVoice);
+        Assert.Contains("await _previewOutput.SpeakAsync(", testVoice);
+    }
+
+    [Fact]
+    public void Wizard_NavigationStepHeaderDoesNotDuplicateBodyViewList()
+    {
+        string wizard = WizardViewModel();
+        string configureNavigation = Method(wizard, "private void ConfigureNavigationPage()");
+
+        // StatusText in the header must provide a concise overview rather than re-listing the 4 views and hotkeys
+        Assert.DoesNotContain("Live chat (Ctrl+1)", configureNavigation);
+        Assert.DoesNotContain("Safety filtering (Ctrl+2)", configureNavigation);
+        Assert.DoesNotContain("Voice selection (Ctrl+3)", configureNavigation);
+        Assert.DoesNotContain("Settings (Ctrl+4)", configureNavigation);
+        Assert.Contains("Overview of SafeSpeak's primary views and navigation shortcuts", configureNavigation);
     }
 
     private static void AssertPersistsBeforeNavigation(

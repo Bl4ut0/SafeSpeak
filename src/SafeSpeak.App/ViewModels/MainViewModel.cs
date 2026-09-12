@@ -27,6 +27,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly ModerationPipeline _pipeline;
     private readonly ModerationTestService _moderationTestService;
     private readonly List<LiveConnectorViewModel> _connectorSessions = [];
+    private readonly IReadOnlyList<LiveConnectorViewModel> _plannedConnectors =
+        LiveConnectorViewModel.CreateDefaultPlannedConnectors();
     private readonly Dictionary<SourceConnectorHost, LiveConnectorViewModel> _connectorByHost = [];
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
@@ -70,7 +72,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string _connectionSummaryText = "Disconnected";
 
     [ObservableProperty]
-    private string _selectedSourceConnectorId = TikFinityWebSocketClient.ConnectorDescriptor.Id;
+    private string _selectedSourceConnectorId = string.Empty;
 
     [ObservableProperty]
     private string _tikTokUsername = "";
@@ -195,6 +197,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private bool _allowDonorsToSpeak = true;
+
+    [ObservableProperty]
+    private bool _ignoreChatReplies;
 
     [ObservableProperty]
     private bool _pauseAllTtsWhilePaused = true;
@@ -803,6 +808,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public async Task ToggleConnectorConfigurationAsync(LiveConnectorViewModel connector)
     {
         ArgumentNullException.ThrowIfNull(connector);
+        if (connector.IsPlanned)
+        {
+            AnnounceState($"{connector.DisplayName} connector is planned for a future update and cannot be enabled yet.", interrupt: true);
+            return;
+        }
+
         bool configuring = !connector.IsConfigured;
         if (string.Equals(connector.Id, TikFinityWebSocketClient.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
         {
@@ -974,6 +985,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         RejectMixedScripts = Config.RejectMixedScripts;
         SelectedAudienceMode = Config.AudienceMode;
         AllowDonorsToSpeak = Config.AllowDonorsToSpeak;
+        IgnoreChatReplies = Config.IgnoreChatReplies;
         PauseAllTtsWhilePaused = _settings.PauseAllTtsWhilePaused;
         AllowGiftAnnouncementsWhilePaused = _settings.AllowGiftAnnouncementsWhilePaused;
         AllowFollowAnnouncementsWhilePaused = _settings.AllowFollowAnnouncementsWhilePaused;
@@ -1903,6 +1915,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             : "Gift senders must now meet the selected chat audience requirement.");
     }
 
+    partial void OnIgnoreChatRepliesChanged(bool value)
+    {
+        if (_pipeline is null) return;
+        Config.IgnoreChatReplies = value;
+        _settings.IgnoreChatReplies = value;
+        if (_isInitializing) return;
+        PersistModerationSettings();
+        AnnounceState(value
+            ? "Chat replies disabled from TTS."
+            : "Chat replies enabled for TTS.");
+    }
+
     partial void OnPauseAllTtsWhilePausedChanged(bool value) =>
         PauseRoutingSettingChanged();
     partial void OnAllowGiftAnnouncementsWhilePausedChanged(bool value) =>
@@ -2174,6 +2198,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             LivestreamEventType.Like => InstantAlertsLikes,
             _ => false
         };
+
+        AuthorTier tier = liveEvent.AuthorTier;
+        if (liveEvent.Type == LivestreamEventType.Follow && tier < AuthorTier.Follower)
+        {
+            tier = AuthorTier.Follower;
+        }
+        else if (liveEvent.Type == LivestreamEventType.Subscribe && tier < AuthorTier.Subscriber)
+        {
+            tier = AuthorTier.Subscriber;
+        }
+
         await HandleIncomingMessageAsync(
             new ChatMessage
             {
@@ -2184,8 +2219,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 AttributionStyle = IncludePlatformInSpeech
                     ? SpokenAttributionStyle.LeadingNameOnPlatform
                     : SpokenAttributionStyle.LeadingName,
-                AuthorTier = liveEvent.AuthorTier,
-                IsSubscriber = liveEvent.IsSubscriber,
+                AuthorTier = tier,
+                IsSubscriber = liveEvent.IsSubscriber || liveEvent.Type == LivestreamEventType.Subscribe,
                 IsModerator = liveEvent.IsModerator,
                 EventType = liveEvent.Type,
                 IsDonor = liveEvent.Type == LivestreamEventType.Gift ||
@@ -2519,7 +2554,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 connector.IsEnabled = false;
                 try
                 {
-                    await connector.Host.DisconnectAsync();
+                    if (connector.Host is not null)
+                    {
+                        await connector.Host.DisconnectAsync();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -2553,13 +2591,26 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         foreach (LiveConnectorViewModel connector in _connectorSessions
                      .OrderBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase))
         {
-            (connector.IsConfigured ? ConfiguredConnectors : AvailableConnectors)
-                .Add(connector);
+            if (connector.IsConfigured)
+            {
+                ConfiguredConnectors.Add(connector);
+            }
+            else
+            {
+                AvailableConnectors.Add(connector);
+            }
+        }
+
+        foreach (LiveConnectorViewModel planned in _plannedConnectors)
+        {
+            AvailableConnectors.Add(planned);
         }
     }
 
     private LiveConnectorViewModel? FindConnector(string id) =>
         _connectorSessions.FirstOrDefault(connector =>
+            string.Equals(connector.Id, id, StringComparison.OrdinalIgnoreCase))
+        ?? _plannedConnectors.FirstOrDefault(connector =>
             string.Equals(connector.Id, id, StringComparison.OrdinalIgnoreCase));
 
     private bool SaveActiveConnectorIds()
@@ -3165,8 +3216,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _incomingEventCts.Cancel();
         foreach (LiveConnectorViewModel connector in _connectorSessions)
         {
-            connector.Host.EventReceived -= SourceConnector_EventReceived;
-            connector.Host.StateChanged -= SourceConnector_StateChanged;
+            if (connector.Host is not null)
+            {
+                connector.Host.EventReceived -= SourceConnector_EventReceived;
+                connector.Host.StateChanged -= SourceConnector_StateChanged;
+            }
         }
         _ttsQueue.StateChanged -= TtsQueue_StateChanged;
         _ttsQueue.PlaybackStarted -= TtsQueue_PlaybackStarted;
@@ -3191,7 +3245,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // Calling connector disposal initiates cancellation immediately. Never
         // wait for auto-connect before that cancellation has been requested.
         Task[] connectorShutdown = _connectorSessions
-            .Select(connector => StartShutdownTask(() => connector.Host.DisposeAsync()))
+            .Where(connector => connector.Host is not null)
+            .Select(connector => StartShutdownTask(() => connector.Host!.DisposeAsync()))
             .ToArray();
 
         foreach (Task shutdown in connectorShutdown)
@@ -3245,6 +3300,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.EnglishOnly = EnglishOnly;
         _settings.RejectMixedScripts = RejectMixedScripts;
         _settings.AllowDonorsToSpeak = AllowDonorsToSpeak;
+        _settings.IgnoreChatReplies = IgnoreChatReplies;
         _settings.AnnounceChatMessages = AnnounceChatMessages;
         _settings.AnnounceGifts = AnnounceGifts;
         _settings.AnnounceFollows = AnnounceFollows;

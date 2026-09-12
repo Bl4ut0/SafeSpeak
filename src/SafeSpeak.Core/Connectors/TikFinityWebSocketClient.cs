@@ -294,6 +294,7 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
 
             bool isSub = false;
             if (dataElem.TryGetProperty("isSubscriber", out var sub)) isSub = sub.GetBoolean();
+            if (type == LivestreamEventType.Subscribe) isSub = true;
 
             bool isMod = false;
             if (dataElem.TryGetProperty("isModerator", out var mod)) isMod = mod.GetBoolean();
@@ -301,7 +302,7 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
             AuthorTier tier = AuthorTier.Viewer;
             if (isMod) tier = AuthorTier.Moderator;
             else if (isSub) tier = AuthorTier.Subscriber;
-            else if (dataElem.TryGetProperty("followRole", out var fr) && fr.GetInt32() > 0) tier = AuthorTier.Follower;
+            else if ((dataElem.TryGetProperty("followRole", out var fr) && fr.GetInt32() > 0) || type == LivestreamEventType.Follow) tier = AuthorTier.Follower;
 
             string giftName = dataElem.TryGetProperty("giftName", out var gn) ? gn.GetString() ?? "gift" : "gift";
             int giftCount = TryGetInt(dataElem, "giftCount", 1);

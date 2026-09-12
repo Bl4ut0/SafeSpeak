@@ -20,6 +20,15 @@ public sealed record VoiceInfo(
     int ComputeLevel = 3
 )
 {
+    public string LevelBadge => ComputeLevel switch
+    {
+        1 => "Level 1: System",
+        2 => "Level 2: Natural",
+        3 => "Level 3: Neural",
+        4 => "Level 4: Custom",
+        _ => $"Level {ComputeLevel}"
+    };
+
     public string ComputeTierBadge => ComputeLevel switch
     {
         1 => "LVL 1 — System SAPI",

@@ -140,6 +140,79 @@ public class AttackCorpusTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessMessage_NonChatEventsAndSystemEvents_BypassAudienceRestrictions()
+    {
+        using var pipeline = new ModerationPipeline(new ModerationConfig
+        {
+            AudienceMode = AudienceMode.SubscribersOnly,
+            AllowDonorsToSpeak = false,
+            UserCooldownSeconds = 0
+        });
+
+        // 1. Regular viewer chat is blocked
+        var viewerChat = new ChatMessage
+        {
+            Author = "regular_viewer",
+            RawText = "Hello everyone",
+            AuthorTier = AuthorTier.Viewer,
+            EventType = LivestreamEventType.Chat
+        };
+        var chatDecision = await pipeline.ProcessMessageAsync(viewerChat);
+        Assert.False(chatDecision.Passed);
+        Assert.Equal(ModerationReasonCode.AudienceRestricted, chatDecision.ReasonCode);
+
+        // 2. Follow event from non-subscriber passes
+        var followEvent = new ChatMessage
+        {
+            Author = "new_follower",
+            RawText = "followed the stream",
+            AuthorTier = AuthorTier.Follower,
+            EventType = LivestreamEventType.Follow
+        };
+        var followDecision = await pipeline.ProcessMessageAsync(followEvent);
+        Assert.True(followDecision.Passed);
+        Assert.Equal(ModerationDisposition.Approved, followDecision.Disposition);
+
+        // 3. Gift event from non-subscriber viewer passes even when AllowDonorsToSpeak is false
+        var giftEvent = new ChatMessage
+        {
+            Author = "generous_viewer",
+            RawText = "sent 5 roses",
+            AuthorTier = AuthorTier.Viewer,
+            EventType = LivestreamEventType.Gift,
+            IsDonor = true
+        };
+        var giftDecision = await pipeline.ProcessMessageAsync(giftEvent);
+        Assert.True(giftDecision.Passed);
+        Assert.Equal(ModerationDisposition.Approved, giftDecision.Disposition);
+
+        // 4. Share event from non-subscriber viewer passes
+        var shareEvent = new ChatMessage
+        {
+            Author = "sharing_viewer",
+            RawText = "shared the stream",
+            AuthorTier = AuthorTier.Viewer,
+            EventType = LivestreamEventType.Share
+        };
+        var shareDecision = await pipeline.ProcessMessageAsync(shareEvent);
+        Assert.True(shareDecision.Passed);
+        Assert.Equal(ModerationDisposition.Approved, shareDecision.Disposition);
+
+        // 5. System event flag bypasses audience restriction even under ModeratorsOnly
+        pipeline.Config.AudienceMode = AudienceMode.ModeratorsOnly;
+        var systemEvent = new ChatMessage
+        {
+            Author = "system_announcement",
+            RawText = "joined the stream",
+            AuthorTier = AuthorTier.Viewer,
+            EventType = LivestreamEventType.Join
+        };
+        var systemDecision = await pipeline.ProcessMessageAsync(systemEvent, isSystemEvent: true);
+        Assert.True(systemDecision.Passed);
+        Assert.Equal(ModerationDisposition.Approved, systemDecision.Disposition);
+    }
+
+    [Fact]
     public async Task ProcessMessage_ReplacesUnsafeDisplayNameBeforeSpeech()
     {
         using var pipeline = new ModerationPipeline(new ModerationConfig
