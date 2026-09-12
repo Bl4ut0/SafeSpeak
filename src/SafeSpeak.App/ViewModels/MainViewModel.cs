@@ -27,6 +27,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly ModerationPipeline _pipeline;
     private readonly ModerationTestService _moderationTestService;
     private readonly List<LiveConnectorViewModel> _connectorSessions = [];
+    private readonly IReadOnlyList<LiveConnectorViewModel> _plannedConnectors =
+        LiveConnectorViewModel.CreateDefaultPlannedConnectors();
     private readonly Dictionary<SourceConnectorHost, LiveConnectorViewModel> _connectorByHost = [];
     private readonly ITtsEngine _ttsEngine;
     private readonly IAudioRouter _audioRouter;
@@ -282,8 +284,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<LiveConnectorViewModel> LiveConnectors { get; } = new();
     public ObservableCollection<LiveConnectorViewModel> ConfiguredConnectors { get; } = new();
     public ObservableCollection<LiveConnectorViewModel> AvailableConnectors { get; } = new();
-    public IReadOnlyList<PlannedConnectorViewModel> PlannedConnectors { get; } =
-        PlannedConnectorViewModel.CreateDefaultList();
     public ObservableCollection<AudioEndpointInfo> AudioEndpoints { get; } = new();
     public ObservableCollection<VoiceInfo> Voices { get; } = new();
     public ObservableCollection<string> CustomBlockedTerms { get; } = new();
@@ -808,6 +808,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public async Task ToggleConnectorConfigurationAsync(LiveConnectorViewModel connector)
     {
         ArgumentNullException.ThrowIfNull(connector);
+        if (connector.IsPlanned)
+        {
+            AnnounceState($"{connector.DisplayName} connector is planned for a future update and cannot be enabled yet.", interrupt: true);
+            return;
+        }
+
         bool configuring = !connector.IsConfigured;
         if (string.Equals(connector.Id, TikFinityWebSocketClient.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase))
         {
@@ -2548,7 +2554,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 connector.IsEnabled = false;
                 try
                 {
-                    await connector.Host.DisconnectAsync();
+                    if (connector.Host is not null)
+                    {
+                        await connector.Host.DisconnectAsync();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -2582,13 +2591,26 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         foreach (LiveConnectorViewModel connector in _connectorSessions
                      .OrderBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase))
         {
-            (connector.IsConfigured ? ConfiguredConnectors : AvailableConnectors)
-                .Add(connector);
+            if (connector.IsConfigured)
+            {
+                ConfiguredConnectors.Add(connector);
+            }
+            else
+            {
+                AvailableConnectors.Add(connector);
+            }
+        }
+
+        foreach (LiveConnectorViewModel planned in _plannedConnectors)
+        {
+            AvailableConnectors.Add(planned);
         }
     }
 
     private LiveConnectorViewModel? FindConnector(string id) =>
         _connectorSessions.FirstOrDefault(connector =>
+            string.Equals(connector.Id, id, StringComparison.OrdinalIgnoreCase))
+        ?? _plannedConnectors.FirstOrDefault(connector =>
             string.Equals(connector.Id, id, StringComparison.OrdinalIgnoreCase));
 
     private bool SaveActiveConnectorIds()
@@ -3194,8 +3216,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _incomingEventCts.Cancel();
         foreach (LiveConnectorViewModel connector in _connectorSessions)
         {
-            connector.Host.EventReceived -= SourceConnector_EventReceived;
-            connector.Host.StateChanged -= SourceConnector_StateChanged;
+            if (connector.Host is not null)
+            {
+                connector.Host.EventReceived -= SourceConnector_EventReceived;
+                connector.Host.StateChanged -= SourceConnector_StateChanged;
+            }
         }
         _ttsQueue.StateChanged -= TtsQueue_StateChanged;
         _ttsQueue.PlaybackStarted -= TtsQueue_PlaybackStarted;
@@ -3220,7 +3245,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // Calling connector disposal initiates cancellation immediately. Never
         // wait for auto-connect before that cancellation has been requested.
         Task[] connectorShutdown = _connectorSessions
-            .Select(connector => StartShutdownTask(() => connector.Host.DisposeAsync()))
+            .Where(connector => connector.Host is not null)
+            .Select(connector => StartShutdownTask(() => connector.Host!.DisposeAsync()))
             .ToArray();
 
         foreach (Task shutdown in connectorShutdown)
