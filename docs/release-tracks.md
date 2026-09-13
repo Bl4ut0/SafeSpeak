@@ -76,6 +76,15 @@ A later-track feature can move into the main release only when:
 - [ ] Pin and verify the Kokoro asset checksum.
 - [ ] Sign and certify the final Store artifacts.
 
+## Release candidate opening page & narrator updates
+
+Every release candidate must update [`ReleaseUpdateInfo.cs`](../src/SafeSpeak.Core/Models/ReleaseUpdateInfo.cs):
+1. Increment `CurrentGuideVersion` to trigger the setup update prompt for existing users.
+2. Provide concise `CurrentHighlights` describing user-facing improvements.
+3. Verify that `SetupUpdatePromptDialog` dynamically presents and announces the updated highlights.
+4. Use `./installer/Update-ReleaseCandidate.ps1` to automate file synchronization across `Directory.Build.props`, `ReleaseUpdateInfo.cs`, documentation, and contract tests.
+5. See [`.github/RELEASE_RULES.md`](../.github/RELEASE_RULES.md) for full policy details.
+
 ## Release test plan
 
 ### Automated on every change

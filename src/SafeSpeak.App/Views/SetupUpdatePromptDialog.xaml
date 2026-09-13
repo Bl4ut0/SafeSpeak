@@ -57,21 +57,18 @@
                                FontWeight="SemiBold"
                                FontSize="{DynamicResource SafeSpeakFont13}"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="&#x2022; Streaming Platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap"
-                               Margin="0,2" />
-                    <TextBlock Text="&#x2022; Navigation &amp; Speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap"
-                               Margin="0,2" />
-                    <TextBlock Text="&#x2022; Safe &amp; Non-Destructive: Your existing tokens, models, and custom words are preserved."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap"
-                               Margin="0,2" />
+                    <ItemsControl x:Name="HighlightsList"
+                                  ItemsSource="{Binding HighlightItems, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,2" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 

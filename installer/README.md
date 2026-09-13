@@ -83,6 +83,7 @@ The first SafeSpeak submission was published on September 2, 2026. Partner Cente
 
 Before each Store build:
 
+0. Prepare the release candidate, bump package versions, and update the opening setup prompt & narrator highlights using `./installer/Update-ReleaseCandidate.ps1 -PackageVersion <version> -Highlights @(...)`. This automatically synchronizes `Directory.Build.props`, `ReleaseUpdateInfo.cs` (`CurrentGuideVersion` and `CurrentHighlights`), documentation, and contract tests (see `.github/RELEASE_RULES.md`).
 1. Confirm the package Identity Name, Publisher, and Publisher display name still match the assigned Partner Center product identity above.
 2. Review and approve `installer/Assets/SafeSpeakIconMaster-v1.png`, then run `./installer/Generate-Assets.ps1` to refresh the MSIX tiles and multi-resolution executable icon. Partner Center listing artwork is prepared separately from these package assets.
 3. Finish accessibility testing with Narrator, keyboard-only navigation, Windows High Contrast themes, 200% text scaling, and the complete first-run reader decision flow before making an accessibility conformance claim.

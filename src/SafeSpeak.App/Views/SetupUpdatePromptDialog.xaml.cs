@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Input;
 using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Models;
@@ -28,18 +29,16 @@ public partial class SetupUpdatePromptDialog : Window
 
         InitializeComponent();
 
+        AutomationProperties.SetHelpText(this, ReleaseUpdateInfo.GetHelpText());
+
         PreviewKeyDown += SetupUpdatePromptDialog_PreviewKeyDown;
         Loaded += SetupUpdatePromptDialog_Loaded;
         Closing += SetupUpdatePromptDialog_Closing;
     }
 
-    public const string FullUpdateAnnouncement =
-        "SafeSpeak settings and setup update. New settings and connectors are available. " +
-        "What's new in this version: " +
-        "Streaming platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings. " +
-        "Navigation and speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings. " +
-        "Safe and non-destructive: Your existing tokens, models, and custom words are preserved. " +
-        "Press Y to review the setup guide, press N to keep current settings and continue into SafeSpeak, or press R to repeat this announcement.";
+    public IReadOnlyList<string> HighlightItems { get; } = ReleaseUpdateInfo.GetFormattedBulletHighlights();
+
+    public static string FullUpdateAnnouncement => ReleaseUpdateInfo.GetAnnouncementText();
 
     private void SetupUpdatePromptDialog_Loaded(object sender, RoutedEventArgs e)
     {

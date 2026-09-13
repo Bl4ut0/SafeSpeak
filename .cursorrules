@@ -1,0 +1,10 @@
+# SafeSpeak Assistant & Developer Rules
+
+## Release Candidate & Deployment Rules
+1. Every release candidate MUST update `ReleaseUpdateInfo.cs` in `src/SafeSpeak.Core/Models/ReleaseUpdateInfo.cs`:
+   - Increment `CurrentGuideVersion`.
+   - Update `CurrentHighlights` with concise bullet points describing what's new.
+2. `AppSettings.CurrentSetupGuideVersion` links directly to `ReleaseUpdateInfo.CurrentGuideVersion`. Never break this linkage.
+3. The opening setup update prompt dialog (`SetupUpdatePromptDialog`) must always obtain its visual highlights and spoken narrator announcements from `ReleaseUpdateInfo`. Never hardcode static strings or bullet points in the dialog.
+4. To synchronize release candidate files, use `./installer/Update-ReleaseCandidate.ps1` or see `.github/RELEASE_RULES.md`.
+5. Run `dotnet test SafeSpeak.sln` and ensure all 670+ contract and unit tests pass before promoting any commit to `main`.

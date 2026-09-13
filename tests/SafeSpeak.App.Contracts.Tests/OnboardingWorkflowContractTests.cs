@@ -293,7 +293,7 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("e.Key is Key.N or Key.Escape", dialogCode);
         Assert.Contains("e.Key == Key.R", dialogCode);
         Assert.Contains("FullUpdateAnnouncement", dialogCode);
-        Assert.Contains("TikTok Direct username is now displayed and announced", dialogCode);
+        Assert.Contains("ReleaseUpdateInfo.GetAnnouncementText()", dialogCode);
         Assert.Contains("_settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;", dialogCode);
         Assert.Contains("_settings.TrySave(out _);", dialogCode);
     }
