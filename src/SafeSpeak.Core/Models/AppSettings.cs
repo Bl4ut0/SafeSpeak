@@ -49,7 +49,7 @@ public enum OnboardingConnectorDetectionStatus
 public sealed class AppSettings
 {
     public const int CurrentSettingsSchemaVersion = 12;
-    public const int CurrentSetupGuideVersion = 1;
+    public const int CurrentSetupGuideVersion = 2;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
     public int LastAcknowledgedSetupVersion { get; set; } = 0;
