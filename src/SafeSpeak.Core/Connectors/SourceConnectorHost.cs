@@ -18,6 +18,8 @@ public sealed class SourceConnectorHost : ISourceConnector
     public SourceConnectorDescriptor Descriptor => _current.Descriptor;
     public ConnectionState State => _current.State;
     public string EndpointDescription => _current.EndpointDescription;
+    public string? TargetAccount => _current.TargetAccount;
+    public ISourceConnector Current => _current;
     public event EventHandler<LivestreamEvent>? EventReceived;
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 

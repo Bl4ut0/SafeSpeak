@@ -71,15 +71,43 @@ public partial class App : Application
                     onCompleted: () =>
                     {
                         AppLogger.LogInformation("App", "AccessibilitySetupDialog completed. Showing MainWindow...");
+                        try { tempAnnouncer.StopSpeaking(); } catch { }
+                        try { tempAnnouncer.Dispose(); } catch { }
+
                         var mainWindow = new MainWindow();
                         MainWindow = mainWindow;
                         ShutdownMode = ShutdownMode.OnMainWindowClose;
+
+                        if (mainWindow.DataContext is MainViewModel vm)
+                        {
+                            mainWindow.FocusNarrator?.SuppressNextFocusAnnouncement();
+                            string confirmationReminder = settings.IsAwaitingAccessibilityConfirmation
+                                ? " Reader and Theme will be confirmed the next time SafeSpeak launches."
+                                : string.Empty;
+                            vm.AnnounceState(
+                                $"Setup complete. SafeSpeak is ready.{confirmationReminder} It remains disarmed until you choose Arm SafeSpeak.",
+                                interrupt: true);
+                        }
+
                         mainWindow.Show();
                         wizard?.Close();
                     });
 
                 wizard = new AccessibilitySetupDialog(setupVm);
-                wizard.Closed += (_, _) => tempAnnouncer.Dispose();
+                wizard.Closed += (_, _) =>
+                {
+                    try { tempAnnouncer.StopSpeaking(); } catch { }
+                    try { tempAnnouncer.Dispose(); } catch { }
+                    if (MainWindow == wizard)
+                    {
+                        Shutdown(0);
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1500).ConfigureAwait(false);
+                            try { Environment.Exit(0); } catch { }
+                        });
+                    }
+                };
                 MainWindow = wizard;
                 wizard.Show();
             }
@@ -98,6 +126,9 @@ public partial class App : Application
                     onAccepted: () =>
                     {
                         AppLogger.LogInformation("App", "User accepted setup update. Launching AccessibilitySetupDialog...");
+                        try { promptAnnouncer.StopSpeaking(); } catch { }
+                        try { promptAnnouncer.Dispose(); } catch { }
+
                         var setupAnnouncer = new ScreenReaderAnnouncer();
                         setupAnnouncer.SpeechRate = settings.ReaderSpeechRate;
                         setupAnnouncer.SpeechVolume = settings.ReaderSpeechVolume;
@@ -110,16 +141,39 @@ public partial class App : Application
                             onCompleted: () =>
                             {
                                 AppLogger.LogInformation("App", "AccessibilitySetupDialog completed. Showing MainWindow...");
+                                try { setupAnnouncer.StopSpeaking(); } catch { }
+                                try { setupAnnouncer.Dispose(); } catch { }
+
                                 var mainWindow = new MainWindow();
                                 MainWindow = mainWindow;
                                 ShutdownMode = ShutdownMode.OnMainWindowClose;
+
+                                if (mainWindow.DataContext is MainViewModel vm)
+                                {
+                                    mainWindow.FocusNarrator?.SuppressNextFocusAnnouncement();
+                                    vm.AnnounceState("Accessibility settings updated successfully.", interrupt: true);
+                                }
+
                                 mainWindow.Show();
                                 wizard?.Close();
                             },
                             changeExistingProfile: true);
 
                         wizard = new AccessibilitySetupDialog(setupVm);
-                        wizard.Closed += (_, _) => setupAnnouncer.Dispose();
+                        wizard.Closed += (_, _) =>
+                        {
+                            try { setupAnnouncer.StopSpeaking(); } catch { }
+                            try { setupAnnouncer.Dispose(); } catch { }
+                            if (MainWindow == wizard)
+                            {
+                                Shutdown(0);
+                                _ = Task.Run(async () =>
+                                {
+                                    await Task.Delay(1500).ConfigureAwait(false);
+                                    try { Environment.Exit(0); } catch { }
+                                });
+                            }
+                        };
                         MainWindow = wizard;
                         wizard.Show();
                         promptDialog?.Close();
@@ -127,6 +181,9 @@ public partial class App : Application
                     onDeclined: () =>
                     {
                         AppLogger.LogInformation("App", "User declined setup update. Initializing MainWindow...");
+                        try { promptAnnouncer.StopSpeaking(); } catch { }
+                        try { promptAnnouncer.Dispose(); } catch { }
+
                         var mainWindow = new MainWindow();
                         MainWindow = mainWindow;
                         ShutdownMode = ShutdownMode.OnMainWindowClose;
@@ -134,7 +191,20 @@ public partial class App : Application
                         promptDialog?.Close();
                     });
 
-                promptDialog.Closed += (_, _) => promptAnnouncer.Dispose();
+                promptDialog.Closed += (_, _) =>
+                {
+                    try { promptAnnouncer.StopSpeaking(); } catch { }
+                    try { promptAnnouncer.Dispose(); } catch { }
+                    if (MainWindow == promptDialog)
+                    {
+                        Shutdown(0);
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1500).ConfigureAwait(false);
+                            try { Environment.Exit(0); } catch { }
+                        });
+                    }
+                };
                 MainWindow = promptDialog;
                 promptDialog.Show();
             }

@@ -158,7 +158,6 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
             void OnSpeakCompleted(object? sender, SpeakCompletedEventArgs e)
             {
                 synthesizer.SpeakCompleted -= OnSpeakCompleted;
-                cancellationRegistration.Unregister();
                 tcs.TrySetResult(true);
             }
 
@@ -171,6 +170,7 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
                     Stop();
                     tcs.TrySetCanceled(cancellationToken);
                 });
+                tcs.Task.ContinueWith(_ => cancellationRegistration.Dispose(), TaskScheduler.Default);
             }
 
             try
@@ -180,7 +180,7 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
             catch
             {
                 synthesizer.SpeakCompleted -= OnSpeakCompleted;
-                cancellationRegistration.Unregister();
+                cancellationRegistration.Dispose();
                 throw;
             }
         }
@@ -247,6 +247,7 @@ internal sealed class SystemSpeechWaveSynthesizer : IWaveSpeechSynthesizer
 {
     private readonly SpeechSynthesizer _synthesizer = new();
     private readonly object _gate = new();
+    private TaskCompletionSource? _completed;
     private bool _cancelRequested;
     private bool _disposed;
 
@@ -273,8 +274,7 @@ internal sealed class SystemSpeechWaveSynthesizer : IWaveSpeechSynthesizer
 
     public void Speak(string text)
     {
-        var completed = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource completed;
 
         void OnSpeakCompleted(object? sender, SpeakCompletedEventArgs args)
         {
@@ -290,6 +290,9 @@ internal sealed class SystemSpeechWaveSynthesizer : IWaveSpeechSynthesizer
                 return;
             }
 
+            completed = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _completed = completed;
             _synthesizer.SpeakCompleted += OnSpeakCompleted;
             try
             {
@@ -300,11 +303,29 @@ internal sealed class SystemSpeechWaveSynthesizer : IWaveSpeechSynthesizer
             catch
             {
                 _synthesizer.SpeakCompleted -= OnSpeakCompleted;
+                _completed = null;
                 throw;
             }
         }
 
-        completed.Task.GetAwaiter().GetResult();
+        try
+        {
+            completed.Task.GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            // Unblocked via Cancel() or Dispose()
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                if (ReferenceEquals(_completed, completed))
+                {
+                    _completed = null;
+                }
+            }
+        }
     }
 
     public void Cancel()
@@ -317,7 +338,8 @@ internal sealed class SystemSpeechWaveSynthesizer : IWaveSpeechSynthesizer
             }
 
             _cancelRequested = true;
-            _synthesizer.SpeakAsyncCancelAll();
+            try { _synthesizer.SpeakAsyncCancelAll(); } catch { }
+            _completed?.TrySetCanceled();
         }
     }
 
@@ -333,7 +355,10 @@ internal sealed class SystemSpeechWaveSynthesizer : IWaveSpeechSynthesizer
             }
 
             _disposed = true;
-            _synthesizer.Dispose();
+            _cancelRequested = true;
+            try { _synthesizer.SpeakAsyncCancelAll(); } catch { }
+            _completed?.TrySetCanceled();
+            try { _synthesizer.Dispose(); } catch { }
         }
     }
 }

@@ -80,6 +80,36 @@ public sealed class SystemSpeechCancellationTests
         Assert.Equal(0, synthesizer.SpeakCount);
     }
 
+    [Fact]
+    public async Task SystemSpeechWaveSynthesizer_Cancel_UnblocksSpeakImmediately()
+    {
+        using var synthesizer = new SystemSpeechWaveSynthesizer();
+        using var stream = new MemoryStream();
+        synthesizer.Configure(stream, null, 0, 100);
+
+        Task speakTask = Task.Run(() => synthesizer.Speak("This is a test of immediate cancellation unblocking."));
+        await Task.Delay(50);
+
+        synthesizer.Cancel();
+
+        await speakTask.WaitAsync(TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
+    public async Task SystemSpeechWaveSynthesizer_Dispose_UnblocksSpeakImmediately()
+    {
+        var synthesizer = new SystemSpeechWaveSynthesizer();
+        using var stream = new MemoryStream();
+        synthesizer.Configure(stream, null, 0, 100);
+
+        Task speakTask = Task.Run(() => synthesizer.Speak("This is a test of immediate dispose unblocking."));
+        await Task.Delay(50);
+
+        synthesizer.Dispose();
+
+        await speakTask.WaitAsync(TimeSpan.FromSeconds(3));
+    }
+
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
 
     private sealed class BlockingWaveSynthesizer : IWaveSpeechSynthesizer

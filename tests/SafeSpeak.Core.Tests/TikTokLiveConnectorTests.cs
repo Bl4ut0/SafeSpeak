@@ -30,6 +30,31 @@ public sealed class TikTokLiveConnectorTests
         Assert.False(TikTokLiveConnector.TryNormalizeUsername(input, out _));
 
     [Fact]
+    public void TargetAccount_ReturnsFormattedHandleWhenUsernameValid()
+    {
+        var connector = new TikTokLiveConnector("streamer_one");
+        Assert.Equal("streamer_one", connector.Username);
+        Assert.Equal("@streamer_one", connector.TargetAccount);
+        Assert.Equal("TikTok LIVE @streamer_one", connector.EndpointDescription);
+
+        var host = new SourceConnectorHost(connector);
+        Assert.Equal("@streamer_one", host.TargetAccount);
+        Assert.Same(connector, host.Current);
+    }
+
+    [Fact]
+    public void TargetAccount_ReturnsNullWhenUsernameMissingOrInvalid()
+    {
+        var connector = new TikTokLiveConnector("");
+        Assert.Equal("", connector.Username);
+        Assert.Null(connector.TargetAccount);
+        Assert.Equal("TikTok username is required", connector.EndpointDescription);
+
+        var host = new SourceConnectorHost(connector);
+        Assert.Null(host.TargetAccount);
+    }
+
+    [Fact]
     public void Decoder_NormalizesChatAndSuppressesDuplicateAndHistory()
     {
         var decoder = new TikTokEventDecoder();

@@ -53,6 +53,7 @@ public interface ISourceConnector : IAsyncDisposable
     SourceConnectorDescriptor Descriptor { get; }
     ConnectionState State { get; }
     string EndpointDescription { get; }
+    string? TargetAccount => null;
     event EventHandler<LivestreamEvent>? EventReceived;
     event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 

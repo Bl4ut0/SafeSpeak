@@ -52,11 +52,31 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
     public string DisplayName => Host?.Descriptor.DisplayName ?? _customDisplayName ?? string.Empty;
     public string PlatformName => Host?.Descriptor.ProviderName ?? _customPlatformName ?? string.Empty;
     public string EndpointDescription => Host?.EndpointDescription ?? _customEndpointDescription ?? string.Empty;
+    public string? TargetAccount => Host?.TargetAccount;
+    public bool HasTargetAccount => !string.IsNullOrWhiteSpace(TargetAccount);
+
+    public string DisplayNameWithTarget =>
+        HasTargetAccount
+            ? $"{DisplayName} ({TargetAccount})"
+            : string.Equals(Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase) && IsImplemented
+                ? $"{DisplayName} (No username configured)"
+                : DisplayName;
+
     public bool IsConnected => State == ConnectionState.Connected;
     public bool CanToggle => IsImplemented && IsConfigured && !IsBusy;
-    public string ToggleName => IsEnabled
-        ? $"Stop reading {DisplayName}"
-        : $"Read chat from {DisplayName}";
+
+    public string ToggleName => HasTargetAccount
+        ? (IsEnabled
+            ? $"Stop reading {DisplayName} for {TargetAccount}"
+            : $"Read chat from {DisplayName} for {TargetAccount}")
+        : string.Equals(Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase) && IsImplemented
+            ? (IsEnabled
+                ? $"Stop reading {DisplayName}, no username configured"
+                : $"Read chat from {DisplayName}, no username configured")
+            : (IsEnabled
+                ? $"Stop reading {DisplayName}"
+                : $"Read chat from {DisplayName}");
+
     public string StatusText => !IsImplemented
         ? "Planned"
         : !IsConfigured
@@ -71,24 +91,51 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
                     ConnectionState.Faulted => "Unavailable",
                     _ => "Disconnected"
                 };
+
     public string AccessibleStatus =>
         IsPlanned
             ? $"{DisplayName}. Planned connector. {EndpointDescription}"
-            : $"{DisplayName}. {StatusText}. {StatusDetail}";
+            : HasTargetAccount
+                ? $"{DisplayName} for {TargetAccount}. {StatusText}. {StatusDetail}"
+                : $"{DisplayName}. {StatusText}. {StatusDetail}";
+
     public string ConfigurationStateText =>
         IsPlanned
             ? (_customShortDescription ?? "Planned for a future update.")
             : (IsConfigured ? "Enabled in Settings" : "Disabled in Settings");
+
     public string ConfigurationActionText =>
         IsPlanned
             ? "Planned"
             : (IsConfigured ? $"Disable {DisplayName}" : $"Enable {DisplayName}");
-    public string ConfigurationCardAutomationName =>
-        IsPlanned
-            ? $"{DisplayName}. Planned connector. {ConfigurationStateText}. Not yet available."
-            : (IsConfigured
-                ? $"{DisplayName}. {ConfigurationStateText}. Press Enter for Edit, Delete, and Cancel options."
-                : $"{DisplayName}. {ConfigurationStateText}. Press Enter to {ConfigurationActionText.ToLowerInvariant()}.");
+
+    public string ConfigurationCardAutomationName
+    {
+        get
+        {
+            if (IsPlanned)
+            {
+                return $"{DisplayName}. Planned connector. {ConfigurationStateText}. Not yet available.";
+            }
+
+            string targetSegment = HasTargetAccount
+                ? $" for {TargetAccount}"
+                : string.Equals(Id, TikTokLiveConnector.ConnectorDescriptor.Id, StringComparison.OrdinalIgnoreCase)
+                    ? ", no username saved"
+                    : string.Empty;
+
+            string endpointSegment = !string.IsNullOrWhiteSpace(EndpointDescription)
+                ? $". Saved endpoint: {EndpointDescription}"
+                : string.Empty;
+
+            if (IsConfigured)
+            {
+                return $"{DisplayName}{targetSegment}. {ConfigurationStateText}{endpointSegment}. Press Enter for Edit, Delete, and Cancel options.";
+            }
+
+            return $"{DisplayName}{targetSegment}. {ConfigurationStateText}{endpointSegment}. Press Enter to {ConfigurationActionText.ToLowerInvariant()}.";
+        }
+    }
     public string ConfigurationCardHelpText =>
         IsPlanned
             ? (_customHelpText ?? $"{DisplayName} connector is planned for a future update.")
@@ -160,6 +207,11 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
             ? (Host?.EndpointDescription ?? _customEndpointDescription ?? string.Empty)
             : detail;
         OnPropertyChanged(nameof(EndpointDescription));
+        OnPropertyChanged(nameof(TargetAccount));
+        OnPropertyChanged(nameof(HasTargetAccount));
+        OnPropertyChanged(nameof(DisplayNameWithTarget));
+        OnPropertyChanged(nameof(ConfigurationCardAutomationName));
+        RefreshStatus();
     }
 
     partial void OnIsConfiguredChanged(bool value)
@@ -191,5 +243,9 @@ public sealed partial class LiveConnectorViewModel : ObservableObject
         OnPropertyChanged(nameof(ToggleName));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(AccessibleStatus));
+        OnPropertyChanged(nameof(TargetAccount));
+        OnPropertyChanged(nameof(HasTargetAccount));
+        OnPropertyChanged(nameof(DisplayNameWithTarget));
+        OnPropertyChanged(nameof(ConfigurationCardAutomationName));
     }
 }

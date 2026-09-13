@@ -307,7 +307,7 @@
                                                               IsEnabled="{Binding CanToggle}"
                                                               Command="{Binding DataContext.ToggleLiveConnectorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                               CommandParameter="{Binding}"
-                                                              Content="{Binding DisplayName}"
+                                                              Content="{Binding DisplayNameWithTarget}"
                                                               AutomationProperties.Name="{Binding ToggleName}"
                                                               AutomationProperties.HelpText="Turns this configured connector on or off without changing the other live connections." />
                                                     <TextBlock Text="{Binding EndpointDescription}" Style="{StaticResource SecondaryText}"
@@ -1219,7 +1219,9 @@
                                                             AutomationProperties.Name="{Binding ConfigurationCardAutomationName}"
                                                             AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
                                                         <StackPanel>
-                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding DisplayNameWithTarget}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding EndpointDescription}" Margin="0,3,0,0"
+                                                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
                                                             <TextBlock Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
                                                                        Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
                                                             <TextBlock Text="Press Enter for options" Margin="0,3,0,0"
@@ -1313,13 +1315,8 @@
                                                             Click="SettingsConnectorCard_Click"
                                                             AutomationProperties.Name="{Binding ConfigurationCardAutomationName}"
                                                             AutomationProperties.HelpText="{Binding ConfigurationCardHelpText}">
-                                                        <Grid>
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="Auto" />
-                                                                <RowDefinition Height="Auto" />
-                                                                <RowDefinition Height="Auto" />
-                                                            </Grid.RowDefinitions>
-                                                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                                        <StackPanel>
+                                                            <DockPanel LastChildFill="True">
                                                                 <Border DockPanel.Dock="Right"
                                                                         Style="{StaticResource StatusPill}"
                                                                         Padding="6,1"
@@ -1329,13 +1326,16 @@
                                                                                FontWeight="Bold"
                                                                                FontSize="{DynamicResource SafeSpeakFont11}" />
                                                                 </Border>
-                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding DisplayNameWithTarget}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                                             </DockPanel>
-                                                            <TextBlock Grid.Row="1" Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
+                                                            <TextBlock Text="{Binding EndpointDescription}" Margin="0,3,0,0"
+                                                                       Style="{StaticResource SecondaryText}" TextWrapping="Wrap"
+                                                                       Visibility="{Binding IsImplemented, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                            <TextBlock Text="{Binding ConfigurationStateText}" Margin="0,3,0,0"
                                                                        Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
-                                                            <TextBlock Grid.Row="2" Text="{Binding ConfigurationActionText}" Margin="0,3,0,0"
+                                                            <TextBlock Text="{Binding ConfigurationActionText}" Margin="0,3,0,0"
                                                                        Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
-                                                        </Grid>
+                                                        </StackPanel>
                                                     </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>

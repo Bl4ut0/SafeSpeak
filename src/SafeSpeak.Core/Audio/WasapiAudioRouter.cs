@@ -118,12 +118,24 @@ public sealed class WasapiAudioRouter : IAudioRouter
         _ = Task.Run(() =>
         {
             CancellationTokenRegistration cancellationRegistration = default;
-            lock (_lock)
+            try
             {
-                StopInternal();
-
-                try
+                if (cancellationToken.IsCancellationRequested)
                 {
+                    tcs.TrySetCanceled(cancellationToken);
+                    return;
+                }
+
+                lock (_lock)
+                {
+                    StopInternal();
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        tcs.TrySetCanceled(cancellationToken);
+                        return;
+                    }
+
                     waveStream.Seek(0, SeekOrigin.Begin);
                     _currentFileReader = new WaveFileReader(waveStream);
                     _currentVolumeProvider = new WaveChannel32(_currentFileReader)
@@ -183,7 +195,6 @@ public sealed class WasapiAudioRouter : IAudioRouter
                     void OnPlaybackStopped(object? sender, StoppedEventArgs e)
                     {
                         output.PlaybackStopped -= OnPlaybackStopped;
-                        cancellationRegistration.Unregister();
                         if (e.Exception is not null)
                         {
                             tcs.TrySetException(e.Exception);
@@ -200,18 +211,21 @@ public sealed class WasapiAudioRouter : IAudioRouter
                     {
                         cancellationRegistration = cancellationToken.Register(() =>
                         {
-                            Stop();
                             tcs.TrySetCanceled(cancellationToken);
+                            Stop();
                         });
                     }
 
                     output.Play();
                 }
-                catch (Exception ex)
-                {
-                    cancellationRegistration.Unregister();
-                    tcs.TrySetException(ex);
-                }
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+            finally
+            {
+                tcs.Task.ContinueWith(_ => cancellationRegistration.Dispose(), TaskScheduler.Default);
             }
         });
 

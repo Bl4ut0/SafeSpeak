@@ -34,6 +34,8 @@ public partial class MainWindow : Window
     private LiveConnectorViewModel? _managingConnector;
     private bool _editingConnectorConfiguration;
 
+    public IntegratedFocusNarrator? FocusNarrator => _focusNarrator;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -183,9 +185,10 @@ public partial class MainWindow : Window
         PositionInlineConnectorPanels(forEnabledConnector: true);
         CancelInlineConnectorSurfaces();
         _managingConnector = connector;
-        InlineConnectorManagementHeading.Text = $"Connector options: {connector.DisplayName}";
-        InlineConnectorManagementPrompt.Text =
-            $"{connector.DisplayName} is enabled. Choose Edit to review its configuration, Delete to disable it, or Cancel.";
+        InlineConnectorManagementHeading.Text = $"Connector options: {connector.DisplayNameWithTarget}";
+        InlineConnectorManagementPrompt.Text = connector.HasTargetAccount
+            ? $"{connector.DisplayName} is enabled for {connector.TargetAccount}. Choose Edit to update the username, Delete to disable it, or Cancel."
+            : $"{connector.DisplayName} is enabled. Choose Edit to review its configuration, Delete to disable it, or Cancel.";
         InlineConnectorManagementPanel.Visibility = Visibility.Visible;
         InlineConnectorManagementPanel.BringIntoView();
         Dispatcher.BeginInvoke(
@@ -203,10 +206,20 @@ public partial class MainWindow : Window
         _firstConnectorUsername = null;
         _editingConnectorConfiguration = editing;
         InlineConnectorUsernameTextBox.Clear();
-        InlineConnectorCapturePrompt.Text =
-            "Enter the TikTok username without the at sign, then press Enter.";
-        InlineConnectorCaptureStatus.Text =
-            "Waiting for the first username entry.";
+        if (editing && connector.HasTargetAccount)
+        {
+            InlineConnectorCapturePrompt.Text =
+                $"Current username is {connector.TargetAccount}. Enter the new TikTok username without the at sign, then press Enter.";
+            InlineConnectorCaptureStatus.Text =
+                $"Current saved username is {connector.TargetAccount}. Waiting for the new username entry.";
+        }
+        else
+        {
+            InlineConnectorCapturePrompt.Text =
+                "Enter the TikTok username without the at sign, then press Enter.";
+            InlineConnectorCaptureStatus.Text =
+                "Waiting for the first username entry.";
+        }
         InlineConnectorCapturePanel.Visibility = Visibility.Visible;
         InlineConnectorCapturePanel.BringIntoView();
         Dispatcher.BeginInvoke(() =>
@@ -267,7 +280,7 @@ public partial class MainWindow : Window
         if (announce && DataContext is MainViewModel viewModel)
         {
             viewModel.AnnounceState(
-                $"Connector options closed for {connector.DisplayName}. Nothing was changed.",
+                $"Connector options closed for {connector.DisplayNameWithTarget}. Nothing was changed.",
                 interrupt: true);
         }
         FocusSettingsConnectorCard(connector);
@@ -350,8 +363,8 @@ public partial class MainWindow : Window
         CloseInlineConnectorCapture();
         viewModel.AnnounceState(saved
             ? wasEditing
-                ? "TikTok Direct username verified and saved. TikTok Direct remains in the Enabled connectors area. Focus returned to TikTok Direct."
-                : "TikTok Direct username verified and saved. TikTok Direct moved to the Enabled connectors area. Focus returned to TikTok Direct."
+                ? $"TikTok Direct username verified and saved as @{username}. TikTok Direct remains in the Enabled connectors area. Focus returned to TikTok Direct."
+                : $"TikTok Direct username verified and saved as @{username}. TikTok Direct moved to the Enabled connectors area. Focus returned to TikTok Direct."
             : "TikTok Direct could not be saved. Review the announced error and try again.",
             interrupt: true);
         FocusSettingsConnectorCard(connector);
