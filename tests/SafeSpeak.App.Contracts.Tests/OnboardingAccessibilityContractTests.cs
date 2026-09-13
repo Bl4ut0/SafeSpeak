@@ -29,7 +29,7 @@ public sealed class OnboardingAccessibilityContractTests
             .Order()
             .ToArray();
 
-        Assert.Equal(new[] { 10, 11, 12, 13, 14, 15, 16, 17, 90, 91 }, persistentIndexes);
+        Assert.Equal(new[] { 20, 21, 30, 31, 32, 33, 34, 35, 36, 37 }, persistentIndexes);
         Assert.Equal(persistentIndexes.Length, persistentIndexes.Distinct().Count());
 
         XElement[] stepPanels = document
@@ -374,6 +374,36 @@ public sealed class OnboardingAccessibilityContractTests
         Assert.Contains("_viewModel.Announcer.StopSpeaking()", codeBehind);
         Assert.Contains("HotkeyAction.StopBuiltInGuidance", codeBehind);
         Assert.Contains("_hotkeyService.RegisterHotkeys", codeBehind);
+    }
+
+    [Fact]
+    public void Wizard_BottomNavigationPrecedesTopStepperInTabOrder()
+    {
+        XDocument document = LoadWizard();
+
+        XElement backButton = document.Descendants(Presentation + "Button")
+            .Single(e => e.Attribute(Xaml + "Name")?.Value == "BackButton");
+        XElement primaryButton = document.Descendants(Presentation + "Button")
+            .Single(e => e.Attribute(Xaml + "Name")?.Value == "PrimaryButton");
+
+        int backIndex = int.Parse(backButton.Attribute("TabIndex")!.Value);
+        int primaryIndex = int.Parse(primaryButton.Attribute("TabIndex")!.Value);
+
+        Assert.Equal(20, backIndex);
+        Assert.Equal(21, primaryIndex);
+
+        XElement[] stepperButtons = document.Descendants(Presentation + "Button")
+            .Where(e => (e.Attribute("Tag")?.Value ?? string.Empty) is "1" or "2" or "3" or "4" or "5" or "6" or "7" or "8")
+            .ToArray();
+
+        Assert.Equal(8, stepperButtons.Length);
+        foreach (XElement stepper in stepperButtons)
+        {
+            int stepperIndex = int.Parse(stepper.Attribute("TabIndex")!.Value);
+            Assert.True(
+                primaryIndex < stepperIndex,
+                $"PrimaryButton TabIndex ({primaryIndex}) must be lower than stepper TabIndex ({stepperIndex}) so bottom action buttons are visited directly after step content.");
+        }
     }
 
     private static int Count(string text, string value)

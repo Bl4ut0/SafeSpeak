@@ -71,6 +71,14 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         }
     }
 
+    internal ScreenReaderAnnouncer(
+        SystemSpeechTtsEngine? speechEngine,
+        IAudioRouter? audioRouter)
+    {
+        _speechEngine = speechEngine;
+        _guidanceAudioRouter = audioRouter;
+    }
+
     public IReadOnlyList<AudioEndpointInfo> GetOutputEndpoints() =>
         _guidanceAudioRouter?.GetOutputEndpoints() ?? [];
 
@@ -127,15 +135,15 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         if (_speechEngine is null || _guidanceAudioRouter is null) return;
 
+        Task preceding = _speechTask;
+
         if (interrupt)
         {
             CancelSpeechUnsafe();
             _speechCancellation.Dispose();
             _speechCancellation = new CancellationTokenSource();
-            _speechTask = Task.CompletedTask;
         }
 
-        Task preceding = _speechTask;
         CancellationToken token = _speechCancellation.Token;
         int rate = _speechRate;
         int volume = _speechVolume;
@@ -151,7 +159,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
     {
         try
         {
-            try { await preceding.ConfigureAwait(false); }
+            try { await preceding.WaitAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false); }
             catch { }
             cancellationToken.ThrowIfCancellationRequested();
             using var waveStream = new MemoryStream();
@@ -171,6 +179,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         catch (ObjectDisposedException) { }
         catch (InvalidOperationException) { }
         catch (IOException) { }
+        catch (TimeoutException) { }
     }
 
     /// <summary>

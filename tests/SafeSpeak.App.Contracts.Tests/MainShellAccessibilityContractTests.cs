@@ -1326,9 +1326,15 @@ public sealed class MainShellAccessibilityContractTests
                 .Descendants(Presentation + "UniformGrid")
                 .Single()
                 .Attribute("Columns")?.Value);
+        XElement configuredCards = NamedElement(document, "ItemsControl", "ConfiguredConnectorCards");
+        Assert.Contains("{Binding DisplayNameWithTarget}", configuredCards.ToString());
+        Assert.Contains("{Binding EndpointDescription}", configuredCards.ToString());
         XElement availableCards = NamedElement(document, "ItemsControl", "AvailableConnectorCards");
+        Assert.Contains("{Binding DisplayNameWithTarget}", availableCards.ToString());
+        Assert.Contains("{Binding EndpointDescription}", availableCards.ToString());
         Assert.Contains("{Binding Tag}", availableCards.ToString());
         Assert.Contains("StatusPill", availableCards.ToString());
+        Assert.Contains("Content=\"{Binding DisplayNameWithTarget}\"", document.ToString());
         Assert.DoesNotContain("PlannedConnectorsBorder", document.ToString());
         Assert.DoesNotContain("PlannedConnectorCards", document.ToString());
         Assert.DoesNotContain("InlineConnectorRoadmapPanel", document.ToString());
@@ -1349,6 +1355,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Contains("ConfigureTikTokDirectAsync(username)", codeBehind);
         Assert.Contains("_firstConnectorUsername", codeBehind);
         Assert.Contains("BeginInlineConnectorManagement(connector)", codeBehind);
+        Assert.Contains("connector.DisplayNameWithTarget", codeBehind);
+        Assert.Contains("connector.HasTargetAccount", codeBehind);
         Assert.Contains("PositionInlineConnectorPanels(forEnabledConnector: true)", codeBehind);
         Assert.Contains("PositionInlineConnectorPanels(forEnabledConnector: editing || connector.IsConfigured)", codeBehind);
         Assert.Contains("InlineConnectorEditButton_Click", codeBehind);

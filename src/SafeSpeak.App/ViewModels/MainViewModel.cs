@@ -483,20 +483,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public string SourceName => LiveConnectors.Count switch
     {
         0 => "No configured connector",
-        1 => LiveConnectors[0].DisplayName,
+        1 => LiveConnectors[0].DisplayNameWithTarget,
         _ => "Multiple connectors"
     };
     public string SourceDescription => LiveConnectors.Count == 0
         ? "Configure at least one connector in Settings."
         : string.Join(" ", LiveConnectors.Select(connector =>
-            $"{connector.DisplayName}: {connector.StatusText}."));
+            $"{connector.DisplayNameWithTarget}: {connector.StatusText}."));
     public string ConnectorConfigurationSummary
     {
         get
         {
             var configured = new List<string>(2);
             if (ConfigureTikFinity) configured.Add("TikFinity");
-            if (ConfigureTikTokDirect) configured.Add("TikTok Direct");
+            if (ConfigureTikTokDirect)
+            {
+                configured.Add(TikTokLiveConnector.TryNormalizeUsername(TikTokUsername, out var name)
+                    ? $"TikTok Direct (@{name})"
+                    : "TikTok Direct");
+            }
             return configured.Count == 0
                 ? "No connectors are enabled in Settings. Enable at least one connector."
                 : $"Enabled in Settings: {string.Join(" and ", configured)}. Turn each connection on or off from Live.";
@@ -2825,6 +2830,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     public void RerunAccessibilityWizard()
     {
+        _announcer.StopSpeaking();
         Views.AccessibilitySetupDialog? wizard = null;
         var setupViewModel = new AccessibilitySetupViewModel(
             _settings,
@@ -2832,7 +2838,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             onCompleted: () =>
             {
                 RefreshAccessibilitySettingsFromStore();
-                AnnounceState("Accessibility settings updated successfully.");
                 wizard?.Close();
             },
             changeExistingProfile: true);
@@ -2841,7 +2846,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             Owner = Application.Current?.MainWindow
         };
+
+        if (Application.Current?.MainWindow is MainWindow mw)
+        {
+            mw.FocusNarrator?.SuppressNextFocusAnnouncement();
+        }
+
         wizard.ShowDialog();
+
+        RefreshAccessibilitySettingsFromStore();
+        if (setupViewModel.IsCompleted)
+        {
+            if (Application.Current?.MainWindow is MainWindow mwAfter)
+            {
+                mwAfter.FocusNarrator?.SuppressNextFocusAnnouncement();
+            }
+            AnnounceState("Accessibility settings updated successfully.", interrupt: true);
+        }
     }
 
     public bool CanTestSelectedVoice =>
@@ -3201,6 +3222,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         return setting + (enabled ? "Enabled" : "Disabled");
     }
 
+    public void StopAllSpeechForShutdown()
+    {
+        TryShutdownStep(_announcer.StopSpeaking);
+        TryShutdownStep(_voicePreviewOutput.Stop);
+        TryShutdownStep(_ttsQueue.EmergencyStop);
+        TryShutdownStep(_alertQueue.EmergencyStop);
+    }
+
     public ValueTask DisposeAsync()
     {
         lock (_disposeLock)
@@ -3212,6 +3241,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private Task BeginDispose()
     {
+        StopAllSpeechForShutdown();
+        TryShutdownStep(_announcer.Dispose);
         _incomingEvents.Writer.TryComplete();
         _incomingEventCts.Cancel();
         foreach (LiveConnectorViewModel connector in _connectorSessions)

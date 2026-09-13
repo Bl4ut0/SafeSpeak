@@ -188,7 +188,7 @@
                             CornerRadius="1" />
 
                     <StackPanel Orientation="Horizontal">
-                        <Button TabIndex="10"
+                        <Button TabIndex="30"
                                 MinHeight="44"
                                 Tag="1"
                                 Content="Reader"
@@ -208,7 +208,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="11"
+                        <Button TabIndex="31"
                                 MinHeight="44"
                                 Tag="2"
                                 Content="Theme"
@@ -228,7 +228,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="12"
+                        <Button TabIndex="32"
                                 MinHeight="44"
                                 Tag="3"
                                 Content="Connect"
@@ -248,7 +248,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="13"
+                        <Button TabIndex="33"
                                 MinHeight="44"
                                 Tag="4"
                                 Content="Voice"
@@ -268,7 +268,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="14"
+                        <Button TabIndex="34"
                                 MinHeight="44"
                                 Tag="5"
                                 Content="AI Filter"
@@ -288,7 +288,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="15"
+                        <Button TabIndex="35"
                                 MinHeight="44"
                                 Tag="6"
                                 Content="Keybinds"
@@ -308,7 +308,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="16"
+                        <Button TabIndex="36"
                                 MinHeight="44"
                                 Tag="7"
                                 Content="Nav Guide"
@@ -328,7 +328,7 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button TabIndex="17"
+                        <Button TabIndex="37"
                                 MinHeight="44"
                                 Tag="8"
                                 Content="Review"
@@ -1939,7 +1939,7 @@
             </Grid.ColumnDefinitions>
             <Button x:Name="BackButton"
                     Grid.Column="0"
-                    TabIndex="90"
+                    TabIndex="20"
                     MinHeight="48"
                     MinWidth="130"
                     Margin="0,0,12,0"
@@ -1950,7 +1950,7 @@
                     AutomationProperties.Name="Go back one setup step" />
             <Button x:Name="PrimaryButton"
                     Grid.Column="2"
-                    TabIndex="91"
+                    TabIndex="21"
                     MinHeight="48"
                     MinWidth="190"
                     Style="{StaticResource PrimaryButton}"
@@ -1991,7 +1991,8 @@
                     Margin="24"
                     Padding="22"
                     VerticalAlignment="Center"
-                    HorizontalAlignment="Center">
+                    HorizontalAlignment="Center"
+                    KeyboardNavigation.TabNavigation="Cycle">
                 <Grid>
                     <!-- View A: TikTok Direct Two-Step Confirmation -->
                     <StackPanel Visibility="{Binding IsConfiguringTikTokDirect, Converter={StaticResource BooleanToVisibilityConverter}}">

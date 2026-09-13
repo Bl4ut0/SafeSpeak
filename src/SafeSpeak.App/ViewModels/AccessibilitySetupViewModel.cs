@@ -215,6 +215,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
     }
 
     public ScreenReaderAnnouncer Announcer => _announcer;
+    public bool IsCompleted => _completed;
     public ObservableCollection<ThemeChoiceOption> ThemeOptions { get; }
     public ObservableCollection<string> ReviewItems { get; } = [];
     public ObservableCollection<VoiceInfo> Voices { get; } = [];
@@ -1065,9 +1066,12 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         string confirmationReminder = _settings.IsAwaitingAccessibilityConfirmation
             ? " Reader and Theme will be confirmed the next time SafeSpeak launches."
             : string.Empty;
-        _announcer.Announce(
-            $"Setup complete. SafeSpeak is ready.{confirmationReminder} It remains disarmed until you choose Arm SafeSpeak.",
-            interrupt: true);
+        if (!_changeExistingProfile)
+        {
+            _announcer.Announce(
+                $"Setup complete. SafeSpeak is ready.{confirmationReminder} It remains disarmed until you choose Arm SafeSpeak.",
+                interrupt: true);
+        }
         _announcer.IsEnhancedAccessibilityEnabled = _settings.IsSpokenGuidanceEnabled;
         _onCompleted();
     }
@@ -1616,9 +1620,16 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         _lifetimeCancellation.Dispose();
         _qwenInstallCts?.Cancel();
         _qwenInstallCts?.Dispose();
-        _previewOutput.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        _previewAudioRouter.Dispose();
-        _ttsEngine.Dispose();
+
+        try { _announcer.StopSpeaking(); } catch { }
+        try { _previewOutput.Stop(); } catch { }
+        try { _previewAudioRouter.Stop(); } catch { }
+        _ = Task.Run(async () =>
+        {
+            try { await _previewOutput.DisposeAsync().ConfigureAwait(false); } catch { }
+            try { _previewAudioRouter.Dispose(); } catch { }
+            try { _ttsEngine.Dispose(); } catch { }
+        });
         if (!_completed)
         {
             if (_settingsRerunSnapshot is { } snapshot)

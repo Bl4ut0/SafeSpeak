@@ -33,7 +33,9 @@ public sealed class TikTokLiveConnector : ISourceConnector
 
     public SourceConnectorDescriptor Descriptor => ConnectorDescriptor;
     public ConnectionState State => _state;
+    public string Username => _username;
     public string EndpointDescription => TryNormalizeUsername(_username, out var name) ? $"TikTok LIVE @{name}" : "TikTok username is required";
+    public string? TargetAccount => TryNormalizeUsername(_username, out var name) ? $"@{name}" : null;
     public event EventHandler<LivestreamEvent>? EventReceived;
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 

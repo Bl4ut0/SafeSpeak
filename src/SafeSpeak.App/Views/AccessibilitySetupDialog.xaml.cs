@@ -33,6 +33,7 @@ public partial class AccessibilitySetupDialog : Window
         _focusNarrator = new IntegratedFocusNarrator(this, _viewModel.Announcer);
         _viewModel.FocusRequested += ViewModel_FocusRequested;
         PreviewKeyDown += AccessibilitySetupDialog_PreviewKeyDown;
+        Closing += AccessibilitySetupDialog_Closing;
         Closed += AccessibilitySetupDialog_Closed;
         Loaded += (_, _) =>
         {
@@ -42,6 +43,7 @@ public partial class AccessibilitySetupDialog : Window
             _hotkeyService.HotkeyTriggered += HotkeyService_HotkeyTriggered;
             RegisterHotkeys();
 
+            _focusNarrator.SuppressNextFocusAnnouncement();
             FocusPrimaryControl();
             Dispatcher.BeginInvoke(
                 _viewModel.AnnounceInitialPrompt,
@@ -49,8 +51,11 @@ public partial class AccessibilitySetupDialog : Window
         };
     }
 
-    private void ViewModel_FocusRequested(object? sender, EventArgs e) =>
+    private void ViewModel_FocusRequested(object? sender, EventArgs e)
+    {
+        _focusNarrator.SuppressNextFocusAnnouncement();
         FocusPrimaryControl();
+    }
 
     private void AccessibilitySetupDialog_PreviewKeyDown(
         object sender,
@@ -539,8 +544,15 @@ public partial class AccessibilitySetupDialog : Window
         return nint.Zero;
     }
 
+    private void AccessibilitySetupDialog_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        try { _viewModel.Announcer.StopSpeaking(); } catch { }
+    }
+
     private void AccessibilitySetupDialog_Closed(object? sender, EventArgs e)
     {
+        try { _viewModel.Announcer.StopSpeaking(); } catch { }
+        Closing -= AccessibilitySetupDialog_Closing;
         _viewModel.FocusRequested -= ViewModel_FocusRequested;
         PreviewKeyDown -= AccessibilitySetupDialog_PreviewKeyDown;
         _hotkeyService.HotkeyTriggered -= HotkeyService_HotkeyTriggered;

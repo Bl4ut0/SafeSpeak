@@ -1,4 +1,4 @@
-﻿<Window x:Class="SafeSpeak.App.Views.SetupUpdatePromptDialog"
+<Window x:Class="SafeSpeak.App.Views.SetupUpdatePromptDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="SafeSpeak &#x2014; Settings &amp; Setup Update"
@@ -56,12 +56,12 @@
                                FontWeight="SemiBold"
                                FontSize="{DynamicResource SafeSpeakFont13}"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="&#x2022; Streaming Platforms: Direct TikTok LIVE integration and upcoming platform roadmap."
+                    <TextBlock Text="&#x2022; Streaming Platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings."
                                Style="{StaticResource SecondaryText}"
                                FontSize="{DynamicResource SafeSpeakFont12}"
                                TextWrapping="Wrap"
                                Margin="0,2" />
-                    <TextBlock Text="&#x2022; Interface &amp; Navigation: Zero-scroll step guide with visual architecture reference."
+                    <TextBlock Text="&#x2022; Navigation &amp; Speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings."
                                Style="{StaticResource SecondaryText}"
                                FontSize="{DynamicResource SafeSpeakFont12}"
                                TextWrapping="Wrap"
