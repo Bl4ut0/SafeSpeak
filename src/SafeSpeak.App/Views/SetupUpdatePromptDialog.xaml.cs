@@ -33,14 +33,20 @@ public partial class SetupUpdatePromptDialog : Window
         Closing += SetupUpdatePromptDialog_Closing;
     }
 
+    public const string FullUpdateAnnouncement =
+        "SafeSpeak settings and setup update. New settings and connectors are available. " +
+        "What's new in this version: " +
+        "Streaming platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings. " +
+        "Navigation and speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings. " +
+        "Safe and non-destructive: Your existing tokens, models, and custom words are preserved. " +
+        "Press Y to review the setup guide, press N to keep current settings and continue into SafeSpeak, or press R to repeat this announcement.";
+
     private void SetupUpdatePromptDialog_Loaded(object sender, RoutedEventArgs e)
     {
         YesButton.Focus();
         Keyboard.Focus(YesButton);
 
-        _announcer?.Announce(
-            "SafeSpeak settings update. SafeSpeak has updated with new setup options and features. Press Y to review the setup guide, or press N to keep current settings and continue.",
-            interrupt: true);
+        _announcer?.Announce(FullUpdateAnnouncement, interrupt: true);
     }
 
     private void SetupUpdatePromptDialog_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -65,6 +71,11 @@ public partial class SetupUpdatePromptDialog : Window
         else if (e.Key is Key.N or Key.Escape)
         {
             DeclineUpdate();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.R)
+        {
+            _announcer?.Announce(FullUpdateAnnouncement, interrupt: true);
             e.Handled = true;
         }
         else if (e.Key is Key.Enter or Key.Return)
@@ -95,6 +106,7 @@ public partial class SetupUpdatePromptDialog : Window
     {
         if (_handled) return;
         _handled = true;
+        try { _announcer?.StopSpeaking(); } catch { }
         _settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
         _settings.TrySave(out _);
         if (_onAccepted is not null)
@@ -112,6 +124,7 @@ public partial class SetupUpdatePromptDialog : Window
     {
         if (_handled) return;
         _handled = true;
+        try { _announcer?.StopSpeaking(); } catch { }
         _settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
         _settings.TrySave(out _);
         if (_onDeclined is not null)

@@ -288,9 +288,12 @@ public sealed class OnboardingWorkflowContractTests
         Assert.Contains("(Y)", yesButton.Attribute("Content")!.Value);
         Assert.Contains("(N)", declineButton.Attribute("Content")!.Value);
 
-        // Codebehind handles keyboard Y, N, Enter, Escape, and saves LastAcknowledgedSetupVersion
+        // Codebehind handles keyboard Y, N, Enter, Escape, R to repeat, and saves LastAcknowledgedSetupVersion
         Assert.Contains("e.Key == Key.Y", dialogCode);
         Assert.Contains("e.Key is Key.N or Key.Escape", dialogCode);
+        Assert.Contains("e.Key == Key.R", dialogCode);
+        Assert.Contains("FullUpdateAnnouncement", dialogCode);
+        Assert.Contains("TikTok Direct username is now displayed and announced", dialogCode);
         Assert.Contains("_settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;", dialogCode);
         Assert.Contains("_settings.TrySave(out _);", dialogCode);
     }
