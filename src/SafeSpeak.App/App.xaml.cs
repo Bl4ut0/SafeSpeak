@@ -73,6 +73,7 @@ public partial class App : Application
                         AppLogger.LogInformation("App", "AccessibilitySetupDialog completed. Showing MainWindow...");
                         var mainWindow = new MainWindow();
                         MainWindow = mainWindow;
+                        ShutdownMode = ShutdownMode.OnMainWindowClose;
                         mainWindow.Show();
                         wizard?.Close();
                     });
@@ -111,6 +112,7 @@ public partial class App : Application
                                 AppLogger.LogInformation("App", "AccessibilitySetupDialog completed. Showing MainWindow...");
                                 var mainWindow = new MainWindow();
                                 MainWindow = mainWindow;
+                                ShutdownMode = ShutdownMode.OnMainWindowClose;
                                 mainWindow.Show();
                                 wizard?.Close();
                             },
@@ -127,6 +129,7 @@ public partial class App : Application
                         AppLogger.LogInformation("App", "User declined setup update. Initializing MainWindow...");
                         var mainWindow = new MainWindow();
                         MainWindow = mainWindow;
+                        ShutdownMode = ShutdownMode.OnMainWindowClose;
                         mainWindow.Show();
                         promptDialog?.Close();
                     });
@@ -140,6 +143,7 @@ public partial class App : Application
                 AppLogger.LogInformation("App", "Initializing MainWindow...");
                 var mainWindow = new MainWindow();
                 MainWindow = mainWindow;
+                ShutdownMode = ShutdownMode.OnMainWindowClose;
                 AppLogger.LogInformation("App", "Calling mainWindow.Show()...");
                 mainWindow.Show();
                 AppLogger.LogInformation("App", "mainWindow.Show() succeeded.");
@@ -157,6 +161,11 @@ public partial class App : Application
     {
         AppLogger.LogInformation("App", $"SafeSpeak application exiting with code {e.ApplicationExitCode}.");
         base.OnExit(e);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1000).ConfigureAwait(false);
+            try { Environment.Exit(e.ApplicationExitCode); } catch { }
+        });
     }
 
     private static void LogException(string source, Exception? ex)

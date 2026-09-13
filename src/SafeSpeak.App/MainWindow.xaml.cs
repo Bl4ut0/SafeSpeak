@@ -54,6 +54,23 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", "MainWindow Closed event triggered.");
+            try
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    TryShutdownStep(vm.StopAllSpeechForShutdown);
+                }
+                Application.Current?.Shutdown(0);
+            }
+            catch { }
+
+            // Failsafe watchdog timer: ensure the OS process terminates cleanly within 1.5s
+            // even if unmanaged COM SAPI, WASAPI sound drivers, or background threads linger.
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(1500).ConfigureAwait(false);
+                try { Environment.Exit(0); } catch { }
+            });
         };
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         PreviewMouseWheel += MainWindow_PreviewMouseWheel;
@@ -1507,6 +1524,9 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // Enforce that main window closure cannot be overridden or cancelled by any component
+        e.Cancel = false;
+
         if (_shutdownCleanupStarted)
         {
             return;
@@ -1522,12 +1542,26 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.GlobalShortcutsChanged -= ViewModel_GlobalShortcutsChanged;
+                // Immediately silence all speech narration and queues so audio playback does not hold the process open
+                TryShutdownStep(vm.StopAllSpeechForShutdown);
                 TryShutdownStep(vm.FlushAllSettingsToDisk);
                 // Backend cancellation, native TTS teardown, connector disposal,
                 // and disk flushing must never hold the WPF window open. Settings
                 // are already persisted as they change, so cleanup is best-effort.
                 _ = ObserveCleanupFailureAsync(
                     Task.Run(async () => await vm.DisposeAsync().ConfigureAwait(false)));
+            }
+
+            // Close any owned or lingering child dialogs so no other window keeps the WPF message loop alive
+            if (Application.Current is { } app)
+            {
+                foreach (Window window in app.Windows)
+                {
+                    if (window != this)
+                    {
+                        TryShutdownStep(window.Close);
+                    }
+                }
             }
         }
         catch

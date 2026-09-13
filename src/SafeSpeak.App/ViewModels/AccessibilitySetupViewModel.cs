@@ -1616,9 +1616,15 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         _lifetimeCancellation.Dispose();
         _qwenInstallCts?.Cancel();
         _qwenInstallCts?.Dispose();
-        _previewOutput.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        _previewAudioRouter.Dispose();
-        _ttsEngine.Dispose();
+
+        try { _previewOutput.Stop(); } catch { }
+        try { _previewAudioRouter.Stop(); } catch { }
+        _ = Task.Run(async () =>
+        {
+            try { await _previewOutput.DisposeAsync().ConfigureAwait(false); } catch { }
+            try { _previewAudioRouter.Dispose(); } catch { }
+            try { _ttsEngine.Dispose(); } catch { }
+        });
         if (!_completed)
         {
             if (_settingsRerunSnapshot is { } snapshot)

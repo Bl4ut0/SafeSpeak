@@ -3201,6 +3201,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         return setting + (enabled ? "Enabled" : "Disabled");
     }
 
+    public void StopAllSpeechForShutdown()
+    {
+        TryShutdownStep(_announcer.StopSpeaking);
+        TryShutdownStep(_voicePreviewOutput.Stop);
+        TryShutdownStep(_ttsQueue.EmergencyStop);
+        TryShutdownStep(_alertQueue.EmergencyStop);
+    }
+
     public ValueTask DisposeAsync()
     {
         lock (_disposeLock)
@@ -3212,6 +3220,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private Task BeginDispose()
     {
+        StopAllSpeechForShutdown();
+        TryShutdownStep(_announcer.Dispose);
         _incomingEvents.Writer.TryComplete();
         _incomingEventCts.Cancel();
         foreach (LiveConnectorViewModel connector in _connectorSessions)
