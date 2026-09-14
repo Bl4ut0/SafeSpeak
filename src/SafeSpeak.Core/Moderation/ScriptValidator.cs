@@ -28,6 +28,117 @@ public static class ScriptValidator
         '!', '?', '(', ')', '[', ']', '{', '}', '"', '\''
     ];
 
+    private static readonly (int Min, int Max, ScriptType Type)[] ScriptRanges =
+    [
+        // 1. Basic ASCII controls and whitespace
+        (0x0000, 0x0020, ScriptType.Common),
+        (0x007F, 0x007F, ScriptType.Common),
+
+        // 2. Basic Latin Alphabet (English A-Z, a-z)
+        (0x0041, 0x005A, ScriptType.Latin),
+        (0x0061, 0x007A, ScriptType.Latin),
+
+        // 3. ASCII Numbers and Standard ASCII Punctuation/Symbols
+        (0x0021, 0x0040, ScriptType.Common),
+        (0x005B, 0x0060, ScriptType.Common),
+        (0x007B, 0x007E, ScriptType.Common),
+
+        // 4. Extended Latin (Latin-1 Supplement, Latin Extended A/B/C/D/E, IPA, Latin Additional)
+        (0x00C0, 0x02AF, ScriptType.Latin),
+        (0x1E00, 0x1EFF, ScriptType.Latin),
+        (0x2C60, 0x2C7F, ScriptType.Latin),
+        (0xA720, 0xA7FF, ScriptType.Latin),
+        (0xAB30, 0xAB6F, ScriptType.Latin),
+
+        // 5. Latin-1 common punctuation and symbols
+        (0x00A0, 0x00BF, ScriptType.Common),
+
+        // 6. CJK (Chinese, Japanese, Korean)
+        (0x3000, 0x9FFF, ScriptType.Cjk),
+        (0xAC00, 0xD7AF, ScriptType.Cjk),
+        (0x1100, 0x11FF, ScriptType.Cjk),
+        (0x2E80, 0x2FFF, ScriptType.Cjk),
+        (0xA960, 0xA97F, ScriptType.Cjk),
+        (0xD7B0, 0xD7FF, ScriptType.Cjk),
+        (0xF900, 0xFAFF, ScriptType.Cjk),
+        (0xFE30, 0xFE4F, ScriptType.Cjk),
+        (0xFF00, 0xFFEF, ScriptType.Cjk),
+        (0x1F200, 0x1F2FF, ScriptType.Cjk),
+        (0x20000, 0x323AF, ScriptType.Cjk),
+
+        // 7. Cyrillic
+        (0x0400, 0x052F, ScriptType.Cyrillic),
+        (0x2DE0, 0x2DFF, ScriptType.Cyrillic),
+        (0xA640, 0xA69F, ScriptType.Cyrillic),
+        (0x1C80, 0x1C8F, ScriptType.Cyrillic),
+
+        // 8. Greek
+        (0x0370, 0x03FF, ScriptType.Greek),
+        (0x1F00, 0x1FFF, ScriptType.Greek),
+
+        // 9. Arabic
+        (0x0600, 0x06FF, ScriptType.Arabic),
+        (0x0750, 0x077F, ScriptType.Arabic),
+        (0x08A0, 0x08FF, ScriptType.Arabic),
+        (0xFB50, 0xFDFF, ScriptType.Arabic),
+        (0xFE70, 0xFEFF, ScriptType.Arabic),
+        (0x10E60, 0x10E7F, ScriptType.Arabic),
+
+        // 10. Hebrew
+        (0x0590, 0x05FF, ScriptType.Hebrew),
+        (0xFB1D, 0xFB4F, ScriptType.Hebrew),
+
+        // 11. Devanagari
+        (0x0900, 0x097F, ScriptType.Devanagari),
+        (0xA8E0, 0xA8FF, ScriptType.Devanagari),
+
+        // 12. Other Non-Latin Scripts
+        (0x0980, 0x0DFF, ScriptType.OtherNonLatin),
+        (0x0E00, 0x0E7F, ScriptType.OtherNonLatin),
+        (0x0E80, 0x0EFF, ScriptType.OtherNonLatin),
+        (0x0F00, 0x0FFF, ScriptType.OtherNonLatin),
+        (0x1000, 0x109F, ScriptType.OtherNonLatin),
+        (0xA9E0, 0xA9FF, ScriptType.OtherNonLatin),
+        (0x10A0, 0x10FF, ScriptType.OtherNonLatin),
+        (0x2D00, 0x2D2F, ScriptType.OtherNonLatin),
+        (0x0530, 0x058F, ScriptType.OtherNonLatin),
+        (0x1200, 0x139F, ScriptType.OtherNonLatin),
+        (0x2D80, 0x2DDF, ScriptType.OtherNonLatin),
+        (0xAB00, 0xAB2F, ScriptType.OtherNonLatin),
+        (0x13A0, 0x13FF, ScriptType.OtherNonLatin),
+        (0xAB70, 0xABBF, ScriptType.OtherNonLatin),
+        (0x1400, 0x167F, ScriptType.OtherNonLatin),
+        (0x1680, 0x16FF, ScriptType.OtherNonLatin),
+        (0x1700, 0x177F, ScriptType.OtherNonLatin),
+        (0x1780, 0x17FF, ScriptType.OtherNonLatin),
+        (0x19E0, 0x19FF, ScriptType.OtherNonLatin),
+        (0x1800, 0x18AF, ScriptType.OtherNonLatin),
+        (0x0700, 0x074F, ScriptType.OtherNonLatin),
+        (0x0780, 0x07BF, ScriptType.OtherNonLatin),
+        (0x07C0, 0x07FF, ScriptType.OtherNonLatin),
+
+        // 13. Currency
+        (0x20A0, 0x20CF, ScriptType.Common),
+
+        // 14. Emojis and Pictographic Symbols
+        (0x2190, 0x21FF, ScriptType.EmojiOrSymbol),
+        (0x2200, 0x22FF, ScriptType.EmojiOrSymbol),
+        (0x2300, 0x23FF, ScriptType.EmojiOrSymbol),
+        (0x25A0, 0x25FF, ScriptType.EmojiOrSymbol),
+        (0x2600, 0x27BF, ScriptType.EmojiOrSymbol),
+        (0x2900, 0x2BFF, ScriptType.EmojiOrSymbol),
+        (0xFE00, 0xFE0F, ScriptType.EmojiOrSymbol),
+        (0x1F000, 0x1F02F, ScriptType.EmojiOrSymbol),
+        (0x1F0A0, 0x1F0FF, ScriptType.EmojiOrSymbol),
+        (0x1F1E6, 0x1F1FF, ScriptType.EmojiOrSymbol),
+        (0x1F300, 0x1F5FF, ScriptType.EmojiOrSymbol),
+        (0x1F600, 0x1F64F, ScriptType.EmojiOrSymbol),
+        (0x1F680, 0x1F6FF, ScriptType.EmojiOrSymbol),
+        (0x1F900, 0x1F9FF, ScriptType.EmojiOrSymbol),
+        (0x1FA70, 0x1FAFF, ScriptType.EmojiOrSymbol),
+        (0xE0100, 0xE01EF, ScriptType.EmojiOrSymbol),
+    ];
+
     public static ScriptType GetScriptType(char c) => GetScriptType((int)c);
 
     public static ScriptType GetScriptType(int codePoint)
@@ -35,129 +146,6 @@ public static class ScriptValidator
         if (codePoint is < 0 or > 0x10FFFF || codePoint is >= 0xD800 and <= 0xDFFF)
         {
             return ScriptType.Unknown;
-        }
-
-        // 1. Basic ASCII controls and whitespace
-        if (codePoint is >= 0x0000 and <= 0x0020 or 0x007F)
-        {
-            return ScriptType.Common;
-        }
-
-        // 2. Basic Latin Alphabet (English A-Z, a-z)
-        if (codePoint is >= 0x0041 and <= 0x005A or >= 0x0061 and <= 0x007A)
-        {
-            return ScriptType.Latin;
-        }
-
-        // 3. ASCII Numbers and Standard ASCII Punctuation/Symbols
-        if (codePoint is >= 0x0021 and <= 0x0040 or >= 0x005B and <= 0x0060 or >= 0x007B and <= 0x007E)
-        {
-            return ScriptType.Common;
-        }
-
-        // 4. Extended Latin (Latin-1 Supplement, Latin Extended A/B/C/D/E, IPA, Latin Additional)
-        if (codePoint is >= 0x00C0 and <= 0x02AF or
-            >= 0x1E00 and <= 0x1EFF or
-            >= 0x2C60 and <= 0x2C7F or
-            >= 0xA720 and <= 0xA7FF or
-            >= 0xAB30 and <= 0xAB6F)
-        {
-            return ScriptType.Latin;
-        }
-
-        // 5. Latin-1 common punctuation and symbols (e.g. ¡, ¿, «, », ©, ®, °, ±, £, ¥, §, etc.)
-        if (codePoint is >= 0x00A0 and <= 0x00BF)
-        {
-            return ScriptType.Common;
-        }
-
-        // 6. CJK (Chinese, Japanese, Korean)
-        // Including CJK Symbols & Punctuation (0x3000-0x303F), Hiragana (0x3040-0x309F),
-        // Katakana (0x30A0-0x30FF), Bopomofo (0x3100-0x312F), Hangul Compatibility (0x3130-0x318F),
-        // Kanbun (0x3190-0x319F), Bopomofo Ext (0x31A0-0x31BF), CJK Strokes (0x31C0-0x31EF),
-        // Katakana Phonetic (0x31F0-0x31FF), Enclosed CJK (0x3200-0x32FF),
-        // CJK Compatibility / Squared Words (0x3300-0x33FF) -> includes ㌕ (0x3315) and ㌖ (0x3316),
-        // CJK Ext A (0x3400-0x4DBF), CJK Unified Ideographs (0x4E00-0x9FFF),
-        // Hangul Syllables (0xAC00-0xD7AF), CJK Compatibility Ideographs/Forms (0xF900-0xFAFF, 0xFE30-0xFE4F),
-        // Halfwidth Katakana (0xFF65-0xFF9F), Fullwidth CJK / Ideographic (0xFF01-0xFFEE),
-        // Hangul Jamo (0x1100-0x11FF, 0xA960-0xA97F, 0xD7B0-0xD7FF), CJK Radicals (0x2E80-0x2FFF),
-        // Enclosed Ideographic Supplement (0x1F200-0x1F2FF), CJK Ext B..I (0x20000-0x323AF)
-        if (codePoint is >= 0x3000 and <= 0x9FFF or
-            >= 0xAC00 and <= 0xD7AF or
-            >= 0x1100 and <= 0x11FF or
-            >= 0x2E80 and <= 0x2FFF or
-            >= 0xA960 and <= 0xA97F or
-            >= 0xD7B0 and <= 0xD7FF or
-            >= 0xF900 and <= 0xFAFF or
-            >= 0xFE30 and <= 0xFE4F or
-            >= 0xFF00 and <= 0xFFEF or
-            >= 0x1F200 and <= 0x1F2FF or
-            >= 0x20000 and <= 0x323AF)
-        {
-            return ScriptType.Cjk;
-        }
-
-        // 7. Cyrillic
-        if (codePoint is >= 0x0400 and <= 0x052F or
-            >= 0x2DE0 and <= 0x2DFF or
-            >= 0xA640 and <= 0xA69F or
-            >= 0x1C80 and <= 0x1C8F)
-        {
-            return ScriptType.Cyrillic;
-        }
-
-        // 8. Greek
-        if (codePoint is >= 0x0370 and <= 0x03FF or
-            >= 0x1F00 and <= 0x1FFF)
-        {
-            return ScriptType.Greek;
-        }
-
-        // 9. Arabic
-        if (codePoint is >= 0x0600 and <= 0x06FF or
-            >= 0x0750 and <= 0x077F or
-            >= 0x08A0 and <= 0x08FF or
-            >= 0xFB50 and <= 0xFDFF or
-            >= 0xFE70 and <= 0xFEFF or
-            >= 0x10E60 and <= 0x10E7F)
-        {
-            return ScriptType.Arabic;
-        }
-
-        // 10. Hebrew
-        if (codePoint is >= 0x0590 and <= 0x05FF or
-            >= 0xFB1D and <= 0xFB4F)
-        {
-            return ScriptType.Hebrew;
-        }
-
-        // 11. Devanagari
-        if (codePoint is >= 0x0900 and <= 0x097F or
-            >= 0xA8E0 and <= 0xA8FF)
-        {
-            return ScriptType.Devanagari;
-        }
-
-        // 12. Other Non-Latin Scripts (Indic, Southeast Asian, African, Middle Eastern, etc.)
-        if (codePoint is >= 0x0980 and <= 0x0DFF or // Bengali, Gurmukhi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Sinhala
-            >= 0x0E00 and <= 0x0E7F or // Thai
-            >= 0x0E80 and <= 0x0EFF or // Lao
-            >= 0x0F00 and <= 0x0FFF or // Tibetan
-            >= 0x1000 and <= 0x109F or >= 0xA9E0 and <= 0xA9FF or // Myanmar
-            >= 0x10A0 and <= 0x10FF or >= 0x2D00 and <= 0x2D2F or // Georgian
-            >= 0x0530 and <= 0x058F or // Armenian
-            >= 0x1200 and <= 0x139F or >= 0x2D80 and <= 0x2DDF or >= 0xAB00 and <= 0xAB2F or // Ethiopic
-            >= 0x13A0 and <= 0x13FF or >= 0xAB70 and <= 0xABBF or // Cherokee
-            >= 0x1400 and <= 0x167F or // Canadian Aboriginal
-            >= 0x1680 and <= 0x16FF or // Ogham / Runic
-            >= 0x1700 and <= 0x177F or // Philippine scripts
-            >= 0x1780 and <= 0x17FF or >= 0x19E0 and <= 0x19FF or // Khmer
-            >= 0x1800 and <= 0x18AF or // Mongolian
-            >= 0x0700 and <= 0x074F or // Syriac
-            >= 0x0780 and <= 0x07BF or // Thaana
-            >= 0x07C0 and <= 0x07FF)   // NKo
-        {
-            return ScriptType.OtherNonLatin;
         }
 
         // U+200D is the one formatting character allowed because it joins emoji
@@ -178,30 +166,12 @@ public static class ScriptValidator
                 : ScriptType.Common;
         }
 
-        if (codePoint is >= 0x20A0 and <= 0x20CF)
+        foreach (var range in ScriptRanges)
         {
-            return ScriptType.Common;
-        }
-
-        // 14. Emojis and Pictographic Symbols:
-        if (codePoint is >= 0x2190 and <= 0x21FF or // Arrows
-            >= 0x2200 and <= 0x22FF or // Mathematical Operators
-            >= 0x2300 and <= 0x23FF or // Miscellaneous Technical
-            >= 0x25A0 and <= 0x25FF or // Geometric Shapes
-            >= 0x2600 and <= 0x27BF or // Misc Symbols & Dingbats
-            >= 0x2900 and <= 0x2BFF or // Supplemental Arrows & Misc Symbols
-            >= 0xFE00 and <= 0xFE0F or // Variation Selectors
-            >= 0x1F000 and <= 0x1F02F or // Mahjong
-            >= 0x1F0A0 and <= 0x1F0FF or // Playing Cards
-            >= 0x1F1E6 and <= 0x1F1FF or // Regional Indicator Symbols (Flags)
-            >= 0x1F300 and <= 0x1F5FF or // Misc Symbols and Pictographs
-            >= 0x1F600 and <= 0x1F64F or // Emoticons
-            >= 0x1F680 and <= 0x1F6FF or // Transport and Map
-            >= 0x1F900 and <= 0x1F9FF or // Supplemental Symbols and Pictographs
-            >= 0x1FA70 and <= 0x1FAFF or // Symbols and Pictographs Extended-A
-            >= 0xE0100 and <= 0xE01EF)   // Variation Selectors Supplement
-        {
-            return ScriptType.EmojiOrSymbol;
+            if (codePoint >= range.Min && codePoint <= range.Max)
+            {
+                return range.Type;
+            }
         }
 
         // 15. Standard Unicode categories as fallback
