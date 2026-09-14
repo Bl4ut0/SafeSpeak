@@ -603,7 +603,7 @@ public sealed class MainShellAccessibilityContractTests
             main,
             StringComparison.Ordinal);
         Assert.Contains(
-            "IncludePlatformInSpeech\n                        ? SpokenAttributionStyle.SaysOnPlatform\n                        : SpokenAttributionStyle.Says",
+            "IncludePlatformInSpeech\n                ? SpokenAttributionStyle.SaysOnPlatform\n                : SpokenAttributionStyle.Says",
             main.Replace("\r\n", "\n", StringComparison.Ordinal),
             StringComparison.Ordinal);
         Assert.Contains(
