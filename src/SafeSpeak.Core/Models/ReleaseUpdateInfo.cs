@@ -12,15 +12,15 @@ public static class ReleaseUpdateInfo
     /// Monotonically increasing setup guide version. When incremented, existing
     /// users are automatically prompted on application launch to review what's new.
     /// </summary>
-    public const int CurrentGuideVersion = 2;
+    public const int CurrentGuideVersion = 3;
 
     /// <summary>
     /// Granular bullet points of user-facing changes and improvements in the current release.
     /// </summary>
     public static readonly IReadOnlyList<string> CurrentHighlights = new[]
     {
-        "Streaming Platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings.",
-        "Navigation and Speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings.",
+        "Opening Page & Speech: Automatically announces all release changes when the setup update dialog opens on startup.",
+        "Quick Controls: Press R to repeat the update announcement anytime, or press Y or N to immediately proceed and silence the narrator.",
         "Safe and Non-Destructive: Your existing tokens, models, and custom words are preserved."
     };
 
