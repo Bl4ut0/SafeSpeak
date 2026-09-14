@@ -103,6 +103,8 @@ public sealed class AppSettings
     public bool RejectMixedScripts { get; set; } = true;
     public bool StripUrls { get; set; } = true;
     public bool AllowDonorsToSpeak { get; set; } = true;
+    public int MaxRepeatedEmojis { get; set; } = 1;
+    public int MaxEmojisPerMessage { get; set; } = 3;
     public bool IgnoreChatReplies { get; set; } = true;
     public bool SpeakUsernames { get; set; } = true;
     public bool AiClassificationEnabled { get; set; } = true;
@@ -274,6 +276,16 @@ public sealed class AppSettings
         if (!Enum.IsDefined(Strictness))
         {
             Strictness = ModerationStrictness.High;
+        }
+
+        if (MaxRepeatedEmojis < 1)
+        {
+            MaxRepeatedEmojis = 1;
+        }
+
+        if (MaxEmojisPerMessage < 0)
+        {
+            MaxEmojisPerMessage = 3;
         }
 
         if (!double.IsFinite(AiToxicityThreshold))
@@ -697,6 +709,8 @@ public sealed class AppSettings
         RejectMixedScripts = RejectMixedScripts,
         StripUrls = StripUrls,
         AllowDonorsToSpeak = AllowDonorsToSpeak,
+        MaxRepeatedEmojis = Math.Clamp(MaxRepeatedEmojis, 1, 10),
+        MaxEmojisPerMessage = Math.Clamp(MaxEmojisPerMessage, 0, 50),
         IgnoreChatReplies = IgnoreChatReplies,
         StreamerUsername = TikTokUsername,
         SpeakUsernames = true,
@@ -721,6 +735,8 @@ public sealed class AppSettings
         RejectMixedScripts = config.RejectMixedScripts;
         StripUrls = config.StripUrls;
         AllowDonorsToSpeak = config.AllowDonorsToSpeak;
+        MaxRepeatedEmojis = Math.Clamp(config.MaxRepeatedEmojis, 1, 10);
+        MaxEmojisPerMessage = Math.Clamp(config.MaxEmojisPerMessage, 0, 50);
         IgnoreChatReplies = config.IgnoreChatReplies;
         SpeakUsernames = true;
         AiClassificationEnabled = true;

@@ -154,10 +154,126 @@ public static partial class UnicodeNormalizer
     }
 
     /// <summary>
-    /// Cleans text for safe, intelligible TTS playback.
-    /// Preserves original wording but removes invisible spam, URLs, and excessive whitespace.
+    /// Checks if a grapheme cluster (text element) represents an emoji, pictogram, or symbol.
     /// </summary>
-    public static string CleanForSpeech(string input, bool stripUrls = true)
+    public static bool IsEmoji(string textElement)
+    {
+        if (string.IsNullOrEmpty(textElement)) return false;
+
+        // Fast check for common ASCII non-emojis
+        if (textElement.Length == 1 && textElement[0] < 0x2000)
+        {
+            return false;
+        }
+
+        foreach (Rune rune in textElement.EnumerateRunes())
+        {
+            int cp = rune.Value;
+            if (cp is (>= 0x1F300 and <= 0x1F5FF) or // Misc Symbols and Pictographs
+                      (>= 0x1F600 and <= 0x1F64F) or // Emoticons
+                      (>= 0x1F680 and <= 0x1F6FF) or // Transport and Map
+                      (>= 0x1F900 and <= 0x1F9FF) or // Supplemental Symbols and Pictographs
+                      (>= 0x1FA70 and <= 0x1FAFF) or // Symbols and Pictographs Extended-A
+                      (>= 0x1F1E6 and <= 0x1F1FF) or // Regional Indicator Symbols (Flags)
+                      (>= 0x2600 and <= 0x27BF) or   // Misc Symbols & Dingbats (❤️, ☀️, etc.)
+                      (>= 0x2300 and <= 0x23FF) or   // Miscellaneous Technical (⌚, ⌛, etc.)
+                      (>= 0x2B00 and <= 0x2BFF) or   // Miscellaneous Symbols and Arrows (⭐)
+                      (>= 0x1F000 and <= 0x1F0FF) or // Mahjong, Cards, Alphanumerics
+                      0x20E3)                         // Combining Enclosing Keycap (e.g. 1️⃣)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Collapses consecutive repeated emojis down to maxRepeated and limits total emojis per message to maxTotal.
+    /// Prevents repeated emoji spam (e.g. 😂😂😂😂😂 or 🔥 🔥 🔥) from causing TTS to read each emoji aloud.
+    /// </summary>
+    public static string CollapseRepeatedEmojis(
+        string input,
+        int maxRepeated = 1,
+        int maxTotal = 3)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return input ?? string.Empty;
+        if (maxRepeated < 1) maxRepeated = 1;
+
+        var result = new StringBuilder(input.Length);
+        string? lastEmoji = null;
+        int consecutiveEmojiCount = 0;
+        int totalEmojiCount = 0;
+        bool spacePending = false;
+
+        var enumerator = StringInfo.GetTextElementEnumerator(input);
+        while (enumerator.MoveNext())
+        {
+            string element = enumerator.GetTextElement();
+
+            if (string.IsNullOrWhiteSpace(element))
+            {
+                if (result.Length > 0)
+                {
+                    spacePending = true;
+                }
+                continue;
+            }
+
+            if (IsEmoji(element))
+            {
+                if (string.Equals(lastEmoji, element, StringComparison.Ordinal))
+                {
+                    consecutiveEmojiCount++;
+                }
+                else
+                {
+                    lastEmoji = element;
+                    consecutiveEmojiCount = 1;
+                }
+
+                if (consecutiveEmojiCount <= maxRepeated &&
+                    (maxTotal < 0 || totalEmojiCount < maxTotal))
+                {
+                    if (spacePending && result.Length > 0 && result[^1] != ' ')
+                    {
+                        result.Append(' ');
+                    }
+
+                    result.Append(element);
+                    totalEmojiCount++;
+                    spacePending = false;
+                }
+            }
+            else
+            {
+                // Non-emoji text resets consecutive emoji repeat tracking
+                lastEmoji = null;
+                consecutiveEmojiCount = 0;
+
+                if (spacePending && result.Length > 0 && result[^1] != ' ')
+                {
+                    result.Append(' ');
+                }
+
+                result.Append(element);
+                spacePending = false;
+            }
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Cleans text for safe, intelligible TTS playback.
+    /// Preserves original wording but removes invisible spam, URLs, and excessive whitespace,
+    /// and collapses repeated emoji spam so TTS does not read out every emoji repeatedly.
+    /// </summary>
+    public static string CleanForSpeech(
+        string input,
+        bool stripUrls = true,
+        int maxRepeatedEmojis = 1,
+        int maxTotalEmojis = 3)
     {
         if (string.IsNullOrWhiteSpace(input)) return string.Empty;
 
@@ -166,6 +282,9 @@ public static partial class UnicodeNormalizer
         {
             text = StripUrls(text);
         }
+
+        // Limit repeated emojis and total emojis per message
+        text = CollapseRepeatedEmojis(text, maxRepeatedEmojis, maxTotalEmojis);
 
         // Limit consecutive repeated characters to 2 so TTS doesn't stutter or crash
         text = CollapseRepeats(text);

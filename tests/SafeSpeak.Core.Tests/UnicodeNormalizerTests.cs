@@ -75,4 +75,79 @@ public class UnicodeNormalizerTests
     {
         Assert.Equal(expected, UnicodeNormalizer.CleanDisplayNameForSpeech(input));
     }
+
+    [Theory]
+    [InlineData("😂", true)]
+    [InlineData("🔥", true)]
+    [InlineData("❤️", true)]
+    [InlineData("👍🏽", true)]
+    [InlineData("👨‍👩‍👧‍👦", true)]
+    [InlineData("1️⃣", true)]
+    [InlineData("🇺🇸", true)]
+    [InlineData("hello", false)]
+    [InlineData("123", false)]
+    [InlineData("!", false)]
+    public void IsEmoji_CorrectlyClassifiesGraphemeElements(string element, bool expected)
+    {
+        Assert.Equal(expected, UnicodeNormalizer.IsEmoji(element));
+    }
+
+    [Fact]
+    public void CollapseRepeatedEmojis_CollapsesSpammedRepeatedEmojisToOne()
+    {
+        string input = "W play! 😂😂😂😂😂 that was insane 🔥🔥🔥";
+        string result = UnicodeNormalizer.CollapseRepeatedEmojis(input, maxRepeated: 1, maxTotal: 3);
+
+        Assert.Equal("W play! 😂 that was insane 🔥", result);
+    }
+
+    [Fact]
+    public void CollapseRepeatedEmojis_CollapsesSpacedRepeatedEmojis()
+    {
+        string input = "🔥 🔥 🔥 🔥 LET'S GO";
+        string result = UnicodeNormalizer.CollapseRepeatedEmojis(input, maxRepeated: 1, maxTotal: 3);
+
+        Assert.Equal("🔥 LET'S GO", result);
+    }
+
+    [Fact]
+    public void CollapseRepeatedEmojis_SupportsMaxRepeatedTwo()
+    {
+        string input = "😂😂😂😂";
+        string result = UnicodeNormalizer.CollapseRepeatedEmojis(input, maxRepeated: 2, maxTotal: 5);
+
+        Assert.Equal("😂😂", result);
+    }
+
+    [Fact]
+    public void CollapseRepeatedEmojis_CapsTotalEmojisPerMessage()
+    {
+        // 6 different emojis, capped at 3
+        string input = "🎉 🎈 🎂 🎁 🥳 🎊";
+        string result = UnicodeNormalizer.CollapseRepeatedEmojis(input, maxRepeated: 1, maxTotal: 3);
+
+        Assert.Equal("🎉 🎈 🎂", result);
+    }
+
+    [Fact]
+    public void CollapseRepeatedEmojis_ZeroTotalOmitsAllEmojis()
+    {
+        string input = "great stream 😂 thanks 🔥 for hosting";
+        string result = UnicodeNormalizer.CollapseRepeatedEmojis(input, maxRepeated: 1, maxTotal: 0);
+
+        Assert.Equal("great stream thanks for hosting", result);
+    }
+
+    [Fact]
+    public void CleanForSpeech_CollapsesEmojiSpamAndCleansWhitespace()
+    {
+        string input = "Check this https://safe.link 😂😂😂😂😂 🔥🔥🔥🔥🔥 awesome!";
+        string result = UnicodeNormalizer.CleanForSpeech(input, stripUrls: true, maxRepeatedEmojis: 1, maxTotalEmojis: 2);
+
+        Assert.Contains("[link removed]", result);
+        Assert.Contains("😂", result);
+        Assert.Contains("🔥", result);
+        Assert.DoesNotContain("😂😂", result);
+        Assert.DoesNotContain("🔥🔥", result);
+    }
 }

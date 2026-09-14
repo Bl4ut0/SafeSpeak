@@ -344,7 +344,11 @@ public sealed partial class ModerationPipeline : IDisposable
         }
 
         // 10. Prepare Cleaned Spoken Output
-        string speechCleaned = UnicodeNormalizer.CleanForSpeech(textForInspection, Config.StripUrls);
+        string speechCleaned = UnicodeNormalizer.CleanForSpeech(
+            textForInspection,
+            Config.StripUrls,
+            Config.MaxRepeatedEmojis,
+            Config.MaxEmojisPerMessage);
 
         string safeDisplayName = await GetSafeDisplayNameAsync(
             message.AuthorDisplayName,

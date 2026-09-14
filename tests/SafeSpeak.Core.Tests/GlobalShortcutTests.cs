@@ -53,7 +53,7 @@ public sealed class GlobalShortcutTests
         AssertDefault(HotkeyAction.StopBuiltInGuidance, "Control");
         AssertDefault(HotkeyAction.AnnounceStatus, "Control+Alt+S");
         AssertDefault(HotkeyAction.EmergencyStop, "Control+Alt+P");
-        AssertDefault(HotkeyAction.ToggleArm, "Control+Alt+A");
+        AssertDefault(HotkeyAction.ToggleArm, "Control+Alt+Space");
         AssertDefault(HotkeyAction.StopCurrentSpeech, "Control+Alt+K");
         Assert.Equal(
             Enum.GetValues<HotkeyAction>().Length,

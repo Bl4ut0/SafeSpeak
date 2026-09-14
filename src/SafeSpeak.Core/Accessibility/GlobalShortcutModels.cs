@@ -240,7 +240,7 @@ public static class GlobalShortcutCatalog
     [
         new(HotkeyAction.StopBuiltInGuidance, "Stop built-in spoken guidance", "Immediately silences only SafeSpeak's built-in guidance voice. It does not stop livestream text to speech.", "Control", true),
         new(HotkeyAction.AnnounceStatus, "Hear SafeSpeak status", "Announces connection, armed state, playback mode, queue, current speech, and broadcast output.", "Control+Alt+S", true),
-        new(HotkeyAction.ToggleArm, "Arm or disarm", "Toggles moderated livestream monitoring and text to speech.", "Control+Alt+A", true),
+        new(HotkeyAction.ToggleArm, "Arm or disarm", "Toggles moderated livestream monitoring and text to speech.", "Control+Alt+Space", true),
         new(HotkeyAction.EmergencyStop, "Emergency stop", "Stops stream speech, clears the queue, and disarms SafeSpeak.", "Control+Alt+P", true),
         new(HotkeyAction.StopCurrentSpeech, "Stop current stream speech", "Stops only the livestream message currently speaking.", "Control+Alt+K", true),
         new(HotkeyAction.ToggleAutomaticPlayback, "Toggle automatic or manual playback", "Switches between automatic playback and manual queue advance.", "", false),
