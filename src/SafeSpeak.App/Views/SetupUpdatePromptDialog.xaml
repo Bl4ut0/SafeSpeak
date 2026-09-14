@@ -11,7 +11,7 @@
         Foreground="{DynamicResource SafeSpeakTextBrush}"
         KeyboardNavigation.TabNavigation="Cycle"
         AutomationProperties.Name="SafeSpeak settings update prompt"
-        AutomationProperties.HelpText="SafeSpeak settings and setup options have updated. Press Y to run the setup guide, or press N to keep current settings.">
+        AutomationProperties.HelpText="SafeSpeak settings and setup options have updated. What's new in this version: Streaming platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings. Navigation and speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings. Safe and non-destructive: Your existing tokens, models, and custom words are preserved. Press Y to review the setup guide, press N to keep current settings, or press R to repeat the announcement.">
 
     <Border Margin="20"
             Padding="26,22"
@@ -50,32 +50,30 @@
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="16,12"
-                    Margin="0,0,0,16">
+                    Margin="0,0,0,16"
+                    AutomationProperties.Name="What's New in this Version">
                 <StackPanel>
                     <TextBlock Text="What's New in this Version:"
                                FontWeight="SemiBold"
                                FontSize="{DynamicResource SafeSpeakFont13}"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="&#x2022; Streaming Platforms: Saved TikTok Direct username is now displayed and announced on Live and Settings."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap"
-                               Margin="0,2" />
-                    <TextBlock Text="&#x2022; Navigation &amp; Speech: Fixed tutorial audio sequencing, tab navigation flow, and relocated chat replies filtering to Settings."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap"
-                               Margin="0,2" />
-                    <TextBlock Text="&#x2022; Safe &amp; Non-Destructive: Your existing tokens, models, and custom words are preserved."
-                               Style="{StaticResource SecondaryText}"
-                               FontSize="{DynamicResource SafeSpeakFont12}"
-                               TextWrapping="Wrap"
-                               Margin="0,2" />
+                    <ItemsControl x:Name="HighlightsList"
+                                  ItemsSource="{Binding HighlightItems, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           Style="{StaticResource SecondaryText}"
+                                           FontSize="{DynamicResource SafeSpeakFont12}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,2" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 
             <!-- Keyboard Navigation Advice -->
-            <TextBlock Text="Keyboard: Press Y to review the setup guide, or N to decline and continue directly into SafeSpeak. You can also rerun setup anytime from Chapter 8 of Settings (Alt + 8)."
+            <TextBlock Text="Keyboard: Press Y to review the setup guide, N to decline and continue, or R to repeat the announcement. You can also rerun setup anytime from Chapter 8 of Settings (Alt + 8)."
                        Style="{StaticResource SecondaryText}"
                        FontSize="{DynamicResource SafeSpeakFont12}"
                        TextWrapping="Wrap"
@@ -92,7 +90,7 @@
                         Content="Review Setup Guide (Y)"
                         FontWeight="SemiBold"
                         Click="YesButton_Click"
-                        AutomationProperties.Name="Review setup guide now"
+                        AutomationProperties.Name="Review setup guide now (Y)"
                         AutomationProperties.HelpText="Press Y or Enter to launch the guided setup wizard." />
 
                 <Button x:Name="DeclineButton"
@@ -103,7 +101,7 @@
                         Margin="14,0,0,0"
                         Content="Keep Current Settings (N)"
                         Click="DeclineButton_Click"
-                        AutomationProperties.Name="Decline and keep current settings"
+                        AutomationProperties.Name="Keep current settings (N)"
                         AutomationProperties.HelpText="Press N or Escape to keep current configuration and open SafeSpeak." />
             </DockPanel>
         </StackPanel>

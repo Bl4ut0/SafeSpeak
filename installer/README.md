@@ -83,6 +83,7 @@ The first SafeSpeak submission was published on September 2, 2026. Partner Cente
 
 Before each Store build:
 
+0. Prepare the release candidate, bump package versions, and update the opening setup prompt & narrator highlights using `./installer/Update-ReleaseCandidate.ps1 -PackageVersion <version> -Highlights @(...)`. This automatically synchronizes `Directory.Build.props`, `ReleaseUpdateInfo.cs` (`CurrentGuideVersion` and `CurrentHighlights`), documentation, and contract tests (see `.github/RELEASE_RULES.md`).
 1. Confirm the package Identity Name, Publisher, and Publisher display name still match the assigned Partner Center product identity above.
 2. Review and approve `installer/Assets/SafeSpeakIconMaster-v1.png`, then run `./installer/Generate-Assets.ps1` to refresh the MSIX tiles and multi-resolution executable icon. Partner Center listing artwork is prepared separately from these package assets.
 3. Finish accessibility testing with Narrator, keyboard-only navigation, Windows High Contrast themes, 200% text scaling, and the complete first-run reader decision flow before making an accessibility conformance claim.
@@ -93,7 +94,7 @@ Before each Store build:
 ```powershell
 ./installer/Build-Release.ps1 `
   -Architecture x64 `
-  -PackageVersion 1.0.9.0 `
+  -PackageVersion 1.0.10.0 `
   -Format Msix `
   -StoreSubmission `
   -IdentityName "PARTNER_CENTER_IDENTITY_NAME" `
@@ -135,7 +136,7 @@ The Entra application represented by those credentials must be associated with P
 
 `.github/workflows/development-build.yml` runs on pushes and pull requests targeting `develop`. It calls the same release entry point, runs both test suites, and uploads only an unsigned x64 portable ZIP and release report from `artifacts/development`. The artifact expires after seven days. This workflow has no Store credentials, protected environment, signing, release, or deployment step.
 
-`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. Every push to `main` creates the stable `v<version>` release with ZIP and unsigned MSI downloads, then submits the Store bundle. Unsigned MSIX files remain short-lived CI artifacts rather than public GitHub downloads. A tag such as `v1.0.9.0-rc.1` remains available for a separate prerelease. `SHA256SUMS.txt` covers every downloadable artifact.
+`.github/workflows/desktop-build.yml` runs the same release script and authoritative `Directory.Build.props` version on pull requests targeting `main`, pushes to `main`, and manual dispatches. GitHub Actions validates and packages x64 and ARM64 ZIP, MSI, MSIX, release reports, and the separate Stream Deck plug-in. Every push to `main` creates the stable `v<version>` release with ZIP and unsigned MSI downloads, then submits the Store bundle. Unsigned MSIX files remain short-lived CI artifacts rather than public GitHub downloads. A tag such as `v1.0.10.0-rc.1` remains available for a separate prerelease. `SHA256SUMS.txt` covers every downloadable artifact.
 
 The branch and promotion rules are documented in [`docs/development-track.md`](../docs/development-track.md). A pull request from `develop` to `main` deliberately switches from the fast development artifact to the complete release-candidate matrix. A successful push build on `main` completes the GitHub and Store publication in the same workflow; `develop` cannot reach Partner Center.
 

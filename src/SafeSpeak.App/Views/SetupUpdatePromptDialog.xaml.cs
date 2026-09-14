@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Input;
 using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Models;
@@ -28,19 +29,23 @@ public partial class SetupUpdatePromptDialog : Window
 
         InitializeComponent();
 
+        AutomationProperties.SetHelpText(this, ReleaseUpdateInfo.GetHelpText());
+
         PreviewKeyDown += SetupUpdatePromptDialog_PreviewKeyDown;
         Loaded += SetupUpdatePromptDialog_Loaded;
         Closing += SetupUpdatePromptDialog_Closing;
     }
+
+    public IReadOnlyList<string> HighlightItems { get; } = ReleaseUpdateInfo.GetFormattedBulletHighlights();
+
+    public static string FullUpdateAnnouncement => ReleaseUpdateInfo.GetAnnouncementText();
 
     private void SetupUpdatePromptDialog_Loaded(object sender, RoutedEventArgs e)
     {
         YesButton.Focus();
         Keyboard.Focus(YesButton);
 
-        _announcer?.Announce(
-            "SafeSpeak settings update. SafeSpeak has updated with new setup options and features. Press Y to review the setup guide, or press N to keep current settings and continue.",
-            interrupt: true);
+        _announcer?.Announce(FullUpdateAnnouncement, interrupt: true);
     }
 
     private void SetupUpdatePromptDialog_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -65,6 +70,11 @@ public partial class SetupUpdatePromptDialog : Window
         else if (e.Key is Key.N or Key.Escape)
         {
             DeclineUpdate();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.R)
+        {
+            _announcer?.Announce(FullUpdateAnnouncement, interrupt: true);
             e.Handled = true;
         }
         else if (e.Key is Key.Enter or Key.Return)
@@ -95,6 +105,7 @@ public partial class SetupUpdatePromptDialog : Window
     {
         if (_handled) return;
         _handled = true;
+        try { _announcer?.StopSpeaking(); } catch { }
         _settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
         _settings.TrySave(out _);
         if (_onAccepted is not null)
@@ -112,6 +123,7 @@ public partial class SetupUpdatePromptDialog : Window
     {
         if (_handled) return;
         _handled = true;
+        try { _announcer?.StopSpeaking(); } catch { }
         _settings.LastAcknowledgedSetupVersion = AppSettings.CurrentSetupGuideVersion;
         _settings.TrySave(out _);
         if (_onDeclined is not null)

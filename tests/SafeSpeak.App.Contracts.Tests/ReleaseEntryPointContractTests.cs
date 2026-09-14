@@ -336,7 +336,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.Contains("'unbundle', '/p'", script);
         Assert.Contains("Microsoft Store reserves the fourth package version component", script);
         Assert.Contains("SafeSpeakStoreVersion", script);
-        Assert.Contains("<SafeSpeakStoreVersion>1.0.9.0</SafeSpeakStoreVersion>", properties);
+        Assert.Contains("<SafeSpeakStoreVersion>1.0.10.0</SafeSpeakStoreVersion>", properties);
         Assert.Contains("requires the assigned Partner Center identity and publisher", script);
         Assert.DoesNotContain("Start-Process", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TikFinityEmulator", script, StringComparison.OrdinalIgnoreCase);
@@ -365,7 +365,7 @@ public sealed class ReleaseEntryPointContractTests
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("default: false", workflow);
-        Assert.DoesNotContain("default: 1.0.9.0", workflow);
+        Assert.DoesNotContain("default: 1.0.10.0", workflow);
         Assert.Contains("./installer/Build-StoreBundle.ps1", workflow);
         Assert.Contains("SafeSpeakStoreVersion", workflow);
         Assert.Contains("steps.store-version.outputs.version", workflow);
@@ -425,6 +425,40 @@ public sealed class ReleaseEntryPointContractTests
     {
         string marker = $"-ArgumentList @('{verb}', {projectVariable}";
         Assert.Equal(1, Count(script, marker));
+    }
+
+    [Fact]
+    public void ReleaseCandidate_RequiresAuthoritativeOpeningPageAndNarratorConfiguration()
+    {
+        string releaseInfoSource = Source("src", "SafeSpeak.Core", "Models", "ReleaseUpdateInfo.cs");
+        string appSettingsSource = Source("src", "SafeSpeak.Core", "Models", "AppSettings.cs");
+        string dialogXaml = Source("src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml");
+        string dialogCode = Source("src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml.cs");
+        string updateScript = Source("installer", "Update-ReleaseCandidate.ps1");
+
+        // AppSettings links directly to ReleaseUpdateInfo
+        Assert.Contains("CurrentSetupGuideVersion = ReleaseUpdateInfo.CurrentGuideVersion;", appSettingsSource);
+
+        // ReleaseUpdateInfo must define guide version, highlights, and announcement generator
+        Assert.Contains("public const int CurrentGuideVersion =", releaseInfoSource);
+        Assert.Contains("public static readonly IReadOnlyList<string> CurrentHighlights =", releaseInfoSource);
+        Assert.Contains("public static string GetAnnouncementText(", releaseInfoSource);
+        Assert.Contains("public static string GetHelpText(", releaseInfoSource);
+        Assert.Contains("public static IReadOnlyList<string> GetFormattedBulletHighlights(", releaseInfoSource);
+
+        // Announcement template must guide Y, N, and R actions
+        Assert.Contains("Press Y to review the setup guide", releaseInfoSource);
+        Assert.Contains("press N to keep current settings", releaseInfoSource);
+        Assert.Contains("press R to repeat this announcement", releaseInfoSource);
+
+        // SetupUpdatePromptDialog must dynamically consume ReleaseUpdateInfo
+        Assert.Contains("ReleaseUpdateInfo.GetAnnouncementText()", dialogCode);
+        Assert.Contains("ReleaseUpdateInfo.GetFormattedBulletHighlights()", dialogCode);
+        Assert.Contains("HighlightItems", dialogXaml);
+
+        // Release automation script must exist and update ReleaseUpdateInfo
+        Assert.Contains("ReleaseUpdateInfo.cs", updateScript);
+        Assert.Contains("CurrentGuideVersion", updateScript);
     }
 
     private static string IfBlock(string source, string signature)
