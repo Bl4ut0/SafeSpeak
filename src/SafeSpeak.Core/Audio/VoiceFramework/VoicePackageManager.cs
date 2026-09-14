@@ -175,7 +175,12 @@ public sealed class VoicePackageManager
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(destinationDirectory);
-        string destinationRoot = Path.GetFullPath(destinationDirectory) + Path.DirectorySeparatorChar;
+        string destinationRoot = Path.GetFullPath(destinationDirectory);
+        if (!destinationRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+        {
+            destinationRoot += Path.DirectorySeparatorChar;
+        }
+
         long expandedBytes = 0;
         int entryCount = 0;
 
@@ -195,7 +200,7 @@ public sealed class VoicePackageManager
             }
 
             string destinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, entry.FullName));
-            if (!destinationPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
+            if (!destinationPath.StartsWith(destinationRoot, StringComparison.Ordinal))
             {
                 throw new InvalidDataException("The voice package contains an unsafe file path.");
             }
