@@ -53,6 +53,43 @@ public sealed class RuleEngineRateLimitTests
     }
 
     [Fact]
+    public void ResetCooldowns_ClearsAllRateLimitsAndCooldowns()
+    {
+        var rules = new RuleEngine();
+        DateTimeOffset now = DateTimeOffset.Parse("2026-09-06T12:00:00Z");
+
+        // Trigger user cooldown
+        Assert.False(rules.IsUserInCooldown("viewer", 10, now));
+        Assert.True(rules.IsUserInCooldown("viewer", 10, now.AddSeconds(1)));
+
+        // Trigger user rate limit (max 1 message per 10 seconds)
+        Assert.Equal(RuleEngine.MessageRateResult.Allowed,
+            rules.TryAcceptMessageRate("rate_limited_user", 10, 1, 100, now));
+        Assert.Equal(RuleEngine.MessageRateResult.UserLimitExceeded,
+            rules.TryAcceptMessageRate("rate_limited_user", 10, 1, 100, now.AddSeconds(1)));
+
+        // Trigger stream rate limit (max 2 messages per 10 seconds for stream)
+        Assert.Equal(RuleEngine.MessageRateResult.Allowed,
+            rules.TryAcceptMessageRate("user1", 10, 5, 2, now));
+        Assert.Equal(RuleEngine.MessageRateResult.Allowed,
+            rules.TryAcceptMessageRate("user2", 10, 5, 2, now));
+        Assert.Equal(RuleEngine.MessageRateResult.StreamLimitExceeded,
+            rules.TryAcceptMessageRate("user3", 10, 5, 2, now.AddSeconds(1)));
+
+        // Reset
+        rules.ResetCooldowns();
+
+        // Verify all limits are cleared
+        Assert.False(rules.IsUserInCooldown("viewer", 10, now.AddSeconds(2)));
+
+        Assert.Equal(RuleEngine.MessageRateResult.Allowed,
+            rules.TryAcceptMessageRate("rate_limited_user", 10, 1, 100, now.AddSeconds(2)));
+
+        Assert.Equal(RuleEngine.MessageRateResult.Allowed,
+            rules.TryAcceptMessageRate("user3", 10, 5, 2, now.AddSeconds(2)));
+    }
+
+    [Fact]
     public async Task ModerationPipeline_RejectsSecondViewerMessageBeforeClassification()
     {
         using var classifier = new CountingCleanClassifier();
