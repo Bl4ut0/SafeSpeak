@@ -12,6 +12,7 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
     private readonly HashSet<WaveSpeechSynthesisOperation> _activeWaveSyntheses = [];
     private readonly object _lock = new();
     private bool _disposed;
+    private IReadOnlyList<VoiceInfo>? _cachedVoices;
 
     public SystemSpeechTtsEngine()
         : this(static () => new SystemSpeechWaveSynthesizer(), initializeDirectSynthesizer: true)
@@ -44,6 +45,7 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
         lock (_lock)
         {
             if (_synthesizer == null) return Array.Empty<VoiceInfo>();
+            if (_cachedVoices != null) return _cachedVoices;
 
             var list = new List<VoiceInfo>();
             try
@@ -69,6 +71,7 @@ public sealed class SystemSpeechTtsEngine : ITtsEngine
                 list.Add(new VoiceInfo("Default", "Default System Voice", "System", "en-US", "Neutral", "Default Windows Voice", false));
             }
 
+            _cachedVoices = list;
             return list;
         }
     }
