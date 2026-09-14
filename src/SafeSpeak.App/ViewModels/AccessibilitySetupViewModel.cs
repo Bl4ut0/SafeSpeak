@@ -1284,7 +1284,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         var definitions = new (HotkeyAction Action, string Name, string DefaultGesture, string Description)[]
         {
             (HotkeyAction.AnnounceStatus, "Hear SafeSpeak status", "Control + Shift + S", "Announces arming state, queue count, and connector status."),
-            (HotkeyAction.ToggleArm, "Arm / Disarm SafeSpeak", "Control + Shift + A", "Begins or pauses reading live chat aloud without leaving your game."),
+            (HotkeyAction.ToggleArm, "Arm / Disarm SafeSpeak", "Control + Alt + Space", "Begins or pauses reading live chat aloud without leaving your game."),
             (HotkeyAction.EmergencyStop, "Emergency Stop", "Pause / Break or Control + Shift + X", "Immediately silences speech and clears all pending speech queues."),
             (HotkeyAction.StopCurrentSpeech, "Shut up live speech", "Control + Shift + Q", "Silences the message currently speaking on your stream audio."),
             (HotkeyAction.StopBuiltInGuidance, "Built-in screen reader silence", "Control key alone", "Tapping Control alone immediately silences spoken guidance.")

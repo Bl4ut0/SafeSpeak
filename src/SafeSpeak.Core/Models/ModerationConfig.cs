@@ -45,6 +45,16 @@ public sealed class ModerationConfig
     public bool StripUrls { get; set; } = true;
     public bool AllowDonorsToSpeak { get; set; } = true;
     /// <summary>
+    /// Maximum number of consecutive repeated emojis permitted before collapsing in speech output.
+    /// Default is 1 so repeated emoji spam is spoken at most once.
+    /// </summary>
+    public int MaxRepeatedEmojis { get; set; } = 1;
+    /// <summary>
+    /// Maximum total emojis permitted per message in speech output. Emojis beyond this limit are omitted.
+    /// Default is 3. Set to 0 to omit all emojis from speech.
+    /// </summary>
+    public int MaxEmojisPerMessage { get; set; } = 3;
+    /// <summary>
     /// When true, messages that are @replies directed at other chatters
     /// (starting with @username) are ignored from speech output so viewer-to-viewer
     /// conversations are not read aloud by TTS.

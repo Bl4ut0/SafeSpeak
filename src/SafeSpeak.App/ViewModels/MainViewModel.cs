@@ -148,6 +148,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _streamMessageLimit = 500;
 
     [ObservableProperty]
+    private int _maxRepeatedEmojis = 1;
+
+    [ObservableProperty]
+    private int _maxEmojisPerMessage = 3;
+
+    [ObservableProperty]
     private string _customBlockedInput = "";
 
     [ObservableProperty]
@@ -400,6 +406,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         $"Per-viewer spam limit: {Math.Clamp(PerUserMessageLimit, 1, 100)} messages {MessageRateWindowPhrase}.";
     public string StreamMessageLimitAccessibleText =>
         $"Whole-stream spam limit: {Math.Clamp(StreamMessageLimit, 10, 5000)} messages {MessageRateWindowPhrase}.";
+    public string MaxRepeatedEmojisAccessibleText =>
+        $"Maximum repeated emojis in speech: {Math.Clamp(MaxRepeatedEmojis, 1, 5)}. When chatters repeat the same emoji, only this many are spoken.";
+    public string MaxRepeatedEmojisText =>
+        MaxRepeatedEmojis == 1 ? "1 (Spoken once)" : $"{MaxRepeatedEmojis} repeats";
+    public string MaxEmojisPerMessageAccessibleText =>
+        MaxEmojisPerMessage == 0
+            ? "Maximum total emojis: 0. Emojis are omitted from chat speech."
+            : $"Maximum total emojis: {Math.Clamp(MaxEmojisPerMessage, 0, 10)} per message.";
+    public string MaxEmojisPerMessageText =>
+        MaxEmojisPerMessage == 0 ? "Off (0 emojis)" : $"{MaxEmojisPerMessage} emojis";
     private string MessageRateWindowPhrase =>
         SelectedMessageRateWindow == MessageRateWindow.OneSecond
             ? "per second"
@@ -978,6 +994,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             : MessageRateWindow.TenSeconds;
         PerUserMessageLimit = Math.Clamp(Config.PerUserMessageLimit, 1, 100);
         StreamMessageLimit = Math.Clamp(Config.StreamMessageLimit, 10, 5000);
+        MaxRepeatedEmojis = Math.Clamp(Config.MaxRepeatedEmojis, 1, 5);
+        MaxEmojisPerMessage = Math.Clamp(Config.MaxEmojisPerMessage, 0, 10);
         BroadcastOutputEnabled = _settings.BroadcastOutputEnabled;
         AnnounceChatMessages = _settings.AnnounceChatMessages;
         AnnounceGifts = _settings.AnnounceGifts;
@@ -1846,6 +1864,40 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Config.StreamMessageLimit = normalized;
         _pipeline?.Rules.ResetCooldowns();
         OnPropertyChanged(nameof(StreamMessageLimitAccessibleText));
+        if (_isInitializing) return;
+        PersistModerationSettings();
+    }
+
+    partial void OnMaxRepeatedEmojisChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 1, 5);
+        if (value != normalized)
+        {
+            MaxRepeatedEmojis = normalized;
+            return;
+        }
+
+        Config.MaxRepeatedEmojis = normalized;
+        _settings.MaxRepeatedEmojis = normalized;
+        OnPropertyChanged(nameof(MaxRepeatedEmojisAccessibleText));
+        OnPropertyChanged(nameof(MaxRepeatedEmojisText));
+        if (_isInitializing) return;
+        PersistModerationSettings();
+    }
+
+    partial void OnMaxEmojisPerMessageChanged(int value)
+    {
+        int normalized = Math.Clamp(value, 0, 10);
+        if (value != normalized)
+        {
+            MaxEmojisPerMessage = normalized;
+            return;
+        }
+
+        Config.MaxEmojisPerMessage = normalized;
+        _settings.MaxEmojisPerMessage = normalized;
+        OnPropertyChanged(nameof(MaxEmojisPerMessageAccessibleText));
+        OnPropertyChanged(nameof(MaxEmojisPerMessageText));
         if (_isInitializing) return;
         PersistModerationSettings();
     }

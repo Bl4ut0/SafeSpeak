@@ -12,15 +12,15 @@ public static class ReleaseUpdateInfo
     /// Monotonically increasing setup guide version. When incremented, existing
     /// users are automatically prompted on application launch to review what's new.
     /// </summary>
-    public const int CurrentGuideVersion = 3;
+    public const int CurrentGuideVersion = 4;
 
     /// <summary>
     /// Granular bullet points of user-facing changes and improvements in the current release.
     /// </summary>
     public static readonly IReadOnlyList<string> CurrentHighlights = new[]
     {
-        "Opening Page & Speech: Automatically announces all release changes when the setup update dialog opens on startup.",
-        "Quick Controls: Press R to repeat the update announcement anytime, or press Y or N to immediately proceed and silence the narrator.",
+        "Chat Speech: Added emoji spam limiting to collapse repeated identical emojis and cap total emojis per message.",
+        "Global Shortcuts: Changed default Arm/Disarm hotkey to Control + Alt + Spacebar.",
         "Safe and Non-Destructive: Your existing tokens, models, and custom words are preserved."
     };
 
