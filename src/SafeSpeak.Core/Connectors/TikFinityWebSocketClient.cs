@@ -221,8 +221,14 @@ public sealed class TikFinityWebSocketClient : ISourceConnector
                             "Acknowledge Close",
                             closeCts.Token);
                     }
-                    catch (OperationCanceledException) { }
-                    catch (WebSocketException) { }
+                    catch (OperationCanceledException ex)
+                    {
+                        AppLogger.LogDebug("TikFinity", $"WebSocket close acknowledgement canceled: {ex.Message}");
+                    }
+                    catch (WebSocketException ex)
+                    {
+                        AppLogger.LogDebug("TikFinity", $"WebSocket exception during close acknowledgement: {ex.Message}");
+                    }
                     return;
                 }
 
