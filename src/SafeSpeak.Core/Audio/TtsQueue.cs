@@ -392,6 +392,57 @@ public sealed class TtsQueue : IAsyncDisposable
             cancellationToken);
     }
 
+    private (ModerationDecision? Decision, CancellationTokenSource? PlaybackCts) TryPrepareNextMessage(
+        TtsPlaybackMode? requiredMode,
+        ConcurrentQueue<ModerationDecision> sourceQueue,
+        CancellationToken cancellationToken)
+    {
+        lock (_stateLock)
+        {
+            if (_disposed ||
+                _mode == TtsPlaybackMode.Disarmed ||
+                (requiredMode.HasValue && _mode != requiredMode.Value))
+            {
+                return (null, null);
+            }
+
+            ModerationDecision? decision = null;
+            CancellationTokenSource? playbackCts = null;
+
+            while (sourceQueue.TryDequeue(out ModerationDecision? candidate))
+            {
+                _queuedCount--;
+                if (candidate is null)
+                {
+                    continue;
+                }
+
+                if (MaxQueueAgeSeconds > 0 &&
+                    DateTimeOffset.UtcNow - candidate.Message.TimestampUtc > TimeSpan.FromSeconds(MaxQueueAgeSeconds))
+                {
+                    // Discard stale message to catch up to the live stream
+                    continue;
+                }
+
+                decision = candidate;
+                _isSpeaking = true;
+                _activePlaybackCts?.Dispose();
+                playbackCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    _queueLoopCts.Token);
+                _activePlaybackCts = playbackCts;
+                break;
+            }
+
+            if (decision is null || playbackCts is null)
+            {
+                return (null, null);
+            }
+
+            return (decision, playbackCts);
+        }
+    }
+
     private async Task<bool> TryPlayNextAsync(
         TtsPlaybackMode? requiredMode,
         ConcurrentQueue<ModerationDecision> sourceQueue,
@@ -416,45 +467,10 @@ public sealed class TtsQueue : IAsyncDisposable
                 await WaitForInterMessageGapAsync(sourceQueue, cancellationToken);
             }
 
-            lock (_stateLock)
+            (decision, playbackCts) = TryPrepareNextMessage(requiredMode, sourceQueue, cancellationToken);
+            if (decision is null || playbackCts is null)
             {
-                if (_disposed ||
-                    _mode == TtsPlaybackMode.Disarmed ||
-                    (requiredMode.HasValue && _mode != requiredMode.Value))
-                {
-                    return false;
-                }
-
-                decision = null;
-                while (sourceQueue.TryDequeue(out ModerationDecision? candidate))
-                {
-                    _queuedCount--;
-                    if (candidate is null)
-                    {
-                        continue;
-                    }
-
-                    if (MaxQueueAgeSeconds > 0 &&
-                        DateTimeOffset.UtcNow - candidate.Message.TimestampUtc > TimeSpan.FromSeconds(MaxQueueAgeSeconds))
-                    {
-                        // Discard stale message to catch up to the live stream
-                        continue;
-                    }
-
-                    decision = candidate;
-                    _isSpeaking = true;
-                    _activePlaybackCts?.Dispose();
-                    playbackCts = CancellationTokenSource.CreateLinkedTokenSource(
-                        cancellationToken,
-                        _queueLoopCts.Token);
-                    _activePlaybackCts = playbackCts;
-                    break;
-                }
-
-                if (decision is null || playbackCts is null)
-                {
-                    return false;
-                }
+                return false;
             }
 
             NotifyStateChanged();
@@ -477,32 +493,41 @@ public sealed class TtsQueue : IAsyncDisposable
         }
         finally
         {
-            if (decision is not null)
-            {
-                lock (_stateLock)
-                {
-                    _isSpeaking = false;
-                    if (ReferenceEquals(_activePlaybackCts, playbackCts))
-                    {
-                        _activePlaybackCts = null;
-                    }
-                }
-
-                playbackCts?.Dispose();
-                if (requiredMode != TtsPlaybackMode.Manual)
-                {
-                    Volatile.Write(
-                        ref _lastAutomaticPlaybackFinishedTimestamp,
-                        Stopwatch.GetTimestamp());
-                }
-                NotifyStateChanged();
-                RaisePlaybackEvent(PlaybackFinished, decision);
-            }
-
+            FinishPlayback(decision, playbackCts, requiredMode);
             _playbackGate.Release();
-
             WakePlaybackLoopIfReady();
         }
+    }
+
+    private void FinishPlayback(
+        ModerationDecision? decision,
+        CancellationTokenSource? playbackCts,
+        TtsPlaybackMode? requiredMode)
+    {
+        if (decision is null)
+        {
+            return;
+        }
+
+        lock (_stateLock)
+        {
+            _isSpeaking = false;
+            if (ReferenceEquals(_activePlaybackCts, playbackCts))
+            {
+                _activePlaybackCts = null;
+            }
+        }
+
+        playbackCts?.Dispose();
+        if (requiredMode != TtsPlaybackMode.Manual)
+        {
+            Volatile.Write(
+                ref _lastAutomaticPlaybackFinishedTimestamp,
+                Stopwatch.GetTimestamp());
+        }
+
+        NotifyStateChanged();
+        RaisePlaybackEvent(PlaybackFinished, decision);
     }
 
     private async Task WaitForInterMessageGapAsync(
