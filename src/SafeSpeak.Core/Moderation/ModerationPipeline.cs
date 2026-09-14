@@ -60,18 +60,44 @@ public sealed partial class ModerationPipeline : IDisposable
 
         if (message == null || string.IsNullOrWhiteSpace(message.RawText))
         {
-            return new ModerationDecision
-            {
-                Message = message ?? new ChatMessage(),
-                Disposition = ModerationDisposition.Rejected,
-                ReasonCode = ModerationReasonCode.None,
-                ReasonDescription = "Empty message payload",
-                SpokenText = string.Empty,
-                NormalizedText = string.Empty
-            };
+            return CreateEmptyMessageRejection(message);
         }
 
-        // 1. Length Validation
+        if (EnforceMessageLength(message, isSystemEvent) is { } lengthRejection) return lengthRejection;
+        if (EnforceAudienceEligibility(message, isSystemEvent) is { } audienceRejection) return audienceRejection;
+        if (EnforceRateLimitsAndCooldown(message, isSystemEvent) is { } rateLimitRejection) return rateLimitRejection;
+        if (EnforceChatReplyFilter(message, isSystemEvent) is { } replyRejection) return replyRejection;
+
+        var mentionResult = await ValidateMentionsAsync(message, cancellationToken);
+        if (mentionResult.Rejection != null) return mentionResult.Rejection;
+
+        string textForInspection = mentionResult.SanitizedText;
+        string normalizedForInspection = UnicodeNormalizer.NormalizeForInspection(textForInspection);
+        string decomposedForScriptInspection = UnicodeNormalizer.RemoveDiacritics(
+            UnicodeNormalizer.StripInvisibleCharacters(textForInspection));
+
+        if (EnforceScriptAndLanguage(message, textForInspection, normalizedForInspection, decomposedForScriptInspection) is { } scriptRejection) return scriptRejection;
+        if (EnforceBlocklist(message, normalizedForInspection) is { } blocklistRejection) return blocklistRejection;
+
+        var intentResult = await EvaluateIntentAsync(message, textForInspection, normalizedForInspection, isSystemEvent, cancellationToken);
+        if (intentResult.Rejection != null) return intentResult.Rejection;
+
+        return await CreateApprovedDecisionAsync(message, textForInspection, normalizedForInspection, intentResult.ToxicityScore, cancellationToken);
+    }
+
+    private static ModerationDecision CreateEmptyMessageRejection(ChatMessage? message) =>
+        new ModerationDecision
+        {
+            Message = message ?? new ChatMessage(),
+            Disposition = ModerationDisposition.Rejected,
+            ReasonCode = ModerationReasonCode.None,
+            ReasonDescription = "Empty message payload",
+            SpokenText = string.Empty,
+            NormalizedText = string.Empty
+        };
+
+    private ModerationDecision? EnforceMessageLength(ChatMessage message, bool isSystemEvent)
+    {
         if (!isSystemEvent && message.EventType == LivestreamEventType.Chat && message.RawText.Length > Config.MaxMessageLength)
         {
             return new ModerationDecision
@@ -84,10 +110,11 @@ public sealed partial class ModerationPipeline : IDisposable
                 NormalizedText = message.RawText
             };
         }
+        return null;
+    }
 
-        // 2. Audience Eligibility Rule
-        // Non-chat stream events (donations, follows, shares, subscriptions, etc.) and system events
-        // bypass audience eligibility restrictions so they can be announced regardless of chat audience mode.
+    private ModerationDecision? EnforceAudienceEligibility(ChatMessage message, bool isSystemEvent)
+    {
         if (!isSystemEvent && message.EventType == LivestreamEventType.Chat &&
             !_ruleEngine.IsAudienceEligible(
                 message,
@@ -104,11 +131,12 @@ public sealed partial class ModerationPipeline : IDisposable
                 NormalizedText = message.RawText
             };
         }
+        return null;
+    }
 
-        // 3. Adjustable per-viewer and whole-stream sliding rate limits.
-        // Positive community contributions (donations and follows) and non-chat stream events bypass rate limiting.
-        bool exemptFromRateLimit = isSystemEvent || message.IsDonor ||
-            message.EventType != LivestreamEventType.Chat;
+    private ModerationDecision? EnforceRateLimitsAndCooldown(ChatMessage message, bool isSystemEvent)
+    {
+        bool exemptFromRateLimit = isSystemEvent || message.IsDonor || message.EventType != LivestreamEventType.Chat;
         if (Config.MessageRateLimitEnabled && !exemptFromRateLimit)
         {
             int windowSeconds = Config.MessageRateWindow == MessageRateWindow.OneSecond ? 1 : 10;
@@ -137,8 +165,6 @@ public sealed partial class ModerationPipeline : IDisposable
             }
         }
 
-        // 4. Legacy user cooldown rule retained for API compatibility. The app
-        // uses the adjustable sliding rate limit above instead.
         if (!exemptFromRateLimit && _ruleEngine.IsUserInCooldown(message.Author, Config.UserCooldownSeconds, DateTimeOffset.UtcNow))
         {
             return new ModerationDecision
@@ -151,11 +177,11 @@ public sealed partial class ModerationPipeline : IDisposable
                 NormalizedText = message.RawText
             };
         }
+        return null;
+    }
 
-        // 5. Chatter @Reply Filtering
-        // When IgnoreChatReplies is true, messages that start with @recipient directed
-        // at other chatters are ignored so viewer-to-viewer conversations are not spoken aloud.
-        // Direct messages to the streamer (matching StreamerUsername) are not considered replies.
+    private ModerationDecision? EnforceChatReplyFilter(ChatMessage message, bool isSystemEvent)
+    {
         if (Config.IgnoreChatReplies && !isSystemEvent && message.EventType == LivestreamEventType.Chat)
         {
             var replyMatch = ReplyPrefixRegex().Match(message.RawText);
@@ -180,17 +206,17 @@ public sealed partial class ModerationPipeline : IDisposable
                 }
             }
         }
+        return null;
+    }
 
-        // 6. Mention Resolution & Sanitization
-        // Mentions are treated like author display names: if a mentioned name contains
-        // mixed scripts, disallowed non-Latin characters, or toxic patterns, it is filtered
-        // to "a player" so innocent chat messages are not rejected, provided the message is safe.
+    private async Task<(ModerationDecision? Rejection, string SanitizedText)> ValidateMentionsAsync(ChatMessage message, CancellationToken cancellationToken)
+    {
         var (sanitizedText, hadUnsafeMentions, matchedBlockedMention, nonMentionText) =
             await SanitizeMentionsAsync(message.RawText, cancellationToken);
 
         if (matchedBlockedMention)
         {
-            return new ModerationDecision
+            return (new ModerationDecision
             {
                 Message = message,
                 Disposition = ModerationDisposition.Rejected,
@@ -198,12 +224,12 @@ public sealed partial class ModerationPipeline : IDisposable
                 ReasonDescription = "Matches prohibited term or pattern in mention",
                 SpokenText = string.Empty,
                 NormalizedText = message.RawText
-            };
+            }, string.Empty);
         }
 
         if (hadUnsafeMentions && string.IsNullOrWhiteSpace(nonMentionText))
         {
-            return new ModerationDecision
+            return (new ModerationDecision
             {
                 Message = message,
                 Disposition = ModerationDisposition.Rejected,
@@ -211,17 +237,14 @@ public sealed partial class ModerationPipeline : IDisposable
                 ReasonDescription = "Message contained only an invalid mention with no content",
                 SpokenText = string.Empty,
                 NormalizedText = message.RawText
-            };
+            }, string.Empty);
         }
 
-        string textForInspection = sanitizedText;
+        return (null, sanitizedText);
+    }
 
-        // 6. Multi-layer Deobfuscation for Security Inspection
-        string normalizedForInspection = UnicodeNormalizer.NormalizeForInspection(textForInspection);
-        string decomposedForScriptInspection = UnicodeNormalizer.RemoveDiacritics(
-            UnicodeNormalizer.StripInvisibleCharacters(textForInspection));
-
-        // 7. Script & Language Validation
+    private ModerationDecision? EnforceScriptAndLanguage(ChatMessage message, string textForInspection, string normalizedForInspection, string decomposedForScriptInspection)
+    {
         if (Config.RejectMixedScripts &&
             (ScriptValidator.ContainsMixedScriptWords(textForInspection) ||
              ScriptValidator.ContainsMixedScriptWords(decomposedForScriptInspection) ||
@@ -253,8 +276,11 @@ public sealed partial class ModerationPipeline : IDisposable
                 NormalizedText = normalizedForInspection
             };
         }
+        return null;
+    }
 
-        // 8. Blocklist / Prohibited Rule Matching
+    private ModerationDecision? EnforceBlocklist(ChatMessage message, string normalizedForInspection)
+    {
         if (_ruleEngine.MatchesBlockedTerms(
             normalizedForInspection,
             Config.CustomBlockedTerms,
@@ -272,10 +298,12 @@ public sealed partial class ModerationPipeline : IDisposable
                 TriggeredRules = new[] { matchedTerm }
             };
         }
+        return null;
+    }
 
-        // 7. Intent classification. The deterministic blocklist above is always
-        // enforced; the user-facing moderation level controls only uncertain
-        // contextual hostility. System events with static phrases skip this step.
+    private async Task<(ModerationDecision? Rejection, double ToxicityScore)> EvaluateIntentAsync(
+        ChatMessage message, string textForInspection, string normalizedForInspection, bool isSystemEvent, CancellationToken cancellationToken)
+    {
         IntentClassificationResult intentResult;
         if (isSystemEvent || message.EventType != LivestreamEventType.Chat)
         {
@@ -309,7 +337,7 @@ public sealed partial class ModerationPipeline : IDisposable
             }
             catch
             {
-                return new ModerationDecision
+                return (new ModerationDecision
                 {
                     Message = message,
                     Disposition = ModerationDisposition.Rejected,
@@ -317,7 +345,7 @@ public sealed partial class ModerationPipeline : IDisposable
                     ReasonDescription = "The contextual safety layer was unavailable",
                     SpokenText = string.Empty,
                     NormalizedText = normalizedForInspection
-                };
+                }, 0);
             }
         }
         double toxicityScore = intentResult.ToxicityScore;
@@ -329,7 +357,7 @@ public sealed partial class ModerationPipeline : IDisposable
                 ? ModerationReasonCode.ThreatOrHarassment
                 : ModerationReasonCode.SevereToxicity;
 
-            return new ModerationDecision
+            return (new ModerationDecision
             {
                 Message = message,
                 Disposition = ModerationDisposition.Rejected,
@@ -340,10 +368,15 @@ public sealed partial class ModerationPipeline : IDisposable
                 NormalizedText = normalizedForInspection,
                 ToxicityScore = toxicityScore,
                 TriggeredRules = new[] { intentResult.FlaggedCategory }
-            };
+            }, toxicityScore);
         }
 
-        // 10. Prepare Cleaned Spoken Output
+        return (null, toxicityScore);
+    }
+
+    private async Task<ModerationDecision> CreateApprovedDecisionAsync(
+        ChatMessage message, string textForInspection, string normalizedForInspection, double toxicityScore, CancellationToken cancellationToken)
+    {
         string speechCleaned = UnicodeNormalizer.CleanForSpeech(textForInspection, Config.StripUrls);
 
         string safeDisplayName = await GetSafeDisplayNameAsync(
