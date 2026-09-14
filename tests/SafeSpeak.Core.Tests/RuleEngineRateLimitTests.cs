@@ -68,13 +68,13 @@ public sealed class RuleEngineRateLimitTests
         Assert.Equal(RuleEngine.MessageRateResult.UserLimitExceeded,
             rules.TryAcceptMessageRate("rate_limited_user", 10, 1, 100, now.AddSeconds(1)));
 
-        // Trigger stream rate limit (max 2 messages per 10 seconds for stream)
+        // Trigger stream rate limit (max 3 messages per 10 seconds for stream, considering rate_limited_user used 1)
         Assert.Equal(RuleEngine.MessageRateResult.Allowed,
-            rules.TryAcceptMessageRate("user1", 10, 5, 2, now));
+            rules.TryAcceptMessageRate("user1", 10, 5, 3, now));
         Assert.Equal(RuleEngine.MessageRateResult.Allowed,
-            rules.TryAcceptMessageRate("user2", 10, 5, 2, now));
+            rules.TryAcceptMessageRate("user2", 10, 5, 3, now));
         Assert.Equal(RuleEngine.MessageRateResult.StreamLimitExceeded,
-            rules.TryAcceptMessageRate("user3", 10, 5, 2, now.AddSeconds(1)));
+            rules.TryAcceptMessageRate("user3", 10, 5, 3, now.AddSeconds(1)));
 
         // Reset
         rules.ResetCooldowns();
@@ -86,7 +86,7 @@ public sealed class RuleEngineRateLimitTests
             rules.TryAcceptMessageRate("rate_limited_user", 10, 1, 100, now.AddSeconds(2)));
 
         Assert.Equal(RuleEngine.MessageRateResult.Allowed,
-            rules.TryAcceptMessageRate("user3", 10, 5, 2, now.AddSeconds(2)));
+            rules.TryAcceptMessageRate("user3", 10, 5, 3, now.AddSeconds(2)));
     }
 
     [Fact]
