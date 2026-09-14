@@ -2113,49 +2113,38 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SaveSettingsOrReport();
     }
 
-    private async Task HandleIncomingEventAsync(
+    private async Task HandleIncomingChatEventAsync(
         LivestreamEvent liveEvent,
         int monitoringGeneration,
         CancellationToken cancellationToken)
     {
-        if (!IsMonitoringGenerationActive(monitoringGeneration))
+        if (AnnounceChatMessages)
         {
-            return;
-        }
-
-        if (liveEvent.Type == LivestreamEventType.Gift)
-        {
-            TrackSessionDonor(
-                liveEvent.Platform,
-                liveEvent.Author,
-                liveEvent.AuthorDisplayName);
-        }
-
-        if (liveEvent.Type == LivestreamEventType.Chat)
-        {
-            if (AnnounceChatMessages)
+            ChatMessage chatMessage = liveEvent.ToChatMessage() with
             {
-                ChatMessage chatMessage = liveEvent.ToChatMessage() with
-                {
-                    AttributionStyle = IncludePlatformInSpeech
-                        ? SpokenAttributionStyle.SaysOnPlatform
-                        : SpokenAttributionStyle.Says
-                };
-                if (IsSessionDonor(
-                        chatMessage.Platform,
-                        chatMessage.Author,
-                        chatMessage.AuthorDisplayName))
-                {
-                    chatMessage = chatMessage with { IsDonor = true };
-                }
-                await HandleIncomingMessageAsync(
-                    chatMessage,
-                    monitoringGeneration,
-                    cancellationToken);
+                AttributionStyle = IncludePlatformInSpeech
+                    ? SpokenAttributionStyle.SaysOnPlatform
+                    : SpokenAttributionStyle.Says
+            };
+            if (IsSessionDonor(
+                    chatMessage.Platform,
+                    chatMessage.Author,
+                    chatMessage.AuthorDisplayName))
+            {
+                chatMessage = chatMessage with { IsDonor = true };
             }
-            return;
+            await HandleIncomingMessageAsync(
+                chatMessage,
+                monitoringGeneration,
+                cancellationToken);
         }
+    }
 
+    private async Task HandleIncomingSystemEventAsync(
+        LivestreamEvent liveEvent,
+        int monitoringGeneration,
+        CancellationToken cancellationToken)
+    {
         bool enabled = liveEvent.Type switch
         {
             LivestreamEventType.Gift => AnnounceGifts,
@@ -2240,6 +2229,33 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             bypassPause: bypassPause,
             isSystemEvent: true,
             isInstantAlert: isInstantAlert);
+    }
+
+    private async Task HandleIncomingEventAsync(
+        LivestreamEvent liveEvent,
+        int monitoringGeneration,
+        CancellationToken cancellationToken)
+    {
+        if (!IsMonitoringGenerationActive(monitoringGeneration))
+        {
+            return;
+        }
+
+        if (liveEvent.Type == LivestreamEventType.Gift)
+        {
+            TrackSessionDonor(
+                liveEvent.Platform,
+                liveEvent.Author,
+                liveEvent.AuthorDisplayName);
+        }
+
+        if (liveEvent.Type == LivestreamEventType.Chat)
+        {
+            await HandleIncomingChatEventAsync(liveEvent, monitoringGeneration, cancellationToken);
+            return;
+        }
+
+        await HandleIncomingSystemEventAsync(liveEvent, monitoringGeneration, cancellationToken);
     }
 
     private async Task HandleIncomingMessageAsync(
