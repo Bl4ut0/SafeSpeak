@@ -57,7 +57,7 @@ public sealed class StreamDeckIpcServerTests
     [InlineData("file://")]
     [InlineData("null")]
     [InlineData("http://127.0.0.1:5000")]
-    public async Task AllowedOrigins_CanReadState(string origin)
+    public async Task InsecureOrigins_CannotReadState(string origin)
     {
         int port = ReservePort();
         using var server = new StreamDeckIpcServer(
@@ -71,7 +71,7 @@ public sealed class StreamDeckIpcServerTests
 
         HttpResponseMessage response = await client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     private static int ReservePort()
