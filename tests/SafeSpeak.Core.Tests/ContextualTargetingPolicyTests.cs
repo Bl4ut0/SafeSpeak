@@ -32,7 +32,7 @@ public sealed class ContextualTargetingPolicyTests
 
     [Theory]
     [InlineData("I want to have sex with a 12 year old")]
-    [InlineData("send me nude pictures of your child")]
+    [InlineData("send me your nudes, child")]
     public void Apply_FlagsExplicitMinorSexualIntent(string text)
     {
         var result = ContextualTargetingPolicy.Apply(text, text, _defaultResult);
