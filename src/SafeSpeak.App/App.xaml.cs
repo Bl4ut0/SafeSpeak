@@ -4,6 +4,7 @@ using System.Windows;
 using SafeSpeak.App.ViewModels;
 using SafeSpeak.App.Views;
 using SafeSpeak.Core.Accessibility;
+using SafeSpeak.Core.Diagnostics;
 using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
 
@@ -23,21 +24,46 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (s, args) =>
         {
             var ex = args.ExceptionObject as Exception;
-            AppLogger.LogError("App", $"Unhandled AppDomain exception: {ex?.Message}", ex);
+            AppLogger.LogFatalCrash("AppDomain.UnhandledException", $"CRASH DETECTED: Fatal unhandled AppDomain exception: {ex?.Message}", ex);
+            PerformanceTracker.LogSnapshot("Crash.AppDomain");
+            AppLogger.FlushAll(TimeSpan.FromSeconds(1));
             LogException("AppDomain.UnhandledException", ex);
         };
 
         DispatcherUnhandledException += (s, args) =>
         {
-            AppLogger.LogError("App", $"Unhandled Dispatcher exception: {args.Exception?.Message}", args.Exception);
+            AppLogger.LogFatalCrash("DispatcherUnhandledException", $"CRASH DETECTED: Fatal unhandled Dispatcher exception: {args.Exception?.Message}", args.Exception);
+            PerformanceTracker.LogSnapshot("Crash.Dispatcher");
+            AppLogger.FlushAll(TimeSpan.FromSeconds(1));
             LogException("DispatcherUnhandledException", args.Exception);
             MessageBox.Show($"SafeSpeak Error:\n{args.Exception?.Message}", "SafeSpeak Error", MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
 
+        TaskScheduler.UnobservedTaskException += (s, args) =>
+        {
+            AppLogger.LogError("TaskScheduler.UnobservedTaskException", $"Unobserved background task exception: {args.Exception?.Message}", args.Exception);
+            PerformanceTracker.LogSnapshot("Fault.UnobservedTask");
+            AppLogger.FlushAll(TimeSpan.FromSeconds(1));
+            LogException("TaskScheduler.UnobservedTaskException", args.Exception);
+            args.SetObserved();
+        };
+
+        SessionEnding += (s, args) =>
+        {
+            AppLogger.LogInformation("Lifecycle", $"Windows session ending detected (Reason={args.ReasonSessionEnding}). SafeSpeak will shut down.");
+            PerformanceTracker.LogSnapshot("SessionEnding");
+            AppLogger.FlushAll(TimeSpan.FromSeconds(1));
+        };
+
         try
         {
-            AppLogger.LogInformation("App", "SafeSpeak application startup began.");
+            string version = typeof(App).Assembly.GetName().Version?.ToString() ?? "Unknown";
+            string os = Environment.OSVersion.ToString();
+            int pid = Environment.ProcessId;
+            AppLogger.LogInformation("Lifecycle", $"SafeSpeak session started. Version={version}, OS={os}, ProcessId={pid}, Machine={Environment.MachineName}");
+            PerformanceTracker.Instance.Start();
+            PerformanceTracker.LogSnapshot("Startup");
             var settings = AppSettings.Load();
             AppLogger.LogInformation("App", $"Settings loaded: HasCompletedOnboarding={settings.HasCompletedOnboarding}, IsAwaitingAccessibilityConfirmation={settings.IsAwaitingAccessibilityConfirmation}");
             ThemeManager.Apply(settings.EffectiveTheme);
@@ -100,6 +126,8 @@ public partial class App : Application
                     try { tempAnnouncer.Dispose(); } catch { }
                     if (MainWindow == wizard)
                     {
+                        AppLogger.LogInformation("Lifecycle", "Setup wizard closed as primary window. Initiating shutdown.");
+                        AppLogger.FlushAll(TimeSpan.FromSeconds(1));
                         Shutdown(0);
                         _ = Task.Run(async () =>
                         {
@@ -197,6 +225,8 @@ public partial class App : Application
                     try { promptAnnouncer.Dispose(); } catch { }
                     if (MainWindow == promptDialog)
                     {
+                        AppLogger.LogInformation("Lifecycle", "Setup update prompt closed as primary window. Initiating shutdown.");
+                        AppLogger.FlushAll(TimeSpan.FromSeconds(1));
                         Shutdown(0);
                         _ = Task.Run(async () =>
                         {
@@ -229,7 +259,10 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        AppLogger.LogInformation("App", $"SafeSpeak application exiting with code {e.ApplicationExitCode}.");
+        PerformanceTracker.LogSnapshot("Shutdown");
+        PerformanceTracker.Instance.Stop();
+        AppLogger.LogInformation("Lifecycle", $"SafeSpeak session terminated cleanly. (ExitCode={e.ApplicationExitCode})");
+        AppLogger.FlushAll(TimeSpan.FromSeconds(2));
         base.OnExit(e);
         _ = Task.Run(async () =>
         {

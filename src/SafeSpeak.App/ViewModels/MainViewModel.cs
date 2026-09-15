@@ -11,6 +11,7 @@ using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Audio;
 using SafeSpeak.Core.Audio.VoiceFramework;
 using SafeSpeak.Core.Connectors;
+using SafeSpeak.Core.Diagnostics;
 using SafeSpeak.Core.Ipc;
 using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
@@ -1058,6 +1059,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         _autoConnectTask = AutoConnectSourceAsync();
         _ = StartInstalledQwenModelAsync();
+        InitializePerformanceTracking();
+    }
+
+    private void InitializePerformanceTracking()
+    {
+        PerformanceTracker.AppStateProvider = () => new AppStateSnapshot
+        {
+            IsArmed = IsArmed,
+            PlaybackMode = PlaybackModeStatus,
+            IsPaused = IsPaused,
+            IsSpeaking = IsSpeaking,
+            TtsQueueCount = QueueCount,
+            AlertQueueCount = _alertQueue?.Count ?? 0,
+            LiveFeedCount = LiveFeed.Count,
+            ConnectorsStatus = ConnectionSummaryText,
+            ChildProcessInfo = _qwenRuntime?.DiagnosticStatus ?? "None"
+        };
     }
 
     private void WireEvents()
@@ -3323,6 +3341,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        AppLogger.LogInformation("Shutdown.Core", "Flushing settings and disconnecting active connectors...");
         TryShutdownStep(FlushAllSettingsToDisk);
 
         // Calling connector disposal initiates cancellation immediately. Never
@@ -3338,19 +3357,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         await IgnoreShutdownFailureAsync(_autoConnectTask);
         await IgnoreShutdownFailureAsync(_incomingEventPumpTask);
+
+        AppLogger.LogInformation("Shutdown.Core", "Disposing speech queues and voice outputs...");
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _voicePreviewOutput.DisposeAsync()));
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _ttsQueue.DisposeAsync()));
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _alertQueue.DisposeAsync()));
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _auditLogger.DisposeAsync()));
 
+        AppLogger.LogInformation("Shutdown.Core", "Disposing moderation pipeline and model runtimes...");
         TryShutdownStep(_pipeline.Dispose);
         await IgnoreShutdownFailureAsync(_qwenRuntime.DisposeAsync().AsTask());
+
+        AppLogger.LogInformation("Shutdown.Core", "Disposing audio routers and announcer...");
         TryShutdownStep(_ttsEngine.Dispose);
         TryShutdownStep(_audioRouter.Dispose);
         TryShutdownStep(_alertAudioRouter.Dispose);
         TryShutdownStep(_voicePreviewAudioRouter.Dispose);
         TryShutdownStep(_announcer.Dispose);
         TryShutdownStep(_incomingEventCts.Dispose);
+        AppLogger.LogInformation("Shutdown.Core", "All core subsystems disposed cleanly.");
     }
 
     private static Task StartShutdownTask(Func<ValueTask> operation)

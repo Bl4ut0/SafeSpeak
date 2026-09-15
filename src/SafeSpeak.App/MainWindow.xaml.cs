@@ -9,6 +9,8 @@ using SafeSpeak.App.Accessibility;
 using SafeSpeak.App.ViewModels;
 using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Connectors;
+using SafeSpeak.Core.Diagnostics;
+using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.App;
 
@@ -17,11 +19,18 @@ namespace SafeSpeak.App;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private const int WM_CLOSE = 0x0010;
+    private const int WM_QUERYENDSESSION = 0x0011;
+    private const int WM_ENDSESSION = 0x0016;
+    private const int WM_SYSCOMMAND = 0x0112;
+    private const int SC_CLOSE = 0xF060;
+
     private readonly GlobalHotkeyService _hotkeyService = new();
     private nint _windowHandle;
     private HwndSource? _hwndSource;
     private IntegratedFocusNarrator? _focusNarrator;
     private bool _shutdownCleanupStarted;
+    private string _detectedCloseSource = "WindowClose";
     private bool _globalShortcutGroupActive;
     private bool _hotkeysSuspendedForShortcutCapture;
     private GlobalShortcutEditorViewModel? _capturingShortcutEditor;
@@ -50,18 +59,18 @@ public partial class MainWindow : Window
         }
         Closing += (s, e) =>
         {
-            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", $"MainWindow Closing event triggered (Cancel={e.Cancel}).");
             MainWindow_Closing(s, e);
         };
         Closed += (_, _) =>
         {
-            SafeSpeak.Core.Logging.AppLogger.LogInformation("MainWindow", "MainWindow Closed event triggered.");
+            AppLogger.LogInformation("Lifecycle", "MainWindow Closed event triggered. Initiating application shutdown...");
             try
             {
                 if (DataContext is MainViewModel vm)
                 {
                     TryShutdownStep(vm.StopAllSpeechForShutdown);
                 }
+                AppLogger.FlushAll(TimeSpan.FromSeconds(1));
                 Application.Current?.Shutdown(0);
             }
             catch { }
@@ -71,7 +80,13 @@ public partial class MainWindow : Window
             _ = Task.Run(async () =>
             {
                 await Task.Delay(1500).ConfigureAwait(false);
-                try { Environment.Exit(0); } catch { }
+                try
+                {
+                    AppLogger.LogInformation("Lifecycle", "Watchdog timer expired (1.5s). Forcing clean OS process exit.");
+                    AppLogger.FlushAll(TimeSpan.FromMilliseconds(500));
+                    Environment.Exit(0);
+                }
+                catch { }
             });
         };
         PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -1531,6 +1546,22 @@ public partial class MainWindow : Window
 
     private nint HwndHook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
+        if (msg == WM_CLOSE)
+        {
+            _detectedCloseSource = "WindowMessage.WM_CLOSE";
+            AppLogger.LogInformation("Lifecycle", "Received WM_CLOSE window message.");
+        }
+        else if (msg == WM_SYSCOMMAND && ((int)wParam & 0xFFF0) == SC_CLOSE)
+        {
+            _detectedCloseSource = "UserTitleBarCloseOrAltF4";
+            AppLogger.LogInformation("Lifecycle", "Received WM_SYSCOMMAND SC_CLOSE (User clicked title bar [X] or pressed Alt+F4).");
+        }
+        else if (msg is WM_QUERYENDSESSION or WM_ENDSESSION)
+        {
+            _detectedCloseSource = "WindowsSessionEnding";
+            AppLogger.LogInformation("Lifecycle", $"Received {(msg == WM_QUERYENDSESSION ? "WM_QUERYENDSESSION" : "WM_ENDSESSION")} (Windows restart/shutdown/logoff).");
+        }
+
         _hotkeyService.ProcessWindowMessage(msg, wParam);
         return nint.Zero;
     }
@@ -1546,26 +1577,45 @@ public partial class MainWindow : Window
         }
 
         _shutdownCleanupStarted = true;
+
+        if (DataContext is MainViewModel mainVm)
+        {
+            AppLogger.LogInformation("Lifecycle",
+                $"Close intent initiated: Source={_detectedCloseSource}, State=[Armed={mainVm.IsArmed}, Mode={mainVm.PlaybackModeStatus}, Paused={mainVm.IsPaused}, Speaking={mainVm.IsSpeaking}], QueueCount={mainVm.QueueCount}");
+        }
+        else
+        {
+            AppLogger.LogInformation("Lifecycle", $"Close intent initiated: Source={_detectedCloseSource}");
+        }
+
+        PerformanceTracker.LogSnapshot("CloseIntent");
+        AppLogger.FlushAll(TimeSpan.FromMilliseconds(500));
+
         try
         {
+            AppLogger.LogInformation("Shutdown", "Step 1/5: Disposing global hotkey service and window hooks...");
             TryShutdownStep(_hotkeyService.Dispose);
             TryShutdownStep(() => _hwndSource?.RemoveHook(HwndHook));
             TryShutdownStep(() => _focusNarrator?.Dispose());
 
             if (DataContext is MainViewModel vm)
             {
+                AppLogger.LogInformation("Shutdown", "Step 2/5: Silencing speech and persisting settings...");
                 vm.GlobalShortcutsChanged -= ViewModel_GlobalShortcutsChanged;
                 // Immediately silence all speech narration and queues so audio playback does not hold the process open
                 TryShutdownStep(vm.StopAllSpeechForShutdown);
                 TryShutdownStep(vm.FlushAllSettingsToDisk);
+
                 // Backend cancellation, native TTS teardown, connector disposal,
                 // and disk flushing must never hold the WPF window open. Settings
                 // are already persisted as they change, so cleanup is best-effort.
+                AppLogger.LogInformation("Shutdown", "Step 3/5: Initiating background async subsystem teardown...");
                 _ = ObserveCleanupFailureAsync(
                     Task.Run(async () => await vm.DisposeAsync().ConfigureAwait(false)));
             }
 
             // Close any owned or lingering child dialogs so no other window keeps the WPF message loop alive
+            AppLogger.LogInformation("Shutdown", "Step 4/5: Closing any open child dialogs...");
             if (Application.Current is { } app)
             {
                 foreach (Window window in app.Windows)
@@ -1576,12 +1626,12 @@ public partial class MainWindow : Window
                     }
                 }
             }
+
+            AppLogger.LogInformation("Shutdown", "Step 5/5: MainWindow closing sequence finished.");
         }
-        catch
+        catch (Exception ex)
         {
-            // Shutdown must remain non-blocking and accessible. Cleanup is
-            // best-effort; process exit releases any remaining native model,
-            // speech, or audio resources.
+            AppLogger.LogError("Shutdown", $"Exception during window closing: {ex.Message}", ex);
         }
     }
 
