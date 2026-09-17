@@ -852,8 +852,8 @@
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="0,2">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" AutomationProperties.Name="{Binding DisplayName}" />
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" AutomationProperties.Name="{Binding Description}" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
@@ -893,7 +893,8 @@
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding DisplayName}"
                                                            ToolTip="{Binding Description}"
-                                                           AutomationProperties.Name="{Binding DisplayName}" />
+                                                           AutomationProperties.Name="{Binding DisplayName}"
+                                                           AutomationProperties.HelpText="{Binding Description}" />
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
