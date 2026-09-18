@@ -60,6 +60,7 @@
                     Style="{StaticResource NavigationActionButton}"
                     Command="{Binding AnnounceStatusPrivatelyCommand}"
                     Content="Hear status"
+                    ToolTip="{Binding HearStatusHelpText}"
                     AutomationProperties.Name="Hear current SafeSpeak status"
                     AutomationProperties.HelpText="{Binding HearStatusHelpText}" />
 
@@ -193,6 +194,7 @@
                                                 Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
                                                 Command="{Binding EmergencyStopCommand}" Content="Emergency stop"
+                                                ToolTip="{Binding EmergencyStopHelpText}"
                                                 AutomationProperties.Name="Emergency stop"
                                                 AutomationProperties.HelpText="{Binding EmergencyStopHelpText}" />
 
@@ -202,6 +204,7 @@
                                                 Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding PauseOrResumeTtsCommand}"
                                                 Content="{Binding PauseButtonText}"
+                                                ToolTip="Pause lets the current message finish. Resume returns to automatic playback."
                                                 AutomationProperties.Name="{Binding PauseButtonAutomationName}"
                                                 AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
 
@@ -333,12 +336,14 @@
                                     Style="{StaticResource CompactButton}"
                                     Command="{Binding ToggleFilteredContentVisibilityCommand}"
                                     Content="{Binding FilteredContentToggleText}"
+                                    ToolTip="Explicitly reveals or hides both the original username and original text for every filtered entry in the live feed. Filtered content is never sent to broadcast speech."
                                     AutomationProperties.Name="{Binding FilteredContentToggleAutomationName}"
                                     AutomationProperties.HelpText="Explicitly reveals or hides both the original username and original text for every filtered entry in the live feed. Filtered content is never sent to broadcast speech." />
                             <Button DockPanel.Dock="Right" TabIndex="11" Margin="10,0,0,0"
                                     Style="{StaticResource CompactButton}"
                                     Command="{Binding AnnounceLiveFeedReviewStatusCommand}"
                                     Content="Hear review status"
+                                    ToolTip="Reports whether visual feed updates are paused and how many received messages are retained for review."
                                     AutomationProperties.Name="Hear live activity review status button"
                                     AutomationProperties.HelpText="Reports whether visual feed updates are paused and how many received messages are retained for review." />
                             <TextBlock Text="Live activity" Style="{StaticResource SectionTitle}"
