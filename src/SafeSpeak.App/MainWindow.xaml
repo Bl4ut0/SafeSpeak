@@ -173,6 +173,7 @@
                                                   IsChecked="{Binding IsArmed, Mode=OneWay}"
                                                   Command="{Binding ToggleArmCommand}"
                                                   Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
+                                                  ToolTip="{Binding ArmToggleHelpText}"
                                                   AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Arm toggle button: currently {0}}"
                                                   AutomationProperties.HelpText="{Binding ArmToggleHelpText}" />
 
@@ -193,6 +194,7 @@
                                                 Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
                                                 Command="{Binding EmergencyStopCommand}" Content="Emergency stop"
+                                                ToolTip="{Binding EmergencyStopHelpText}"
                                                 AutomationProperties.Name="Emergency stop"
                                                 AutomationProperties.HelpText="{Binding EmergencyStopHelpText}" />
 
@@ -202,6 +204,7 @@
                                                 Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding PauseOrResumeTtsCommand}"
                                                 Content="{Binding PauseButtonText}"
+                                                ToolTip="Pause lets the current message finish. Resume returns to automatic playback."
                                                 AutomationProperties.Name="{Binding PauseButtonAutomationName}"
                                                 AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
 
@@ -211,6 +214,7 @@
                                                 Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Click="PlaybackModeButton_Click"
                                                 Command="{Binding UseAutomaticPlaybackCommand}" Content="Automatic mode"
+                                                ToolTip="Approved messages speak automatically while SafeSpeak is armed."
                                                 AutomationProperties.Name="Use automatic playback mode button"
                                                 AutomationProperties.HelpText="Approved messages speak automatically while SafeSpeak is armed." />
 
@@ -220,6 +224,7 @@
                                                 Visibility="{Binding ShowAutomaticOrPausedControls, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Click="PlaybackModeButton_Click"
                                                 Command="{Binding UseManualPlaybackCommand}" Content="Manual mode"
+                                                ToolTip="Approved messages wait until Speak next approved message is chosen."
                                                 AutomationProperties.Name="Use manual playback mode button"
                                                 AutomationProperties.HelpText="Approved messages wait until Speak next approved message is chosen." />
 
@@ -228,6 +233,7 @@
                                                 Style="{StaticResource CommandButton}"
                                                 Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding SpeakNextApprovedMessageCommand}" Content="Speak next"
+                                                ToolTip="In manual mode, speaks exactly one approved queued message."
                                                 AutomationProperties.Name="Speak next approved message button"
                                                 AutomationProperties.HelpText="In manual mode, speaks exactly one approved queued message." />
 
@@ -235,6 +241,7 @@
                                                 Style="{StaticResource CommandButton}"
                                                 Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding StopCurrentSpeechCommand}" Content="Stop current"
+                                                ToolTip="Immediately stops only the message currently speaking."
                                                 AutomationProperties.Name="{Binding StopCurrentSpeechAutomationName}"
                                                 AutomationProperties.HelpText="Immediately stops only the message currently speaking." />
 
@@ -242,6 +249,7 @@
                                                 Style="{StaticResource CommandButton}"
                                                 Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding ClearQueueCommand}" Content="Clear queue"
+                                                ToolTip="Removes pending approved messages without stopping the current message or disarming SafeSpeak."
                                                 AutomationProperties.Name="Clear pending text to speech queue button"
                                                 AutomationProperties.HelpText="Removes pending approved messages without stopping the current message or disarming SafeSpeak." />
                                     </Grid>
