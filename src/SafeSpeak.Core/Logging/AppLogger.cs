@@ -359,8 +359,9 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
 
             File.Move(_logFilePath, targetPath);
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Failed to archive log file: {ex.Message}");
         }
     }
 
