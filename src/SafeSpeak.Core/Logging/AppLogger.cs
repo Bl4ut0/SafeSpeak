@@ -478,12 +478,14 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
                     {
                         await _workerTask.WaitAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        System.Diagnostics.Debug.WriteLine($"Error during forced worker termination wait: {ex.Message}");
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    System.Diagnostics.Debug.WriteLine($"Error during graceful worker termination wait: {ex.Message}");
                 }
             }
             _cts.Dispose();
