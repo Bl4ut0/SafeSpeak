@@ -12,6 +12,7 @@ public sealed record IntentClassificationResult
     public double IdentityHateScore { get; init; }
     public string FlaggedCategory { get; init; } = "None";
     public string ModelUsed { get; init; } = "None";
+    public bool IsCacheable { get; init; } = true;
 }
 
 /// <summary>

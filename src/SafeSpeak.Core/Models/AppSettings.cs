@@ -48,10 +48,11 @@ public enum OnboardingConnectorDetectionStatus
 
 public sealed class AppSettings
 {
-    public const int CurrentSettingsSchemaVersion = 12;
+    public const int CurrentSettingsSchemaVersion = 13;
     public const int CurrentSetupGuideVersion = ReleaseUpdateInfo.CurrentGuideVersion;
 
     public int SettingsSchemaVersion { get; set; } = CurrentSettingsSchemaVersion;
+    public string DiagnosticHostId { get; set; } = Guid.NewGuid().ToString("D");
     public int LastAcknowledgedSetupVersion { get; set; } = 0;
     public OnboardingStage OnboardingStage { get; set; } = OnboardingStage.Accessibility;
     public SpokenGuidanceMode SpokenGuidance { get; set; } = SpokenGuidanceMode.Unset;
@@ -184,7 +185,7 @@ public sealed class AppSettings
     public int SpeechBoost { get; set; } = 0;
     public int ReaderSpeechRate { get; set; } = 3;
     public int ReaderSpeechVolume { get; set; } = 100;
-    public bool NarrateDetailedHelp { get; set; } = true;
+    public bool NarrateDetailedHelp { get; set; }
     public bool NarrateTypedCharacters { get; set; }
     public int InterfaceTextScalePercent { get; set; } = 100;
     public int QueueLimit { get; set; } = 50;
@@ -236,10 +237,13 @@ public sealed class AppSettings
         MigrateAuditLoggingConsent(root, this);
         MigrateGlobalShortcuts(root, this);
         MigrateConnectorCollections(root, this);
+        MigrateNarratorVerbosity(root, this);
     }
 
     internal void NormalizeForPersistence()
     {
+        if (!Guid.TryParse(DiagnosticHostId, out Guid hostId) || hostId == Guid.Empty)
+            DiagnosticHostId = Guid.NewGuid().ToString("D");
         if (!Enum.IsDefined(SpokenGuidance))
         {
             SpokenGuidance = SpokenGuidanceMode.Unset;
@@ -518,6 +522,22 @@ public sealed class AppSettings
         {
             settings.ConfiguredSourceConnectorIds = [];
             settings.ActiveSourceConnectorIds = [];
+        }
+    }
+
+    private static void MigrateNarratorVerbosity(JsonElement root, AppSettings settings)
+    {
+        int schemaVersion = 0;
+        if (root.TryGetProperty(nameof(SettingsSchemaVersion), out JsonElement schemaElement))
+        {
+            _ = schemaElement.TryGetInt32(out schemaVersion);
+        }
+
+        // Schema 13 changes automatic focus speech to concise narration. Users
+        // can turn detailed descriptions back on from Settings when desired.
+        if (schemaVersion < 13)
+        {
+            settings.NarrateDetailedHelp = false;
         }
     }
 

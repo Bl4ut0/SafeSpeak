@@ -31,7 +31,11 @@ public sealed class PerformanceMetricsTests
                 LiveFeedCount = 15,
                 ConnectorsStatus = "1 of 1 connected",
                 ChildProcessInfo = "Running (PID=1234, RAM=120.0MB)"
-            }
+            },
+            Subsystems =
+            [
+                new SubsystemMetricSnapshot("Moderation", 12, 1, 4.25, 12.5, 3.0)
+            ]
         };
 
         string formatted = snapshot.ToLogString("TriggerReason");
@@ -51,6 +55,28 @@ public sealed class PerformanceMetricsTests
         Assert.Contains("Alert=1", formatted);
         Assert.Contains("LiveFeed=15", formatted);
         Assert.Contains("ChildProc=[Running (PID=1234, RAM=120.0MB)]", formatted);
+        Assert.Contains("Moderation:Count=12,Avg=4.2ms,Max=12.5ms,Last=3.0ms,Failures=1", formatted);
+    }
+
+    [Fact]
+    public void SubsystemPerformanceMetrics_RecordsCountsLatencyAndFailures()
+    {
+        SubsystemPerformanceMetrics.ResetForTests();
+        using (SubsystemPerformanceMetrics.Measure("TestSubsystem"))
+        {
+            Thread.SpinWait(1000);
+        }
+        using (SubsystemPerformanceMetrics.OperationTimer failed =
+               SubsystemPerformanceMetrics.Measure("TestSubsystem"))
+        {
+            failed.MarkFailed();
+        }
+
+        SubsystemMetricSnapshot snapshot = Assert.Single(
+            SubsystemPerformanceMetrics.Capture());
+        Assert.Equal(2, snapshot.OperationCount);
+        Assert.Equal(1, snapshot.FailureCount);
+        Assert.True(snapshot.MaximumMilliseconds >= snapshot.LastMilliseconds);
     }
 
     [Fact]
@@ -120,7 +146,7 @@ public sealed class PerformanceMetricsTests
     }
 
     [Fact]
-    public void JobObjectManager_CanBeCreated_OnWindows()
+    public void JobObjectManager_DisposeTerminatesAssignedChildProcess_OnWindows()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -141,6 +167,9 @@ public sealed class PerformanceMetricsTests
         {
             bool assigned = job.AssignProcess(childProcess);
             Assert.True(assigned);
+            job.Dispose();
+            Assert.True(childProcess.WaitForExit(2000));
+            Assert.True(childProcess.HasExited);
         }
         finally
         {

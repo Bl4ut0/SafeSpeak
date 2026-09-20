@@ -204,7 +204,10 @@ public partial class App : Application
                         };
                         MainWindow = wizard;
                         wizard.Show();
-                        promptDialog?.Close();
+                        if (promptDialog?.IsClosing == false)
+                        {
+                            promptDialog.Close();
+                        }
                     },
                     onDeclined: () =>
                     {
@@ -216,7 +219,10 @@ public partial class App : Application
                         MainWindow = mainWindow;
                         ShutdownMode = ShutdownMode.OnMainWindowClose;
                         mainWindow.Show();
-                        promptDialog?.Close();
+                        if (promptDialog?.IsClosing == false)
+                        {
+                            promptDialog.Close();
+                        }
                     });
 
                 promptDialog.Closed += (_, _) =>
@@ -261,13 +267,20 @@ public partial class App : Application
     {
         PerformanceTracker.LogSnapshot("Shutdown");
         PerformanceTracker.Instance.Stop();
-        AppLogger.LogInformation("Lifecycle", $"SafeSpeak session terminated cleanly. (ExitCode={e.ApplicationExitCode})");
+        JobObjectManager.Default?.Dispose();
+        AppLogger.LogInformation("Lifecycle", $"WPF shutdown completed and the child-process job was closed. (ExitCode={e.ApplicationExitCode})");
         AppLogger.FlushAll(TimeSpan.FromSeconds(2));
         base.OnExit(e);
         _ = Task.Run(async () =>
         {
             await Task.Delay(1000).ConfigureAwait(false);
-            try { Environment.Exit(e.ApplicationExitCode); } catch { }
+            try
+            {
+                AppLogger.LogWarning("Lifecycle", "Process remained alive one second after WPF shutdown. Forcing final OS process exit.");
+                AppLogger.FlushAll(TimeSpan.FromMilliseconds(500));
+                Environment.Exit(e.ApplicationExitCode);
+            }
+            catch { }
         });
     }
 

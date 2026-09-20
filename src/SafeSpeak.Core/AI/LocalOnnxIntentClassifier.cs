@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using SafeSpeak.Core.Diagnostics;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SafeSpeak.Core.Tests")]
 
@@ -63,6 +64,8 @@ public sealed class LocalOnnxIntentClassifier : IIntentClassifier
         }
 
         using RuntimeLease operationLease = AcquireOperationLease();
+        using SubsystemPerformanceMetrics.OperationTimer intentMetric =
+            SubsystemPerformanceMetrics.Measure("IntentInference");
         try
         {
             IntentClassificationResult? local = await Task.Run(() =>
@@ -81,10 +84,12 @@ public sealed class LocalOnnxIntentClassifier : IIntentClassifier
         }
         catch (OperationCanceledException)
         {
+            intentMetric.MarkFailed();
             throw;
         }
         catch (Exception ex)
         {
+            intentMetric.MarkFailed();
             // Missing model assets use the explicit fallback path above. An
             // inference failure for a specific message must instead fail closed
             // in ModerationPipeline rather than silently approving that input.
@@ -138,7 +143,7 @@ public sealed class LocalOnnxIntentClassifier : IIntentClassifier
     }
 
     private static IntentClassificationResult WithFallbackModelName(IntentClassificationResult fallback) =>
-        fallback with { ModelUsed = "Deterministic heuristic fallback (local model unavailable)" };
+        fallback with { ModelUsed = "Deterministic heuristic fallback (local model unavailable)", IsCacheable = false };
 
     private static RuntimeLoadResult LoadRuntime()
     {
@@ -313,8 +318,10 @@ public sealed class LocalOnnxIntentClassifier : IIntentClassifier
             using var options = new SessionOptions
             {
                 GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
-                IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4)
+                IntraOpNumThreads = Math.Min(2, Environment.ProcessorCount)
             };
+            options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
+            options.AddSessionConfigEntry("session.inter_op.allow_spinning", "0");
             _session = new InferenceSession(modelPath, options);
             _tokenizer = BertWordPieceTokenizer.Load(tokenizerPath);
 

@@ -16,6 +16,8 @@ public partial class SetupUpdatePromptDialog : Window
     private readonly Action? _onDeclined;
     private bool _handled;
 
+    public bool IsClosing { get; private set; }
+
     public SetupUpdatePromptDialog(
         AppSettings settings,
         ScreenReaderAnnouncer? announcer = null,
@@ -139,6 +141,7 @@ public partial class SetupUpdatePromptDialog : Window
 
     private void SetupUpdatePromptDialog_Closing(object? sender, CancelEventArgs e)
     {
+        IsClosing = true;
         if (!_handled)
         {
             _handled = true;

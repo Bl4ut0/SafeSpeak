@@ -1,6 +1,7 @@
 using KokoroSharp;
 using KokoroSharp.Processing;
 using NAudio.Wave;
+using Microsoft.ML.OnnxRuntime;
 using System.Security.Cryptography;
 
 namespace SafeSpeak.Core.Audio;
@@ -23,6 +24,8 @@ public sealed class KokoroModelManager : IDisposable
     private readonly string _voiceSourceDirectory;
     private KokoroWavSynthesizer? _synthesizer;
     private bool _voiceAssetsPrepared;
+    private readonly int? _cpuThreads;
+    private readonly bool _disableThreadSpinning;
 
     public string ModelDirectory { get; }
     public string VoiceDirectory { get; }
@@ -60,8 +63,13 @@ public sealed class KokoroModelManager : IDisposable
         Voice("bm_lewis", "Lewis", "en-GB", "Male", "Measured British voice")
     ];
 
-    public KokoroModelManager(string? modelDirectory = null, string? voiceSourceDirectory = null)
+    public KokoroModelManager(string? modelDirectory = null, string? voiceSourceDirectory = null,
+        int? cpuThreads = null, bool disableThreadSpinning = false)
     {
+        if (cpuThreads.HasValue && cpuThreads.Value < 1)
+            throw new ArgumentOutOfRangeException(nameof(cpuThreads));
+        _cpuThreads = cpuThreads;
+        _disableThreadSpinning = disableThreadSpinning;
         ModelDirectory = modelDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SafeSpeak", "Models", "Kokoro");
@@ -148,7 +156,21 @@ public sealed class KokoroModelManager : IDisposable
         await _synthesisLock.WaitAsync(cancellationToken);
         try
         {
-            _synthesizer ??= new KokoroWavSynthesizer(ModelPath);
+            if (_synthesizer is null)
+            {
+                if (_cpuThreads.HasValue || _disableThreadSpinning)
+                {
+                    using var options = new SessionOptions();
+                    if (_cpuThreads.HasValue) options.IntraOpNumThreads = _cpuThreads.Value;
+                    if (_disableThreadSpinning)
+                    {
+                        options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
+                        options.AddSessionConfigEntry("session.inter_op.allow_spinning", "0");
+                    }
+                    _synthesizer = new KokoroWavSynthesizer(ModelPath, options);
+                }
+                else _synthesizer = new KokoroWavSynthesizer(ModelPath);
+            }
             // KokoroSharp opens voice embeddings in a way that is incompatible
             // with the Store-protected WindowsApps payload. Stage the trusted
             // packaged assets in Local AppData and load only from that writable

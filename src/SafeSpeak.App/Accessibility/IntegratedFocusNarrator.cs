@@ -116,11 +116,10 @@ public sealed class IntegratedFocusNarrator : IDisposable
                 break;
 
             case ComboBox comboBox:
-                AddDistinct(parts, GetComboBoxValue(comboBox));
-                if (includeHelpText)
-                {
-                    AddDistinct(parts, AutomationProperties.GetItemStatus(comboBox));
-                }
+                string comboStatus = CleanAccessKey(AutomationProperties.GetItemStatus(comboBox));
+                AddDistinct(parts, string.IsNullOrWhiteSpace(comboStatus)
+                    ? GetComboBoxValue(comboBox)
+                    : comboStatus);
                 parts.Add("selection box");
                 if (includeHelpText)
                 {
@@ -133,9 +132,15 @@ public sealed class IntegratedFocusNarrator : IDisposable
                 break;
 
             case Slider slider:
-                string valueText = slider.Value.ToString("0.##", CultureInfo.CurrentCulture);
-                string maxText = slider.Maximum.ToString("0.##", CultureInfo.CurrentCulture);
-                parts.Add($"{valueText} of {maxText}");
+                string sliderStatus = CleanAccessKey(AutomationProperties.GetItemStatus(slider));
+                if (string.IsNullOrWhiteSpace(sliderStatus))
+                {
+                    string valueText = slider.Value.ToString("0.##", CultureInfo.CurrentCulture);
+                    string minText = slider.Minimum.ToString("0.##", CultureInfo.CurrentCulture);
+                    string maxText = slider.Maximum.ToString("0.##", CultureInfo.CurrentCulture);
+                    sliderStatus = $"{valueText}, range {minText} to {maxText}";
+                }
+                AddDistinct(parts, sliderStatus);
                 parts.Add("slider");
                 if (includeHelpText)
                 {
@@ -437,6 +442,7 @@ public sealed class IntegratedFocusNarrator : IDisposable
             AddDistinct(parts, position);
             parts.Add(item.IsSelected ? "selected" : "not selected");
             if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(owner));
+            if (includeHelpText) AddDistinct(parts, AutomationProperties.GetHelpText(item));
         }
         else
         {

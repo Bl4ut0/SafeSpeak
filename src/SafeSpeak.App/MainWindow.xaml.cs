@@ -75,14 +75,14 @@ public partial class MainWindow : Window
             }
             catch { }
 
-            // Failsafe watchdog timer: ensure the OS process terminates cleanly within 1.5s
+            // Failsafe watchdog timer: ensure the OS process terminates within 1.5s
             // even if unmanaged COM SAPI, WASAPI sound drivers, or background threads linger.
             _ = Task.Run(async () =>
             {
                 await Task.Delay(1500).ConfigureAwait(false);
                 try
                 {
-                    AppLogger.LogInformation("Lifecycle", "Watchdog timer expired (1.5s). Forcing clean OS process exit.");
+                    AppLogger.LogWarning("Lifecycle", "Shutdown watchdog expired after 1.5 seconds. Forcing OS process exit because a background or native component is still keeping SafeSpeak alive.");
                     AppLogger.FlushAll(TimeSpan.FromMilliseconds(500));
                     Environment.Exit(0);
                 }
@@ -1637,8 +1637,19 @@ public partial class MainWindow : Window
 
     private static async Task ObserveCleanupFailureAsync(Task cleanupTask)
     {
-        try { await cleanupTask.ConfigureAwait(false); }
-        catch { }
+        try
+        {
+            await cleanupTask.ConfigureAwait(false);
+            AppLogger.LogInformation("Shutdown", "Background subsystem teardown completed.");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.LogError("Shutdown", $"Background subsystem teardown failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            AppLogger.FlushAll(TimeSpan.FromMilliseconds(500));
+        }
     }
 
     private static void TryShutdownStep(Action operation)

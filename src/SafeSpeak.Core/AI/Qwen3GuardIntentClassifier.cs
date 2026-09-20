@@ -70,7 +70,7 @@ public sealed partial class Qwen3GuardIntentClassifier : IIntentClassifier
             await _fallback.ClassifyAsync(text, cancellationToken);
         if (string.IsNullOrWhiteSpace(text) || fallbackResult.ToxicityScore >= 0.85)
         {
-            return fallbackResult;
+            return fallbackResult with { IsCacheable = false };
         }
 
         try
@@ -96,7 +96,7 @@ public sealed partial class Qwen3GuardIntentClassifier : IIntentClassifier
                 cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                return fallbackResult;
+                return fallbackResult with { IsCacheable = false };
             }
 
             using JsonDocument document = await JsonDocument.ParseAsync(
@@ -105,14 +105,14 @@ public sealed partial class Qwen3GuardIntentClassifier : IIntentClassifier
             if (!document.RootElement.TryGetProperty("message", out JsonElement message) ||
                 !message.TryGetProperty("content", out JsonElement contentElement))
             {
-                return fallbackResult;
+                return fallbackResult with { IsCacheable = false };
             }
 
             string content = contentElement.GetString() ?? string.Empty;
             Match verdictMatch = SafetyVerdictRegex().Match(content);
             if (!verdictMatch.Success)
             {
-                return fallbackResult;
+                return fallbackResult with { IsCacheable = false };
             }
 
             Volatile.Write(ref _hasSuccessfulResponse, 1);
@@ -124,7 +124,7 @@ public sealed partial class Qwen3GuardIntentClassifier : IIntentClassifier
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return fallbackResult;
+            return fallbackResult with { IsCacheable = false };
         }
         catch (OperationCanceledException)
         {
@@ -132,7 +132,7 @@ public sealed partial class Qwen3GuardIntentClassifier : IIntentClassifier
         }
         catch
         {
-            return fallbackResult;
+            return fallbackResult with { IsCacheable = false };
         }
     }
 

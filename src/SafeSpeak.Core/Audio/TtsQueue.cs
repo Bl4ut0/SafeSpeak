@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using SafeSpeak.Core.Diagnostics;
 using SafeSpeak.Core.Models;
+using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.Core.Audio;
 
@@ -46,9 +48,18 @@ public sealed class TtsQueue : IAsyncDisposable
     private CancellationTokenSource? _activePlaybackCts;
     private PrefetchOperation? _prefetch;
     private long _lastAutomaticPlaybackFinishedTimestamp;
+    private long _activeSpeechStartedTimestamp;
     private readonly Task _playbackLoopTask;
+    private readonly BoundedMemoryCache<(string Text, SynthesisSettings Settings), byte[]> _waveCache =
+        new(4 * 1024 * 1024, TimeSpan.FromMinutes(10), maximumEntries: 32);
+    private long _speechCacheGeneration;
+    public void ClearSpeechCache()
+    {
+        Interlocked.Increment(ref _speechCacheGeneration);
+        _waveCache.Clear();
+    }
 
-    private sealed record SynthesisSettings(string? VoiceId, int Rate);
+    private sealed record SynthesisSettings(string? VoiceId, int Rate, long Generation);
 
     private sealed record PrefetchOperation(
         ModerationDecision Decision,
@@ -84,6 +95,25 @@ public sealed class TtsQueue : IAsyncDisposable
 
     public int Count => Volatile.Read(ref _queuedCount);
     public int Capacity => Volatile.Read(ref _capacity);
+    public double ActiveSpeechSeconds
+    {
+        get
+        {
+            long started = Volatile.Read(ref _activeSpeechStartedTimestamp);
+            return started == 0 ? 0 : Stopwatch.GetElapsedTime(started).TotalSeconds;
+        }
+    }
+    public double OldestPendingMessageSeconds
+    {
+        get
+        {
+            double oldest = 0;
+            foreach (var queue in new[] { _queue, _pauseBypassQueue })
+                if (queue.TryPeek(out var pending))
+                    oldest = Math.Max(oldest, (DateTimeOffset.UtcNow - pending.Message.TimestampUtc).TotalSeconds);
+            return oldest;
+        }
+    }
 
     public event EventHandler<TtsQueueStateChangedEventArgs>? StateChanged;
     public event EventHandler<ModerationDecision>? PlaybackStarted;
@@ -149,6 +179,8 @@ public sealed class TtsQueue : IAsyncDisposable
         {
             if (_disposed || _mode == TtsPlaybackMode.Disarmed || _queuedCount >= _capacity)
             {
+                SubsystemPerformanceMetrics.Measure(_disposed ? "TtsRejectedDisposed" :
+                    _mode == TtsPlaybackMode.Disarmed ? "TtsRejectedDisarmed" : "TtsRejectedQueueFull").Dispose();
                 return false;
             }
 
@@ -161,6 +193,7 @@ public sealed class TtsQueue : IAsyncDisposable
                 _queue.Enqueue(decision);
             }
             _queuedCount++;
+            SubsystemPerformanceMetrics.Measure("TtsEnqueued").Dispose();
         }
 
         ReleaseSignal();
@@ -437,12 +470,14 @@ public sealed class TtsQueue : IAsyncDisposable
                     if (MaxQueueAgeSeconds > 0 &&
                         DateTimeOffset.UtcNow - candidate.Message.TimestampUtc > TimeSpan.FromSeconds(MaxQueueAgeSeconds))
                     {
+                        SubsystemPerformanceMetrics.Measure("TtsDroppedStale").Dispose();
                         // Discard stale message to catch up to the live stream
                         continue;
                     }
 
                     decision = candidate;
                     _isSpeaking = true;
+                    Volatile.Write(ref _activeSpeechStartedTimestamp, Stopwatch.GetTimestamp());
                     _activePlaybackCts?.Dispose();
                     playbackCts = CancellationTokenSource.CreateLinkedTokenSource(
                         cancellationToken,
@@ -458,20 +493,27 @@ public sealed class TtsQueue : IAsyncDisposable
             }
 
             NotifyStateChanged();
+            AppLogger.LogDebug("SpeechQueue", $"Starting speech: Voice={SelectedVoice}, Characters={decision.SpokenText.Length}, MessageAgeMs={(DateTimeOffset.UtcNow - decision.Message.TimestampUtc).TotalMilliseconds:F0}, Pending={Count}, Capacity={Capacity}, Mode={Mode}.");
+            SubsystemPerformanceMetrics.Measure("TtsStarted").Dispose();
             RaisePlaybackEvent(PlaybackStarted, decision);
             await SynthesizeAndPlayAsync(
                 decision,
                 sourceQueue,
                 requiredMode,
                 playbackCts.Token);
+            SubsystemPerformanceMetrics.Measure("TtsCompleted").Dispose();
             return true;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (playbackCts?.IsCancellationRequested == true || cancellationToken.IsCancellationRequested)
         {
+            SubsystemPerformanceMetrics.Measure("TtsCanceled").Dispose();
+            AppLogger.LogDebug("SpeechQueue", $"Speech canceled by a control or shutdown: Pending={Count}, Mode={Mode}.");
             return decision is not null;
         }
-        catch
+        catch (Exception ex)
         {
+            SubsystemPerformanceMetrics.Measure("TtsFailed").Dispose();
+            AppLogger.LogError("SpeechQueue", $"Speech failed: Voice={SelectedVoice}, Characters={decision?.SpokenText.Length ?? 0}, Pending={Count}, Mode={Mode}. Queue will continue.", ex);
             // A single synthesis or router failure must not terminate the queue.
             return decision is not null;
         }
@@ -482,6 +524,7 @@ public sealed class TtsQueue : IAsyncDisposable
                 lock (_stateLock)
                 {
                     _isSpeaking = false;
+                    Volatile.Write(ref _activeSpeechStartedTimestamp, 0);
                     if (ReferenceEquals(_activePlaybackCts, playbackCts))
                     {
                         _activePlaybackCts = null;
@@ -560,7 +603,7 @@ public sealed class TtsQueue : IAsyncDisposable
     {
         var settings = new SynthesisSettings(
             SelectedVoice,
-            SpeechRate);
+            SpeechRate, Volatile.Read(ref _speechCacheGeneration));
         byte[] waveBytes = await GetOrSynthesizeWaveAsync(
             decision,
             settings,
@@ -582,10 +625,25 @@ public sealed class TtsQueue : IAsyncDisposable
                 float baseVolume = Math.Clamp(SpeechVolume, 0, 100) / 100.0f;
                 float boostMultiplier = 1.0f + (Math.Clamp(SpeechBoost, 0, 100) / 100.0f);
                 float playbackVolume = baseVolume * boostMultiplier;
-                await _audioRouter.PlayWaveStreamAsync(
-                    new MemoryStream(waveBytes, writable: false),
-                    playbackVolume,
-                    cancellationToken);
+                using SubsystemPerformanceMetrics.OperationTimer playbackMetric =
+                    SubsystemPerformanceMetrics.Measure("AudioPlayback");
+                try
+                {
+                    await _audioRouter.PlayWaveStreamAsync(
+                        new MemoryStream(waveBytes, writable: false),
+                        playbackVolume,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    SubsystemPerformanceMetrics.Measure("AudioPlaybackCanceled").Dispose();
+                    throw;
+                }
+                catch
+                {
+                    playbackMetric.MarkFailed();
+                    throw;
+                }
             }
             finally
             {
@@ -641,8 +699,10 @@ public sealed class TtsQueue : IAsyncDisposable
                 // A stop operation can cancel an in-flight preview. If this
                 // item is still eligible, synthesize it again as current work.
             }
-            catch when (!cancellationToken.IsCancellationRequested)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
+                SubsystemPerformanceMetrics.Measure("TtsPrefetchFailed").Dispose();
+                AppLogger.LogWarning("SpeechQueue", "Prefetched speech failed; retrying once through normal synthesis.", ex);
                 // A speculative failure must not discard an approved message;
                 // the normal synthesis path gets one authoritative attempt.
             }
@@ -663,15 +723,45 @@ public sealed class TtsQueue : IAsyncDisposable
         SynthesisSettings settings,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        var cacheKey = (decision.SpokenText, settings);
+        if (_waveCache.TryGet(cacheKey, out byte[] cached))
+        {
+            SubsystemPerformanceMetrics.Measure("TtsAudioCacheHit").Dispose();
+            return cached;
+        }
+        SubsystemPerformanceMetrics.Measure("TtsAudioCacheMiss").Dispose();
+        long synthesisStarted = Stopwatch.GetTimestamp();
         using var waveStream = new MemoryStream();
-        await _ttsEngine.SynthesizeToWaveStreamAsync(
-            decision.SpokenText,
-            waveStream,
-            settings.VoiceId,
-            settings.Rate,
-            100,
-            cancellationToken);
-        return waveStream.ToArray();
+        using SubsystemPerformanceMetrics.OperationTimer synthesisMetric =
+            SubsystemPerformanceMetrics.Measure("TtsSynthesis");
+        try
+        {
+            await _ttsEngine.SynthesizeToWaveStreamAsync(
+                decision.SpokenText,
+                waveStream,
+                settings.VoiceId,
+                settings.Rate,
+                100,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            SubsystemPerformanceMetrics.Measure("TtsSynthesisCanceled").Dispose();
+            throw;
+        }
+        catch
+        {
+            synthesisMetric.MarkFailed();
+            throw;
+        }
+        double elapsedMs = Stopwatch.GetElapsedTime(synthesisStarted).TotalMilliseconds;
+        if (elapsedMs >= 3000)
+            AppLogger.LogWarning("SpeechQueue", $"Slow speech synthesis: DurationMs={elapsedMs:F0}, Characters={decision.SpokenText.Length}, WaveBytes={waveStream.Length}, Voice={settings.VoiceId}, Pending={Count}.");
+        byte[] wave = waveStream.ToArray();
+        if (decision.SpokenText.Length <= 300 && wave.Length > 44 && wave.Length <= 512 * 1024)
+            _waveCache.Set(cacheKey, wave, wave.Length);
+        return wave;
     }
 
     private void StartPrefetch(
@@ -701,7 +791,7 @@ public sealed class TtsQueue : IAsyncDisposable
 
             var settings = new SynthesisSettings(
                 SelectedVoice,
-                SpeechRate);
+                SpeechRate, Volatile.Read(ref _speechCacheGeneration));
             if (_prefetch is not null &&
                 ReferenceEquals(_prefetch.Decision, next) &&
                 _prefetch.Settings == settings)
@@ -870,6 +960,7 @@ public sealed class TtsQueue : IAsyncDisposable
         }
 
         _signal.Dispose();
+        _waveCache.Clear();
         _playbackGate.Dispose();
         _queueLoopCts.Dispose();
     }

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Channels;
+using SafeSpeak.Core.Diagnostics;
 
 namespace SafeSpeak.Core.Logging;
 
@@ -47,7 +48,9 @@ public sealed record AppLogEntry
 
 /// <summary>
 /// Thread-safe, non-blocking asynchronous diagnostic logger for SafeSpeak subsystems.
-/// Bounded disk persistence (%LOCALAPPDATA%\SafeSpeak\Logs\debug.log) and in-memory ring buffer.
+/// Bounded disk persistence in %LOCALAPPDATA%\SafeSpeak\Logs and an in-memory ring buffer.
+/// Default application instances use separate process-session files so a Store
+/// build and a development build cannot interleave or overwrite each other.
 /// </summary>
 public sealed class AppLogger : IAsyncDisposable, IDisposable
 {
@@ -119,12 +122,16 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         int ringBufferCapacity = DefaultRingBufferCapacity,
         bool writeToFile = true)
     {
+        bool usesDefaultLogsDirectory = logsDirectory is null;
         _logsDirectory = logsDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SafeSpeak",
             "Logs");
-        _logFilePath = Path.Combine(_logsDirectory, "debug.log");
-        _oldLogFilePath = Path.Combine(_logsDirectory, "debug.old.log");
+        string sessionSuffix = usesDefaultLogsDirectory
+            ? $"_session_{Environment.ProcessId}"
+            : string.Empty;
+        _logFilePath = Path.Combine(_logsDirectory, $"debug{sessionSuffix}.log");
+        _oldLogFilePath = Path.Combine(_logsDirectory, $"debug{sessionSuffix}.old.log");
         _maxFileSizeBytes = Math.Max(256, maxFileSizeBytes);
         _ringBufferCapacity = Math.Max(2, ringBufferCapacity);
         _writeToFile = writeToFile;
@@ -279,6 +286,8 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
 
     private void WriteEntry(ref StreamWriter? writer, AppLogEntry entry)
     {
+        using SubsystemPerformanceMetrics.OperationTimer logMetric =
+            SubsystemPerformanceMetrics.Measure("DiagnosticLogWrite");
         if (entry.FlushTcs is not null)
         {
             writer?.Flush();

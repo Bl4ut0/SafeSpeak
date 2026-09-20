@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.Core.Diagnostics;
@@ -30,6 +31,9 @@ public sealed class PerformanceTracker : IDisposable
     private Process? _currentProcess;
     private DateTimeOffset _lastSampleTimeUtc = DateTimeOffset.UtcNow;
     private TimeSpan _lastTotalProcessorTime = TimeSpan.Zero;
+    private ulong _lastSystemIdleTime;
+    private ulong _lastSystemKernelTime;
+    private ulong _lastSystemUserTime;
     private bool _disposed;
 
     public TimeSpan SampleInterval => _sampleInterval;
@@ -43,6 +47,7 @@ public sealed class PerformanceTracker : IDisposable
             _currentProcess = Process.GetCurrentProcess();
             _lastTotalProcessorTime = _currentProcess.TotalProcessorTime;
             _lastSampleTimeUtc = DateTimeOffset.UtcNow;
+            CaptureSystemCpuBaseline();
         }
         catch
         {
@@ -121,6 +126,9 @@ public sealed class PerformanceTracker : IDisposable
         double peakWsMb = 0.0;
         double privateBytesMb = 0.0;
         double managedHeapMb = 0.0;
+        double systemCpuPercent = 0.0;
+        double availablePhysicalMemoryMb = 0.0;
+        double totalPhysicalMemoryMb = 0.0;
         int g0 = 0, g1 = 0, g2 = 0;
         int threadCount = 0;
 
@@ -154,6 +162,11 @@ public sealed class PerformanceTracker : IDisposable
                         100.0);
                 }
 
+                systemCpuPercent = CaptureSystemCpuPercent();
+                CapturePhysicalMemory(
+                    out availablePhysicalMemoryMb,
+                    out totalPhysicalMemoryMb);
+
                 _lastSampleTimeUtc = nowUtc;
                 _lastTotalProcessorTime = totalCpuTime;
             }
@@ -179,18 +192,105 @@ public sealed class PerformanceTracker : IDisposable
         {
             TimestampUtc = DateTimeOffset.UtcNow,
             CpuUsagePercent = cpuPercent,
+            SystemCpuUsagePercent = systemCpuPercent,
+            SafeSpeakShareOfBusyCpuPercent = systemCpuPercent > 0.01
+                ? Math.Clamp(cpuPercent / systemCpuPercent * 100.0, 0.0, 100.0)
+                : 0.0,
             TotalProcessorTime = totalCpuTime,
             WorkingSetMb = workingSetMb,
             PeakWorkingSetMb = peakWsMb,
             PrivateBytesMb = privateBytesMb,
             ManagedHeapMb = managedHeapMb,
+            AvailablePhysicalMemoryMb = availablePhysicalMemoryMb,
+            TotalPhysicalMemoryMb = totalPhysicalMemoryMb,
             Gen0Collections = g0,
             Gen1Collections = g1,
             Gen2Collections = g2,
             ThreadCount = threadCount,
-            AppState = appState
+            AppState = appState,
+            Subsystems = SubsystemPerformanceMetrics.Capture()
         };
     }
+
+    private void CaptureSystemCpuBaseline()
+    {
+        if (!OperatingSystem.IsWindows() ||
+            !GetSystemTimes(out FileTime idle, out FileTime kernel, out FileTime user))
+        {
+            return;
+        }
+
+        _lastSystemIdleTime = idle.Value;
+        _lastSystemKernelTime = kernel.Value;
+        _lastSystemUserTime = user.Value;
+    }
+
+    private double CaptureSystemCpuPercent()
+    {
+        if (!OperatingSystem.IsWindows() ||
+            !GetSystemTimes(out FileTime idle, out FileTime kernel, out FileTime user))
+        {
+            return 0.0;
+        }
+
+        ulong idleDelta = idle.Value - _lastSystemIdleTime;
+        ulong kernelDelta = kernel.Value - _lastSystemKernelTime;
+        ulong userDelta = user.Value - _lastSystemUserTime;
+        _lastSystemIdleTime = idle.Value;
+        _lastSystemKernelTime = kernel.Value;
+        _lastSystemUserTime = user.Value;
+        ulong totalDelta = kernelDelta + userDelta;
+        return totalDelta == 0
+            ? 0.0
+            : Math.Clamp((1.0 - idleDelta / (double)totalDelta) * 100.0, 0.0, 100.0);
+    }
+
+    private static void CapturePhysicalMemory(
+        out double availablePhysicalMemoryMb,
+        out double totalPhysicalMemoryMb)
+    {
+        availablePhysicalMemoryMb = 0.0;
+        totalPhysicalMemoryMb = 0.0;
+        if (!OperatingSystem.IsWindows()) return;
+
+        var status = new MemoryStatusEx();
+        if (!GlobalMemoryStatusEx(status)) return;
+        availablePhysicalMemoryMb = status.AvailablePhysical / (1024.0 * 1024.0);
+        totalPhysicalMemoryMb = status.TotalPhysical / (1024.0 * 1024.0);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileTime
+    {
+        public uint Low;
+        public uint High;
+        public readonly ulong Value => ((ulong)High << 32) | Low;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private sealed class MemoryStatusEx
+    {
+        public uint Length = (uint)Marshal.SizeOf<MemoryStatusEx>();
+        public uint MemoryLoad;
+        public ulong TotalPhysical;
+        public ulong AvailablePhysical;
+        public ulong TotalPageFile;
+        public ulong AvailablePageFile;
+        public ulong TotalVirtual;
+        public ulong AvailableVirtual;
+        public ulong AvailableExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetSystemTimes(
+        out FileTime idleTime,
+        out FileTime kernelTime,
+        out FileTime userTime);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx([In, Out] MemoryStatusEx buffer);
 
     public void Dispose()
     {

@@ -94,7 +94,7 @@ Before each Store build:
 ```powershell
 ./installer/Build-Release.ps1 `
   -Architecture x64 `
-  -PackageVersion 1.0.11.0 `
+  -PackageVersion 1.0.12.0 `
   -Format Msix `
   -StoreSubmission `
   -IdentityName "PARTNER_CENTER_IDENTITY_NAME" `
