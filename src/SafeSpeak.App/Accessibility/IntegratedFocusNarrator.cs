@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Windows.Input;
 using System.Windows.Threading;
 using SafeSpeak.Core.Accessibility;
@@ -29,6 +31,9 @@ public sealed class IntegratedFocusNarrator : IDisposable
     private DateTime _lastAnnouncementAt;
     private bool _suppressNextFocus;
     private bool _disposed;
+
+    private static readonly string[] _narratorProperties = { "DisplayName", "Name", "Title", "Id" };
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertyCache = new();
 
     public void SuppressNextFocusAnnouncement() => _suppressNextFocus = true;
 
@@ -390,12 +395,24 @@ public sealed class IntegratedFocusNarrator : IDisposable
         if (comboBox.SelectedItem is not null)
         {
             Type itemType = comboBox.SelectedItem.GetType();
-            foreach (string propertyName in new[] { "DisplayName", "Name", "Title", "Id" })
+
+            PropertyInfo[] properties = _propertyCache.GetOrAdd(itemType, t =>
             {
-                string? value = itemType
-                    .GetProperty(propertyName)?
-                    .GetValue(comboBox.SelectedItem)?
-                    .ToString();
+                var list = new List<PropertyInfo>();
+                foreach (string propertyName in _narratorProperties)
+                {
+                    PropertyInfo? pi = t.GetProperty(propertyName);
+                    if (pi is not null)
+                    {
+                        list.Add(pi);
+                    }
+                }
+                return list.ToArray();
+            });
+
+            foreach (PropertyInfo propertyInfo in properties)
+            {
+                string? value = propertyInfo.GetValue(comboBox.SelectedItem)?.ToString();
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     return value;
