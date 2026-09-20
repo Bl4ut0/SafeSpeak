@@ -189,6 +189,53 @@ public static partial class UnicodeNormalizer
     }
 
     /// <summary>
+    /// Checks if a grapheme cluster (text element) represents a flag emoji or sequence
+    /// (national flags, subdivision flags, rainbow/trans/pirate flags, etc.).
+    /// </summary>
+    public static bool IsFlag(string textElement)
+    {
+        if (string.IsNullOrEmpty(textElement)) return false;
+
+        foreach (Rune rune in textElement.EnumerateRunes())
+        {
+            int cp = rune.Value;
+            if (cp is (>= 0x1F1E6 and <= 0x1F1FF) or // Regional Indicator Symbols (country/territory flags)
+                      (>= 0xE0000 and <= 0xE007F) or // Unicode Tags (subdivision flags like Scotland/England/Wales)
+                      0x1F3F4 or                      // Waving Black Flag (base for pirate and subdivision flags)
+                      0x1F3F3 or                      // Waving White Flag (base for rainbow and trans flags)
+                      0x1F6A9 or                      // Triangular Flag on Post
+                      0x1F38C or                      // Crossed Flags
+                      0x1F3C1)                        // Chequered Flag
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Removes flag emojis and sequences from text while preserving all speakable words and other decorations.
+    /// </summary>
+    public static string StripFlags(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+
+        var sb = new StringBuilder(input.Length);
+        var enumerator = StringInfo.GetTextElementEnumerator(input);
+        while (enumerator.MoveNext())
+        {
+            string element = enumerator.GetTextElement();
+            if (!IsFlag(element))
+            {
+                sb.Append(element);
+            }
+        }
+
+        return MultipleWhitespaceRegex().Replace(sb.ToString(), " ").Trim();
+    }
+
+    /// <summary>
     /// Collapses consecutive repeated emojis down to maxRepeated and limits total emojis per message to maxTotal.
     /// Prevents repeated emoji spam (e.g. 😂😂😂😂😂 or 🔥 🔥 🔥) from causing TTS to read each emoji aloud.
     /// </summary>
@@ -304,7 +351,10 @@ public static partial class UnicodeNormalizer
     {
         if (string.IsNullOrWhiteSpace(input)) return string.Empty;
 
-        string normalized = StripInvisibleCharacters(input)
+        string withoutFlags = StripFlags(input);
+        if (string.IsNullOrWhiteSpace(withoutFlags)) return string.Empty;
+
+        string normalized = StripInvisibleCharacters(withoutFlags)
             .Normalize(NormalizationForm.FormKC);
         var result = new StringBuilder(normalized.Length);
         bool separatorPending = false;

@@ -217,6 +217,11 @@ public sealed class LocalOnnxIntentClassifierTests
     [InlineData("𝖝𝖞", "xy")]
     [InlineData("🖤Danis🖤", "Danis")]
     [InlineData("😶‍🌫️", "A viewer")]
+    [InlineData("Alex 🇺🇸", "Alex")]
+    [InlineData("Callum 🏴󠁧󠁢󠁳󠁣󠁴󠁿", "Callum")]
+    [InlineData("🏳️‍🌈 Jordan", "Jordan")]
+    [InlineData("🇺🇸", "A viewer")]
+    [InlineData("🏴󠁧󠁢󠁳󠁣󠁴󠁿", "A viewer")]
     public async Task DisplayNameIsConvertedToSpeakableAttribution(
         string displayName,
         string expectedName)
