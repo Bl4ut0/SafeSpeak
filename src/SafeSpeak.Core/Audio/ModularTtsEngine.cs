@@ -1,5 +1,6 @@
 using System.Speech.Synthesis;
 using SafeSpeak.Core.Audio.VoiceFramework;
+using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.Core.Audio;
 
@@ -120,9 +121,10 @@ public sealed class ModularTtsEngine : ITtsEngine
                     ));
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // WinRT SpeechSynthesizer not supported or unavailable
+                AppLogger.LogDebug("ModularTtsEngine", $"GetAvailableVoices: WinRT SpeechSynthesizer not supported or unavailable: {ex.Message}");
             }
 #endif
 
@@ -171,7 +173,10 @@ public sealed class ModularTtsEngine : ITtsEngine
                         ));
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    AppLogger.LogDebug("ModularTtsEngine", $"GetAvailableVoices: Error enumerating System.Speech.Synthesis voices: {ex.Message}");
+                }
             }
 
             // Sort: Natural Neural voices first (Kokoro/Custom/OneCore), then standard desktop voices
@@ -276,7 +281,14 @@ public sealed class ModularTtsEngine : ITtsEngine
 
             if (!string.IsNullOrEmpty(voiceId))
             {
-                try { _synthesizer!.SelectVoice(voiceId); } catch { }
+                try
+                {
+                    _synthesizer!.SelectVoice(voiceId);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogDebug("ModularTtsEngine", $"SpeakDirectAsync: Could not select voice '{voiceId}': {ex.Message}");
+                }
             }
 
             _synthesizer!.Rate = Math.Clamp(rate, -10, 10);
@@ -418,7 +430,14 @@ public sealed class ModularTtsEngine : ITtsEngine
         var asyncOp = synth.SynthesizeTextToStreamAsync(text);
         using var reg = cancellationToken.Register(() =>
         {
-            try { asyncOp.Cancel(); } catch { }
+            try
+            {
+                asyncOp.Cancel();
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogDebug("ModularTtsEngine", $"SynthesizeWinRtVoiceAsync: Error cancelling WinRT synthesis: {ex.Message}");
+            }
         });
 
         using var speechStream = await asyncOp;
@@ -443,8 +462,18 @@ public sealed class ModularTtsEngine : ITtsEngine
             operation.Cancel();
         }
 
-        try { directSynthesizer?.SpeakAsyncCancelAll(); } catch (ObjectDisposedException) { }
-        catch (InvalidOperationException) { }
+        try
+        {
+            directSynthesizer?.SpeakAsyncCancelAll();
+        }
+        catch (ObjectDisposedException ex)
+        {
+            AppLogger.LogDebug("ModularTtsEngine", $"Stop: SpeechSynthesizer was already disposed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            AppLogger.LogDebug("ModularTtsEngine", $"Stop: Invalid operation on SpeechSynthesizer: {ex.Message}");
+        }
     }
 
     public void Dispose()
@@ -470,7 +499,15 @@ public sealed class ModularTtsEngine : ITtsEngine
             operation.Cancel();
         }
 
-        try { directSynthesizer?.SpeakAsyncCancelAll(); } catch { }
+        try
+        {
+            directSynthesizer?.SpeakAsyncCancelAll();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.LogDebug("ModularTtsEngine", $"Dispose: Error cancelling speech: {ex.Message}");
+        }
+
         directSynthesizer?.Dispose();
         _kokoroManager.Dispose();
     }
