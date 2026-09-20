@@ -2813,11 +2813,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         try
         {
             Directory.CreateDirectory(_auditLogger.LogsDirectory);
-            Process.Start(new ProcessStartInfo
+            var psi = new ProcessStartInfo
             {
-                FileName = _auditLogger.LogsDirectory,
-                UseShellExecute = true
-            });
+                FileName = "explorer.exe",
+                UseShellExecute = false
+            };
+            psi.ArgumentList.Add(_auditLogger.LogsDirectory);
+            Process.Start(psi);
             AnnounceState("Opening SafeSpeak logs folder.");
         }
         catch
