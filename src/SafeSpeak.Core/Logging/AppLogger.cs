@@ -339,6 +339,7 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         }
         catch
         {
+            // If archiving fails (e.g. file lock or permissions), ignore and continue
         }
     }
 
@@ -361,6 +362,7 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         }
         catch
         {
+            // If archiving fails (e.g. file lock or permissions), ignore and continue
         }
     }
 
