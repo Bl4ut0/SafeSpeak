@@ -1,4 +1,5 @@
 using SafeSpeak.Core.Audio;
+using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.Core.Accessibility;
 
@@ -160,7 +161,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         try
         {
             try { await preceding.WaitAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false); }
-            catch { /* Ignore timeout or cancellation of previous speech task */ }
+            catch (Exception ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Previous speech task timeout or error: {ex.Message}"); }
             cancellationToken.ThrowIfCancellationRequested();
             using var waveStream = new MemoryStream();
             await _speechEngine!.SynthesizeToWaveStreamAsync(
@@ -175,11 +176,11 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
                 volume / 100f,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { /* Expected when speech is interrupted */ }
-        catch (ObjectDisposedException) { /* Expected when stopping/disposing while active */ }
-        catch (InvalidOperationException) { /* Ignore temporary state issues during playback */ }
-        catch (IOException) { /* Ignore audio stream errors */ }
-        catch (TimeoutException) { /* Ignore timeouts when trying to play */ }
+        catch (OperationCanceledException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Speech interrupted: {ex.Message}"); }
+        catch (ObjectDisposedException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Object disposed during speech: {ex.Message}"); }
+        catch (InvalidOperationException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Temporary state issue during playback: {ex.Message}"); }
+        catch (IOException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Audio stream error: {ex.Message}"); }
+        catch (TimeoutException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Timeout when trying to play: {ex.Message}"); }
     }
 
     /// <summary>
@@ -221,7 +222,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         try
         {
             try { await preceding.ConfigureAwait(false); }
-            catch { /* Ignore errors from previous task */ }
+            catch (Exception ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Previous task error before cue: {ex.Message}"); }
             cancellationToken.ThrowIfCancellationRequested();
             await SoundCuePlayer.PlayCueAsync(
                 cueType,
@@ -229,17 +230,17 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
                 volume,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { /* Expected when speech is interrupted */ }
-        catch (ObjectDisposedException) { /* Expected when stopping/disposing while active */ }
-        catch (InvalidOperationException) { /* Ignore temporary state issues during playback */ }
-        catch (IOException) { /* Ignore audio stream errors */ }
+        catch (OperationCanceledException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Cue interrupted: {ex.Message}"); }
+        catch (ObjectDisposedException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Object disposed during cue: {ex.Message}"); }
+        catch (InvalidOperationException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Temporary state issue during cue playback: {ex.Message}"); }
+        catch (IOException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"Audio stream error during cue: {ex.Message}"); }
     }
 
     private void CancelSpeechUnsafe()
     {
-        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
-        try { _speechEngine?.Stop(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
-        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
+        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"_speechCancellation already disposed: {ex.Message}"); }
+        try { _speechEngine?.Stop(); } catch (ObjectDisposedException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"_speechEngine already disposed: {ex.Message}"); }
+        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException ex) { AppLogger.LogDebug("ScreenReaderAnnouncer", $"_guidanceAudioRouter already disposed: {ex.Message}"); }
     }
 
     public void Dispose()
