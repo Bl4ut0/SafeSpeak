@@ -64,8 +64,9 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
             _speechEngine = new SystemSpeechTtsEngine();
             _guidanceAudioRouter = new WasapiAudioRouter();
         }
-        catch
+        catch (Exception ex)
         {
+            SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Failed to initialize speech engine or audio router: {ex.Message}");
             _speechEngine = null;
             _guidanceAudioRouter = null;
         }
@@ -160,7 +161,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         try
         {
             try { await preceding.WaitAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false); }
-            catch { /* Ignore timeout or cancellation of previous speech task */ }
+            catch (Exception ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Previous speech task wait failed/timed out: {ex.Message}"); }
             cancellationToken.ThrowIfCancellationRequested();
             using var waveStream = new MemoryStream();
             await _speechEngine!.SynthesizeToWaveStreamAsync(
@@ -175,11 +176,11 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
                 volume / 100f,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { /* Expected when speech is interrupted */ }
-        catch (ObjectDisposedException) { /* Expected when stopping/disposing while active */ }
-        catch (InvalidOperationException) { /* Ignore temporary state issues during playback */ }
-        catch (IOException) { /* Ignore audio stream errors */ }
-        catch (TimeoutException) { /* Ignore timeouts when trying to play */ }
+        catch (OperationCanceledException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Speech interrupted: {ex.Message}"); }
+        catch (ObjectDisposedException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Speech stopped/disposed while active: {ex.Message}"); }
+        catch (InvalidOperationException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Temporary state issue during playback: {ex.Message}"); }
+        catch (IOException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Audio stream error: {ex.Message}"); }
+        catch (TimeoutException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Timeout when trying to play: {ex.Message}"); }
     }
 
     /// <summary>
@@ -221,7 +222,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         try
         {
             try { await preceding.ConfigureAwait(false); }
-            catch { /* Ignore errors from previous task */ }
+            catch (Exception ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Previous task wait failed before cue: {ex.Message}"); }
             cancellationToken.ThrowIfCancellationRequested();
             await SoundCuePlayer.PlayCueAsync(
                 cueType,
@@ -229,17 +230,17 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
                 volume,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { /* Expected when speech is interrupted */ }
-        catch (ObjectDisposedException) { /* Expected when stopping/disposing while active */ }
-        catch (InvalidOperationException) { /* Ignore temporary state issues during playback */ }
-        catch (IOException) { /* Ignore audio stream errors */ }
+        catch (OperationCanceledException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Cue interrupted: {ex.Message}"); }
+        catch (ObjectDisposedException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Cue stopped/disposed while active: {ex.Message}"); }
+        catch (InvalidOperationException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Temporary state issue during cue playback: {ex.Message}"); }
+        catch (IOException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Audio stream error during cue: {ex.Message}"); }
     }
 
     private void CancelSpeechUnsafe()
     {
-        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
-        try { _speechEngine?.Stop(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
-        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
+        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Cancellation source already disposed: {ex.Message}"); }
+        try { _speechEngine?.Stop(); } catch (ObjectDisposedException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Speech engine already disposed: {ex.Message}"); }
+        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException ex) { SafeSpeak.Core.Logging.AppLogger.LogDebug("ScreenReaderAnnouncer", $"Audio router already disposed: {ex.Message}"); }
     }
 
     public void Dispose()
