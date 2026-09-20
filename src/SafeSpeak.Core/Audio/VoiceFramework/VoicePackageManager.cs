@@ -23,6 +23,8 @@ public sealed class VoicePackageManager
     private readonly string _voicePacksRoot;
     private readonly SemaphoreSlim _importGate = new(1, 1);
     private readonly Action? _afterRollbackDirectoryCreated;
+    private IReadOnlyList<VoicePackageInfo>? _cachedPackages;
+    private readonly object _cacheLock = new();
 
     public string VoicePacksRoot => _voicePacksRoot;
 
@@ -49,47 +51,64 @@ public sealed class VoicePackageManager
 
     public IReadOnlyList<VoicePackageInfo> GetInstalledPackages()
     {
-        var list = new List<VoicePackageInfo>();
-        if (!Directory.Exists(_voicePacksRoot)) return list;
-
-        foreach (var dir in Directory.GetDirectories(_voicePacksRoot))
+        lock (_cacheLock)
         {
-            string directoryName = Path.GetFileName(dir);
-            if (directoryName.StartsWith(ImportDirectoryPrefix, StringComparison.Ordinal) ||
-                directoryName.StartsWith(RollbackDirectoryPrefix, StringComparison.Ordinal))
+            if (_cachedPackages != null)
             {
-                continue;
+                return _cachedPackages;
             }
 
-            string manifestPath = Path.Combine(dir, "voice.json");
-            if (!File.Exists(manifestPath)) continue;
+            var list = new List<VoicePackageInfo>();
+            if (!Directory.Exists(_voicePacksRoot)) return list;
 
-            try
+            foreach (var dir in Directory.GetDirectories(_voicePacksRoot))
             {
-                string json = File.ReadAllText(manifestPath);
-                var manifest = JsonSerializer.Deserialize<VoicePackageManifest>(json);
-                if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id)) continue;
-
-                string modelPath = Path.Combine(dir, manifest.ModelFileName);
-                string configPath = Path.Combine(dir, manifest.ConfigFileName);
-                string samplePath = Path.Combine(dir, manifest.SampleAudioFileName ?? "sample.wav");
-
-                if (File.Exists(modelPath))
+                string directoryName = Path.GetFileName(dir);
+                if (directoryName.StartsWith(ImportDirectoryPrefix, StringComparison.Ordinal) ||
+                    directoryName.StartsWith(RollbackDirectoryPrefix, StringComparison.Ordinal))
                 {
-                    list.Add(new VoicePackageInfo
-                    {
-                        Manifest = manifest,
-                        PackageDirectory = dir,
-                        ModelAbsolutePath = modelPath,
-                        ConfigAbsolutePath = configPath,
-                        SampleAudioAbsolutePath = File.Exists(samplePath) ? samplePath : null
-                    });
+                    continue;
                 }
-            }
-            catch { }
-        }
 
-        return list;
+                string manifestPath = Path.Combine(dir, "voice.json");
+                if (!File.Exists(manifestPath)) continue;
+
+                try
+                {
+                    string json = File.ReadAllText(manifestPath);
+                    var manifest = JsonSerializer.Deserialize<VoicePackageManifest>(json);
+                    if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id)) continue;
+
+                    string modelPath = Path.Combine(dir, manifest.ModelFileName);
+                    string configPath = Path.Combine(dir, manifest.ConfigFileName);
+                    string samplePath = Path.Combine(dir, manifest.SampleAudioFileName ?? "sample.wav");
+
+                    if (File.Exists(modelPath))
+                    {
+                        list.Add(new VoicePackageInfo
+                        {
+                            Manifest = manifest,
+                            PackageDirectory = dir,
+                            ModelAbsolutePath = modelPath,
+                            ConfigAbsolutePath = configPath,
+                            SampleAudioAbsolutePath = File.Exists(samplePath) ? samplePath : null
+                        });
+                    }
+                }
+                catch { }
+            }
+
+            _cachedPackages = list;
+            return list;
+        }
+    }
+
+    private void InvalidateCache()
+    {
+        lock (_cacheLock)
+        {
+            _cachedPackages = null;
+        }
     }
 
     public async Task<VoicePackageInfo> ImportPackageFromZipAsync(string zipOrVoicePackPath, CancellationToken cancellationToken = default)
@@ -149,7 +168,7 @@ public sealed class VoicePackageManager
             string finalConfigPath = Path.Combine(targetDir, manifest.ConfigFileName);
             string finalSamplePath = Path.Combine(targetDir, manifest.SampleAudioFileName ?? "sample.wav");
 
-            return new VoicePackageInfo
+            var imported = new VoicePackageInfo
             {
                 Manifest = manifest,
                 PackageDirectory = targetDir,
@@ -157,6 +176,9 @@ public sealed class VoicePackageManager
                 ConfigAbsolutePath = finalConfigPath,
                 SampleAudioAbsolutePath = File.Exists(finalSamplePath) ? finalSamplePath : null
             };
+
+            InvalidateCache();
+            return imported;
         }
         finally
         {
@@ -175,7 +197,11 @@ public sealed class VoicePackageManager
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(destinationDirectory);
-        string destinationRoot = Path.GetFullPath(destinationDirectory) + Path.DirectorySeparatorChar;
+        string destinationRoot = Path.GetFullPath(destinationDirectory);
+        if (!destinationRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+        {
+            destinationRoot += Path.DirectorySeparatorChar;
+        }
         long expandedBytes = 0;
         int entryCount = 0;
 
@@ -344,6 +370,7 @@ public sealed class VoicePackageManager
             try
             {
                 Directory.Delete(dir, recursive: true);
+                InvalidateCache();
                 return true;
             }
             catch
@@ -387,7 +414,7 @@ public sealed class VoicePackageManager
         string manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(Path.Combine(packageDir, "voice.json"), manifestJson, cancellationToken);
 
-        return new VoicePackageInfo
+        var imported = new VoicePackageInfo
         {
             Manifest = manifest,
             PackageDirectory = packageDir,
@@ -395,5 +422,8 @@ public sealed class VoicePackageManager
             ConfigAbsolutePath = Path.Combine(packageDir, manifest.ConfigFileName),
             SampleAudioAbsolutePath = !string.IsNullOrEmpty(sourceSamplePath) ? Path.Combine(packageDir, Path.GetFileName(sourceSamplePath)) : null
         };
+
+        InvalidateCache();
+        return imported;
     }
 }

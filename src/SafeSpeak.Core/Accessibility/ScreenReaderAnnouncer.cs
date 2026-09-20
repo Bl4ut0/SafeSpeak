@@ -160,7 +160,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         try
         {
             try { await preceding.WaitAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false); }
-            catch { }
+            catch { /* Ignore timeout or cancellation of previous speech task */ }
             cancellationToken.ThrowIfCancellationRequested();
             using var waveStream = new MemoryStream();
             await _speechEngine!.SynthesizeToWaveStreamAsync(
@@ -175,11 +175,11 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
                 volume / 100f,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { }
-        catch (ObjectDisposedException) { }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
-        catch (TimeoutException) { }
+        catch (OperationCanceledException) { /* Expected when speech is interrupted */ }
+        catch (ObjectDisposedException) { /* Expected when stopping/disposing while active */ }
+        catch (InvalidOperationException) { /* Ignore temporary state issues during playback */ }
+        catch (IOException) { /* Ignore audio stream errors */ }
+        catch (TimeoutException) { /* Ignore timeouts when trying to play */ }
     }
 
     /// <summary>
@@ -221,7 +221,7 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
         try
         {
             try { await preceding.ConfigureAwait(false); }
-            catch { }
+            catch { /* Ignore errors from previous task */ }
             cancellationToken.ThrowIfCancellationRequested();
             await SoundCuePlayer.PlayCueAsync(
                 cueType,
@@ -229,17 +229,17 @@ public sealed class ScreenReaderAnnouncer : IScreenReaderBridge
                 volume,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { }
-        catch (ObjectDisposedException) { }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
+        catch (OperationCanceledException) { /* Expected when speech is interrupted */ }
+        catch (ObjectDisposedException) { /* Expected when stopping/disposing while active */ }
+        catch (InvalidOperationException) { /* Ignore temporary state issues during playback */ }
+        catch (IOException) { /* Ignore audio stream errors */ }
     }
 
     private void CancelSpeechUnsafe()
     {
-        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException) { }
-        try { _speechEngine?.Stop(); } catch (ObjectDisposedException) { }
-        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException) { }
+        try { _speechCancellation.Cancel(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
+        try { _speechEngine?.Stop(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
+        try { _guidanceAudioRouter?.Stop(); } catch (ObjectDisposedException) { /* Ignore if already disposed */ }
     }
 
     public void Dispose()

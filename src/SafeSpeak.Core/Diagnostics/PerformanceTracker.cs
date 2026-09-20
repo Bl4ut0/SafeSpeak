@@ -134,7 +134,12 @@ public sealed class PerformanceTracker : IDisposable
 
         try
         {
-            managedHeapMb = GC.GetTotalMemory(false) / (1024.0 * 1024.0);
+            long totalMemoryBytes = GC.GetTotalMemory(false);
+            if (totalMemoryBytes <= 0)
+            {
+                totalMemoryBytes = GC.GetTotalMemory(true);
+            }
+            managedHeapMb = Math.Max(0.0, totalMemoryBytes / (1024.0 * 1024.0));
             g0 = GC.CollectionCount(0);
             g1 = GC.CollectionCount(1);
             g2 = GC.CollectionCount(2);

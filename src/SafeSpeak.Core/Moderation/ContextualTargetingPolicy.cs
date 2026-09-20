@@ -63,104 +63,118 @@ internal static partial class ContextualTargetingPolicy
             return result;
         }
 
-        bool isExplicitMinorSexualIntent = ExplicitMinorSexualIntentRegex().IsMatch(originalText) ||
+        return TryApplyExplicitMinorSexualIntent(originalText, normalizedText, result)
+            ?? TryApplyExplicitGenocidalIntent(originalText, normalizedText, result)
+            ?? TryApplyProtectiveOrInformationalGenocideStatement(originalText, normalizedText, result)
+            ?? TryApplyProtectiveMinorSafetyStatement(originalText, normalizedText, result)
+            ?? TryApplyAmbiguousMinorSafetyConcern(originalText, normalizedText, result)
+            ?? TryApplyDirectedHostility(originalText, normalizedText, result)
+            ?? TryApplyNonHumanFrustration(originalText, normalizedText, result)
+            ?? result;
+    }
+
+    private static IntentClassificationResult? TryApplyExplicitMinorSexualIntent(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = ExplicitMinorSexualIntentRegex().IsMatch(originalText) ||
             ExplicitMinorSexualIntentRegex().IsMatch(normalizedText);
-        if (isExplicitMinorSexualIntent)
-        {
-            return result with
-            {
-                IsToxic = true,
-                ToxicityScore = Math.Max(result.ToxicityScore, ExplicitMinorSexualIntentScore),
-                SevereToxicityScore = Math.Max(result.SevereToxicityScore, ExplicitMinorSexualIntentScore),
-                HarassmentScore = Math.Max(result.HarassmentScore, 0.95),
-                FlaggedCategory = "Explicit minor sexual exploitation",
-                ModelUsed = $"{result.ModelUsed} + target-context policy"
-            };
-        }
+        if (!isMatch) return null;
 
-        bool isExplicitGenocidalIntent = ExplicitGenocidalIntentRegex().IsMatch(originalText) ||
+        return result with
+        {
+            IsToxic = true,
+            ToxicityScore = Math.Max(result.ToxicityScore, ExplicitMinorSexualIntentScore),
+            SevereToxicityScore = Math.Max(result.SevereToxicityScore, ExplicitMinorSexualIntentScore),
+            HarassmentScore = Math.Max(result.HarassmentScore, 0.95),
+            FlaggedCategory = "Explicit minor sexual exploitation",
+            ModelUsed = $"{result.ModelUsed} + target-context policy"
+        };
+    }
+
+    private static IntentClassificationResult? TryApplyExplicitGenocidalIntent(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = ExplicitGenocidalIntentRegex().IsMatch(originalText) ||
             ExplicitGenocidalIntentRegex().IsMatch(normalizedText);
-        if (isExplicitGenocidalIntent)
-        {
-            return result with
-            {
-                IsToxic = true,
-                ToxicityScore = Math.Max(result.ToxicityScore, ExplicitGenocidalIntentScore),
-                SevereToxicityScore = Math.Max(result.SevereToxicityScore, ExplicitGenocidalIntentScore),
-                ThreatScore = Math.Max(result.ThreatScore, 0.95),
-                HarassmentScore = Math.Max(result.HarassmentScore, 0.95),
-                FlaggedCategory = "Genocidal advocacy or threat",
-                ModelUsed = $"{result.ModelUsed} + target-context policy"
-            };
-        }
+        if (!isMatch) return null;
 
-        // Discussion, education, remembrance, and explicit opposition are not
-        // endorsements of mass violence. Full-message matching prevents a safe
-        // preface from concealing an appended threat or expression of support.
-        bool isProtectiveOrInformationalGenocideStatement =
-            ProtectiveOrInformationalGenocideRegex().IsMatch(originalText) ||
+        return result with
+        {
+            IsToxic = true,
+            ToxicityScore = Math.Max(result.ToxicityScore, ExplicitGenocidalIntentScore),
+            SevereToxicityScore = Math.Max(result.SevereToxicityScore, ExplicitGenocidalIntentScore),
+            ThreatScore = Math.Max(result.ThreatScore, 0.95),
+            HarassmentScore = Math.Max(result.HarassmentScore, 0.95),
+            FlaggedCategory = "Genocidal advocacy or threat",
+            ModelUsed = $"{result.ModelUsed} + target-context policy"
+        };
+    }
+
+    private static IntentClassificationResult? TryApplyProtectiveOrInformationalGenocideStatement(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = ProtectiveOrInformationalGenocideRegex().IsMatch(originalText) ||
             ProtectiveOrInformationalGenocideRegex().IsMatch(normalizedText);
-        if (isProtectiveOrInformationalGenocideStatement)
-        {
-            return ApplySafeContextCeiling(result, "Protective or informational genocide discussion");
-        }
+        if (!isMatch) return null;
 
-        // A complete protective statement is a speech act opposing harm, not
-        // endorsing it. Full-message matching prevents a safe preface from
-        // concealing an appended abusive clause.
-        bool isProtectiveMinorSafetyStatement = ProtectiveMinorSafetyRegex().IsMatch(originalText) ||
+        return ApplySafeContextCeiling(result, "Protective or informational genocide discussion");
+    }
+
+    private static IntentClassificationResult? TryApplyProtectiveMinorSafetyStatement(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = ProtectiveMinorSafetyRegex().IsMatch(originalText) ||
             ProtectiveMinorSafetyRegex().IsMatch(normalizedText);
-        if (isProtectiveMinorSafetyStatement)
-        {
-            return ApplySafeContextCeiling(result, "Protective child-safety statement");
-        }
+        if (!isMatch) return null;
 
-        // With no conversation history, vague euphemisms cannot establish a
-        // crime or a person's age. They receive a 0.70 risk anchor: permissive
-        // levels 1-2 allow them, while Strong and Maximum prevent narration.
-        bool isAmbiguousMinorSafetyConcern = AmbiguousMinorSafetyRegex().IsMatch(originalText) ||
+        return ApplySafeContextCeiling(result, "Protective child-safety statement");
+    }
+
+    private static IntentClassificationResult? TryApplyAmbiguousMinorSafetyConcern(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = AmbiguousMinorSafetyRegex().IsMatch(originalText) ||
             AmbiguousMinorSafetyRegex().IsMatch(normalizedText);
-        if (isAmbiguousMinorSafetyConcern)
-        {
-            return result with
-            {
-                IsToxic = true,
-                ToxicityScore = AmbiguousMinorSafetyScore,
-                SevereToxicityScore = Math.Max(result.SevereToxicityScore, 0.60),
-                HarassmentScore = Math.Max(result.HarassmentScore, 0.65),
-                FlaggedCategory = "Ambiguous child-safety concern",
-                ModelUsed = $"{result.ModelUsed} + target-context policy"
-            };
-        }
+        if (!isMatch) return null;
 
-        bool isDirectedHostility = DirectedHostilityRegex().IsMatch(originalText) ||
+        return result with
+        {
+            IsToxic = true,
+            ToxicityScore = AmbiguousMinorSafetyScore,
+            SevereToxicityScore = Math.Max(result.SevereToxicityScore, 0.60),
+            HarassmentScore = Math.Max(result.HarassmentScore, 0.65),
+            FlaggedCategory = "Ambiguous child-safety concern",
+            ModelUsed = $"{result.ModelUsed} + target-context policy"
+        };
+    }
+
+    private static IntentClassificationResult? TryApplyDirectedHostility(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = DirectedHostilityRegex().IsMatch(originalText) ||
             DirectedHostilityRegex().IsMatch(normalizedText);
-        if (isDirectedHostility)
-        {
-            bool hasIndependentSevereSignal = result.ThreatScore >= 0.90 ||
-                result.SevereToxicityScore >= 0.90 ||
-                result.IdentityHateScore >= 0.90;
-            return result with
-            {
-                IsToxic = true,
-                ToxicityScore = hasIndependentSevereSignal
-                    ? Math.Max(result.ToxicityScore, DirectedHostilityScore)
-                    : DirectedHostilityScore,
-                HarassmentScore = Math.Max(result.HarassmentScore, 0.80),
-                InsultScore = Math.Max(result.InsultScore, 0.80),
-                FlaggedCategory = "Directed hostility",
-                ModelUsed = $"{result.ModelUsed} + target-context policy"
-            };
-        }
+        if (!isMatch) return null;
 
-        bool isNonHumanFrustration = NonHumanFrustrationRegex().IsMatch(originalText) ||
+        bool hasIndependentSevereSignal = result.ThreatScore >= 0.90 ||
+            result.SevereToxicityScore >= 0.90 ||
+            result.IdentityHateScore >= 0.90;
+        return result with
+        {
+            IsToxic = true,
+            ToxicityScore = hasIndependentSevereSignal
+                ? Math.Max(result.ToxicityScore, DirectedHostilityScore)
+                : DirectedHostilityScore,
+            HarassmentScore = Math.Max(result.HarassmentScore, 0.80),
+            InsultScore = Math.Max(result.InsultScore, 0.80),
+            FlaggedCategory = "Directed hostility",
+            ModelUsed = $"{result.ModelUsed} + target-context policy"
+        };
+    }
+
+    private static IntentClassificationResult? TryApplyNonHumanFrustration(string originalText, string normalizedText, IntentClassificationResult result)
+    {
+        bool isMatch = NonHumanFrustrationRegex().IsMatch(originalText) ||
             NonHumanFrustrationRegex().IsMatch(normalizedText);
-        if (!isNonHumanFrustration ||
+        if (!isMatch ||
             result.ThreatScore >= 0.75 ||
             result.SevereToxicityScore >= 0.75 ||
             result.IdentityHateScore >= 0.45)
         {
-            return result;
+            return null;
         }
 
         return ApplySafeContextCeiling(result, "Non-directed game frustration");

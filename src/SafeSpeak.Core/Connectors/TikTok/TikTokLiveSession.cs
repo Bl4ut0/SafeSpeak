@@ -29,7 +29,7 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
     private readonly Func<Uri, string, CancellationToken, Task<WebSocket>> _openSocket;
 
     public TikTokLiveSession() : this(
-        () => new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+        () => new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, CheckCertificateRevocationList = true })
         { Timeout = TimeSpan.FromSeconds(12) }, OpenSocketAsync) { }
 
     internal TikTokLiveSession(Func<HttpClient> createHttp,

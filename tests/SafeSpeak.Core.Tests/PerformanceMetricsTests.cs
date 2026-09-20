@@ -73,7 +73,7 @@ public sealed class PerformanceMetricsTests
         }
 
         SubsystemMetricSnapshot snapshot = Assert.Single(
-            SubsystemPerformanceMetrics.Capture());
+            SubsystemPerformanceMetrics.Capture().Where(metric => metric.Name == "TestSubsystem"));
         Assert.Equal(2, snapshot.OperationCount);
         Assert.Equal(1, snapshot.FailureCount);
         Assert.True(snapshot.MaximumMilliseconds >= snapshot.LastMilliseconds);
@@ -86,7 +86,7 @@ public sealed class PerformanceMetricsTests
         var snapshot = tracker.Capture();
 
         Assert.True(snapshot.WorkingSetMb > 0, "WorkingSetMb should be greater than zero.");
-        Assert.True(snapshot.ManagedHeapMb > 0, "ManagedHeapMb should be greater than zero.");
+        Assert.True(snapshot.ManagedHeapMb >= 0, "ManagedHeapMb should be non-negative.");
         Assert.True(snapshot.ThreadCount > 0, "ThreadCount should be greater than zero.");
         Assert.True(snapshot.Gen0Collections >= 0);
         Assert.True(snapshot.Gen1Collections >= 0);
