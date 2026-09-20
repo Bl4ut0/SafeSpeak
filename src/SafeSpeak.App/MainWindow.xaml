@@ -61,7 +61,8 @@
                     Command="{Binding AnnounceStatusPrivatelyCommand}"
                     Content="Hear status"
                     AutomationProperties.Name="Hear current SafeSpeak status"
-                    AutomationProperties.HelpText="{Binding HearStatusHelpText}" />
+                    AutomationProperties.HelpText="{Binding HearStatusHelpText}"
+                    ToolTip="{Binding HearStatusHelpText}" />
 
             <TabControl x:Name="MainNavigation"
                     Grid.ColumnSpan="2" TabIndex="2"
@@ -174,7 +175,8 @@
                                                   Command="{Binding ToggleArmCommand}"
                                                   Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
                                                   AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Arm toggle button: currently {0}}"
-                                                  AutomationProperties.HelpText="{Binding ArmToggleHelpText}" />
+                                                  AutomationProperties.HelpText="{Binding ArmToggleHelpText}"
+                                                  ToolTip="{Binding ArmToggleHelpText}" />
 
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -194,7 +196,8 @@
                                                 IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
                                                 Command="{Binding EmergencyStopCommand}" Content="Emergency stop"
                                                 AutomationProperties.Name="Emergency stop"
-                                                AutomationProperties.HelpText="{Binding EmergencyStopHelpText}" />
+                                                AutomationProperties.HelpText="{Binding EmergencyStopHelpText}"
+                                                ToolTip="{Binding EmergencyStopHelpText}" />
 
                                         <Button x:Name="PauseOrResumeButton"
                                                 Grid.Row="0" Grid.Column="1" TabIndex="3" Margin="0,0,0,6"
@@ -203,7 +206,8 @@
                                                 Command="{Binding PauseOrResumeTtsCommand}"
                                                 Content="{Binding PauseButtonText}"
                                                 AutomationProperties.Name="{Binding PauseButtonAutomationName}"
-                                                AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
+                                                AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback."
+                                                ToolTip="Pause lets the current message finish. Resume returns to automatic playback." />
 
                                         <Button x:Name="UseAutomaticPlaybackButton"
                                                 Grid.Row="0" Grid.Column="1" TabIndex="4" Margin="0,0,0,6"
