@@ -120,6 +120,64 @@ public sealed class DisallowedScriptModerationPipelineTests
         Assert.Empty(decision.SpokenText);
     }
 
+    [Fact]
+    public async Task ProcessMessageAsync_AllowsMessageWithSubdivisionFlags_WhenEnglishOnly()
+    {
+        var config = new ModerationConfig
+        {
+            EnglishOnly = true,
+            RejectMixedScripts = true,
+            UserCooldownSeconds = 0
+        };
+
+        using var pipeline = new ModerationPipeline(
+            config,
+            intentClassifier: new FakeClassifier());
+
+        var chatMessage = new ChatMessage
+        {
+            Author = "callum_scot",
+            AuthorDisplayName = "Callum 🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+            RawText = "Cheering from Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿"
+        };
+
+        var decision = await pipeline.ProcessMessageAsync(chatMessage);
+
+        Assert.Equal(ModerationDisposition.Approved, decision.Disposition);
+        Assert.Equal("Callum", decision.SafeAuthorDisplayName);
+        Assert.Contains("Callum says:", decision.SpokenText);
+        Assert.Contains("Cheering from Scotland", decision.SpokenText);
+    }
+
+    [Fact]
+    public async Task ProcessMessageAsync_ReplacesDisplayNameWithViewer_WhenBlockedTermHasFlags()
+    {
+        var config = new ModerationConfig
+        {
+            EnglishOnly = true,
+            RejectMixedScripts = true,
+            UserCooldownSeconds = 0,
+            CustomBlockedTerms = new List<string> { "badword" }
+        };
+
+        using var pipeline = new ModerationPipeline(
+            config,
+            intentClassifier: new FakeClassifier());
+
+        var chatMessage = new ChatMessage
+        {
+            Author = "user",
+            AuthorDisplayName = "badword 🇺🇸",
+            RawText = "Hello streamer"
+        };
+
+        var decision = await pipeline.ProcessMessageAsync(chatMessage);
+
+        Assert.Equal(ModerationDisposition.Approved, decision.Disposition);
+        Assert.Equal("A viewer", decision.SafeAuthorDisplayName);
+        Assert.Contains("A viewer says: Hello streamer", decision.SpokenText);
+    }
+
     private sealed class FakeClassifier : IIntentClassifier
     {
         public string ModelName => "Fake";

@@ -538,14 +538,20 @@ public sealed partial class ModerationPipeline : IDisposable
         string fallbackPlaceholder,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Length > 50)
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 200)
         {
             return (false, fallbackPlaceholder, false);
         }
 
-        string normalized = UnicodeNormalizer.NormalizeForInspection(name);
+        string candidateName = UnicodeNormalizer.StripFlags(name);
+        if (string.IsNullOrWhiteSpace(candidateName) || candidateName.Length > 50)
+        {
+            return (false, fallbackPlaceholder, false);
+        }
+
+        string normalized = UnicodeNormalizer.NormalizeForInspection(candidateName);
         string decomposedForScriptInspection = UnicodeNormalizer.RemoveDiacritics(
-            UnicodeNormalizer.StripInvisibleCharacters(name));
+            UnicodeNormalizer.StripInvisibleCharacters(candidateName));
 
         bool matchedBlocked = _ruleEngine.MatchesBlockedTerms(
             normalized,
@@ -558,7 +564,7 @@ public sealed partial class ModerationPipeline : IDisposable
             return (false, fallbackPlaceholder, true);
         }
 
-        if (ScriptValidator.ContainsMixedScriptWords(name) ||
+        if (ScriptValidator.ContainsMixedScriptWords(candidateName) ||
             ScriptValidator.ContainsMixedScriptWords(decomposedForScriptInspection) ||
             ScriptValidator.ContainsMixedScriptWords(normalized) ||
             (Config.EnglishOnly &&
@@ -594,7 +600,7 @@ public sealed partial class ModerationPipeline : IDisposable
             return (false, fallbackPlaceholder, false);
         }
 
-        string cleaned = UnicodeNormalizer.CleanDisplayNameForSpeech(name);
+        string cleaned = UnicodeNormalizer.CleanDisplayNameForSpeech(candidateName);
         return string.IsNullOrWhiteSpace(cleaned)
             ? (false, fallbackPlaceholder, false)
             : (true, cleaned, false);

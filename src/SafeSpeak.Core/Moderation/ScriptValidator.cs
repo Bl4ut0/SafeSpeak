@@ -113,6 +113,7 @@ public static class ScriptValidator
         (0x1F680, 0x1F6FF, ScriptType.EmojiOrSymbol),
         (0x1F900, 0x1F9FF, ScriptType.EmojiOrSymbol),
         (0x1FA70, 0x1FAFF, ScriptType.EmojiOrSymbol),
+        (0xE0000, 0xE007F, ScriptType.EmojiOrSymbol),
         (0xE0100, 0xE01EF, ScriptType.EmojiOrSymbol),
     ];
 

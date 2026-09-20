@@ -67,13 +67,50 @@ public class UnicodeNormalizerTests
     [InlineData("𝖝𝖞", "xy")]
     [InlineData("🖤Danis🖤", "Danis")]
     [InlineData("Meraj_hh🇦🇫", "Meraj hh")]
+    [InlineData("Alex 🇺🇸", "Alex")]
+    [InlineData("Callum 🏴󠁧󠁢󠁳󠁣󠁴󠁿", "Callum")]
+    [InlineData("🏳️‍🌈 Jordan 🏳️‍⚧️", "Jordan")]
+    [InlineData("🏴‍☠️ Blackbeard", "Blackbeard")]
+    [InlineData("🏁 Racer 🏁", "Racer")]
     [InlineData("O’Connor", "O'Connor")]
     [InlineData("😶‍🌫️", "")]
+    [InlineData("🇺🇸", "")]
+    [InlineData("🏴󠁧󠁢󠁳󠁣󠁴󠁿", "")]
     public void CleanDisplayNameForSpeech_ReturnsOnlySpeakableNameContent(
         string input,
         string expected)
     {
         Assert.Equal(expected, UnicodeNormalizer.CleanDisplayNameForSpeech(input));
+    }
+
+    [Theory]
+    [InlineData("🇺🇸", true)]
+    [InlineData("🏴󠁧󠁢󠁳󠁣󠁴󠁿", true)]
+    [InlineData("🏳️‍🌈", true)]
+    [InlineData("🏴‍☠️", true)]
+    [InlineData("🏁", true)]
+    [InlineData("🚩", true)]
+    [InlineData("🎌", true)]
+    [InlineData("😂", false)]
+    [InlineData("🔥", false)]
+    [InlineData("hello", false)]
+    public void IsFlag_CorrectlyClassifiesFlagElements(string element, bool expected)
+    {
+        Assert.Equal(expected, UnicodeNormalizer.IsFlag(element));
+    }
+
+    [Theory]
+    [InlineData("Alex 🇺🇸", "Alex")]
+    [InlineData("Callum 🏴󠁧󠁢󠁳󠁣󠁴󠁿", "Callum")]
+    [InlineData("🏳️‍🌈 Jordan 🏳️‍⚧️", "Jordan")]
+    [InlineData("🏴‍☠️ Blackbeard", "Blackbeard")]
+    [InlineData("🏁 Racer 🏁", "Racer")]
+    [InlineData("🇺🇸", "")]
+    [InlineData("🏴󠁧󠁢󠁳󠁣󠁴󠁿", "")]
+    [InlineData("Plain Name", "Plain Name")]
+    public void StripFlags_RemovesAllFlagSequencesWhilePreservingText(string input, string expected)
+    {
+        Assert.Equal(expected, UnicodeNormalizer.StripFlags(input));
     }
 
     [Theory]
