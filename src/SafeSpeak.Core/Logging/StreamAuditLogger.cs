@@ -423,6 +423,7 @@ public sealed class StreamAuditLogger : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
+            // Expected during normal shutdown
         }
         finally
         {
@@ -536,6 +537,7 @@ public sealed class StreamAuditLogger : IAsyncDisposable
         }
         catch
         {
+            // Ignore disposal errors
         }
     }
     public async ValueTask DisposeAsync()
@@ -565,6 +567,7 @@ public sealed class StreamAuditLogger : IAsyncDisposable
             }
             catch
             {
+                // Ignore worker shutdown timeouts
             }
         }
         catch
