@@ -103,7 +103,7 @@ public sealed class AnnouncementExactOnceContractTests
     }
 
     [Fact]
-    public void VoiceSelection_AnnouncesOptionButNeverSynthesizesAFullPreview()
+    public void VoiceSelection_UsesTheSingleGenericSelectionAnnouncementPath()
     {
         string main = Source(
             "src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs");
@@ -111,11 +111,28 @@ public sealed class AnnouncementExactOnceContractTests
             main,
             "partial void OnSelectedVoiceChanged(string value)");
 
-        Assert.Equal(1, Count(selection, "AnnounceOptionSelection("));
+        Assert.DoesNotContain("AnnounceOptionSelection(", selection);
+        Assert.Contains("SelectedVoiceAccessibleText", selection);
         Assert.DoesNotContain("_voicePreviewOutput.Speak", selection);
         Assert.DoesNotContain("TestSelectedVoice", selection);
         Assert.DoesNotContain("Synthesize", selection, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("sample", selection, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void VoiceSlidersExposeSemanticValuesToTheFocusNarrator()
+    {
+        string main = Source(
+            "src", "SafeSpeak.App", "ViewModels", "MainViewModel.cs");
+        string narrator = Source(
+            "src", "SafeSpeak.App", "Accessibility", "IntegratedFocusNarrator.cs");
+        string xaml = Source("src", "SafeSpeak.App", "MainWindow.xaml");
+
+        Assert.Contains("level {normalized + 6} of 11", main);
+        Assert.Contains("AutomationProperties.GetItemStatus(slider)", narrator);
+        Assert.Contains("AutomationProperties.ItemStatus=\"{Binding SpeechRateAccessibleText}\"", xaml);
+        Assert.Contains("AutomationProperties.ItemStatus=\"{Binding ReaderSpeechRateAccessibleText}\"", xaml);
+        Assert.Contains("AutomationProperties.ItemStatus=\"{Binding SelectedComputeTierAccessibleText}\"", xaml);
     }
 
     [Fact]

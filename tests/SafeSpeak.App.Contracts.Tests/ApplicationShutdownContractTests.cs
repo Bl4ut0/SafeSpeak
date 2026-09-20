@@ -33,6 +33,20 @@ public sealed class ApplicationShutdownContractTests
 
         Assert.Contains("ShutdownMode = ShutdownMode.OnMainWindowClose;", source);
         Assert.Contains("Environment.Exit(e.ApplicationExitCode);", source);
+        Assert.Contains("JobObjectManager.Default?.Dispose();", source);
+        Assert.Contains("Forcing final OS process exit", source);
+    }
+
+    [Fact]
+    public void SetupUpdatePrompt_DoesNotCloseItselfAgainFromItsClosingCallback()
+    {
+        string app = Source("src", "SafeSpeak.App", "App.xaml.cs");
+        string dialog = Source(
+            "src", "SafeSpeak.App", "Views", "SetupUpdatePromptDialog.xaml.cs");
+
+        Assert.Contains("public bool IsClosing { get; private set; }", dialog);
+        Assert.Contains("IsClosing = true;", dialog);
+        Assert.Contains("promptDialog?.IsClosing == false", app);
     }
 
     [Fact]

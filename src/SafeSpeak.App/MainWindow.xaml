@@ -451,7 +451,7 @@
                                 <Label x:Name="SafetyModerationChapterHeading" TabIndex="5" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 1 — Moderation strength and model"
                                        AutomationProperties.Name="Safety chapter 1 of 4, moderation strength and model"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose the moderation level and contextual filtering model. Use Alt plus 1 to return here." />
+                                       AutomationProperties.HelpText="Moderation level and contextual filtering model. Alt plus 1 returns here." />
                                 <TextBlock Text="Adjust the contextual moderation threshold and choose the filtering model used to evaluate incoming messages."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid Margin="0,4,0,0">
@@ -579,7 +579,7 @@
                                 <Label TabIndex="11" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 2 — Custom word filtering"
                                        AutomationProperties.Name="Safety chapter 2 of 4, custom word filtering"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls manage custom banned and allowed words and phrases. Use Alt plus 2 to return here." />
+                                       AutomationProperties.HelpText="Custom banned and allowed terms. Alt plus 2 returns here." />
                                 <TextBlock Text="Manage custom banned and allowed words and phrases to tailor moderation to your community."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <TextBlock Text="Banned words and phrases" FontWeight="SemiBold" Margin="0,0,0,4" />
@@ -653,7 +653,7 @@
                                 <Label TabIndex="20" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 3 — Test the current filter"
                                        AutomationProperties.Name="Safety chapter 3 of 4, test the current filter"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls test one message without broadcasting, queueing, or logging it. Use Alt plus 3 to return here." />
+                                       AutomationProperties.HelpText="Test one message privately. Alt plus 3 returns here." />
                                 <TextBlock Text="Test a message to preview the moderation decision without broadcasting, queueing, or logging it."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <TextBlock Text="Test a message" FontWeight="SemiBold" Margin="0,0,0,4" />
@@ -699,7 +699,7 @@
                                 <Label TabIndex="23" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 4 — Safety guide and examples"
                                        AutomationProperties.Name="Safety chapter 4 of 4, safety guide and examples"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following reference explains the slider, contextual signals, examples, and always-on protections. Use Alt plus 4 to return here." />
+                                       AutomationProperties.HelpText="Moderation reference and examples. Alt plus 4 returns here." />
                                 <TextBlock Text="How SafeSpeak safety filtering works"
                                            FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,4,0,0" />
                                 <TextBlock Text="{Binding ModerationLevelDescription}"
@@ -827,7 +827,7 @@
                                        Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 1 — Voice selection"
                                        AutomationProperties.Name="Voice chapter 1 of 4, voice selection"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls select and preview the speech voice. Use Alt plus 1 to return here." />
+                                       AutomationProperties.HelpText="Select and preview the speech voice. Alt plus 1 returns here." />
                                 <TextBlock Text="Choose a compute tier and select the active speech voice for livestream speech."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid Margin="0,4,0,4">
@@ -848,7 +848,14 @@
                                           PreviewKeyDown="SelectionComboBox_PreviewKeyDown"
                                           DropDownOpened="SelectionComboBox_DropDownOpened"
                                           AutomationProperties.Name="TTS compute level filter"
+                                          AutomationProperties.ItemStatus="{Binding SelectedComputeTierAccessibleText}"
                                           AutomationProperties.HelpText="Press Enter, Space, Alt plus Down Arrow, or F4 to open the compute tier list without changing the filter. Then use Arrow keys and Enter to choose All Levels, Level 3 Kokoro, Level 2 Natural, Level 1 SAPI, or Level 4 Custom.">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                            <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                            <Setter Property="AutomationProperties.HelpText" Value="{Binding Description}" />
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="0,2">
@@ -881,6 +888,7 @@
                                               PreviewKeyDown="SelectionComboBox_PreviewKeyDown"
                                               DropDownOpened="SelectionComboBox_DropDownOpened"
                                               AutomationProperties.Name="Active speech voice"
+                                              AutomationProperties.ItemStatus="{Binding SelectedVoiceAccessibleText}"
                                               AutomationProperties.HelpText="Press Enter, Space, Alt plus Down Arrow, or F4 to open the voice list without changing the current voice. Then use Arrow keys and Enter to select. Use Preview to hear a sample.">
                                         <ComboBox.ItemContainerStyle>
                                             <Style TargetType="ComboBoxItem"
@@ -956,7 +964,7 @@
                                 <Label TabIndex="5" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 2 — Speech timing and volume"
                                        AutomationProperties.Name="Voice chapter 2 of 4, speech timing and volume"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls adjust speech speed, volume, and spacing. Use Alt plus 2 to return here." />
+                                       AutomationProperties.HelpText="Speech speed, volume, and spacing. Alt plus 2 returns here." />
                                 <TextBlock Text="Adjust speech rate, master volume, volume boost, and spacing between queued messages."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,10" />
                                 <Grid>
@@ -969,7 +977,8 @@
                                     <Slider x:Name="RateSlider" Grid.Column="1" TabIndex="6"
                                             Minimum="-5" Maximum="5" Margin="14,0"
                                             Value="{Binding SpeechRate}" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            AutomationProperties.Name="Voice speed slider from -5 slow to +5 fast"
+                                            AutomationProperties.Name="Voice speed"
+                                            AutomationProperties.ItemStatus="{Binding SpeechRateAccessibleText}"
                                             AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust voice speed one step at a time." />
                                     <TextBlock Grid.Column="2" Text="{Binding SpeechRate, StringFormat={}{0:+0;-0;0}}"
                                                VerticalAlignment="Center" MinWidth="28" TextAlignment="Right" />
@@ -985,7 +994,8 @@
                                             Minimum="0" Maximum="100" Margin="14,0"
                                             Value="{Binding SpeechVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             TickFrequency="5" SmallChange="5" LargeChange="10" IsSnapToTickEnabled="True"
-                                            AutomationProperties.Name="Voice volume slider from 0 to 100 percent"
+                                            AutomationProperties.Name="Voice volume"
+                                            AutomationProperties.ItemStatus="{Binding SpeechVolumeAccessibleText}"
                                             AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust voice volume in five percent steps. 100 percent is standard full scale volume." />
                                     <TextBlock Grid.Column="2" Text="{Binding SpeechVolume, StringFormat={}{0}%}"
                                                VerticalAlignment="Center" MinWidth="38" TextAlignment="Right" />
@@ -1001,7 +1011,8 @@
                                             Minimum="0" Maximum="100" Margin="14,0"
                                             Value="{Binding SpeechBoost, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             TickFrequency="5" SmallChange="5" LargeChange="10" IsSnapToTickEnabled="True"
-                                            AutomationProperties.Name="Voice volume boost slider from 0 to 100 percent"
+                                            AutomationProperties.Name="Voice volume boost"
+                                            AutomationProperties.ItemStatus="{Binding SpeechBoostAccessibleText}"
                                             AutomationProperties.HelpText="Use Left and Right Arrow keys to boost voice audio above standard volume in five percent steps. Zero percent is off." />
                                     <TextBlock Grid.Column="2" Text="{Binding SpeechBoostDisplay}"
                                                VerticalAlignment="Center" MinWidth="48" TextAlignment="Right"
@@ -1021,7 +1032,8 @@
                                             Minimum="0" Maximum="50" Margin="14,0"
                                             Value="{Binding InterMessageGapTenths, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             TickFrequency="1" SmallChange="1" LargeChange="5" IsSnapToTickEnabled="True"
-                                            AutomationProperties.Name="{Binding InterMessageGapAccessibleText}"
+                                            AutomationProperties.Name="Maximum time between queued voices"
+                                            AutomationProperties.ItemStatus="{Binding InterMessageGapAccessibleText}"
                                             AutomationProperties.HelpText="Use Left and Right Arrow keys to choose zero through five seconds in one-tenth-second steps. Zero gives the closest possible handoff between pre-synthesized queued messages." />
                                     <TextBlock Grid.Column="2" Text="{Binding InterMessageGapDisplay}"
                                                VerticalAlignment="Center" MinWidth="42" TextAlignment="Right"
@@ -1042,7 +1054,7 @@
                                 <Label TabIndex="11" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 3 — Broadcast output"
                                        AutomationProperties.Name="Voice chapter 3 of 4, broadcast output"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable stream output and select its audio device. Use Alt plus 3 to return here." />
+                                       AutomationProperties.HelpText="Stream output and audio device. Alt plus 3 returns here." />
                                 <TextBlock Text="Route approved speech to your livestream broadcasting software or dedicated audio output device."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <CheckBox TabIndex="12" IsChecked="{Binding BroadcastOutputEnabled}" Margin="0,4,0,7"
@@ -1077,7 +1089,7 @@
                                 <Label TabIndex="14" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 4 — Voice models &amp; custom packs"
                                        AutomationProperties.Name="Voice chapter 4 of 4, voice models and custom packs"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls install local neural voices or import custom voice packages. Use Alt plus 4 to return here." />
+                                       AutomationProperties.HelpText="Install or import voices. Alt plus 4 returns here." />
                                 <TextBlock Text="SafeSpeak speech compute levels, neural voice installer, and custom package management."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
 
@@ -1193,7 +1205,7 @@
                                 <Label x:Name="SettingsSourceChapterHeading" TabIndex="5" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 1 — Live connectors"
                                        AutomationProperties.Name="Settings chapter 1 of 9, live connectors"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. Enable every service you may use, then turn individual connections on from Live. Use Alt plus 1 to return here." />
+                                       AutomationProperties.HelpText="Configure livestream services. Alt plus 1 returns here." />
                                 <TextBlock Text="Each connector is a separate Tab stop. Press Enter on a disabled connector to enable it. Press Enter on an enabled connector for Edit, Delete, and Cancel options. Enabled connectors appear on Live, where each connection can be turned on or off."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Border x:Name="EnabledConnectorsBorder" Style="{StaticResource StatusCard}" Padding="10" Margin="0,0,0,8"
@@ -1354,7 +1366,7 @@
                                 <Label TabIndex="6" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 2 — Theme and spoken accessibility"
                                        AutomationProperties.Name="Settings chapter 2 of 9, theme and spoken accessibility"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose the visual theme and configure SafeSpeak built-in spoken guidance. Use Alt plus 2 to return here." />
+                                       AutomationProperties.HelpText="Theme and built-in spoken guidance. Alt plus 2 returns here." />
                                 <TextBlock Text="Choose the visual appearance theme and configure SafeSpeak built-in screen reader guidance and sound cues."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Label Target="{Binding ElementName=ThemeSelector}" Content="Theme" Padding="0" Margin="0,4,0,5" FontWeight="SemiBold" />
@@ -1510,7 +1522,8 @@
                                     <Slider x:Name="ReaderVolumeSlider" Grid.Column="1" TabIndex="10" Minimum="0" Maximum="150" Margin="12,0"
                                             Value="{Binding ReaderSpeechVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             TickFrequency="5" SmallChange="5" LargeChange="10" IsSnapToTickEnabled="True"
-                                            AutomationProperties.Name="Built-in guidance volume slider from 0 to 150 percent"
+                                            AutomationProperties.Name="Built-in guidance volume"
+                                            AutomationProperties.ItemStatus="{Binding ReaderSpeechVolumeAccessibleText}"
                                             AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust the built-in narrator and sound-cue volume in five percent steps. 100 percent is the default; values above 100 add software amplification and may clip on louder voices. Livestream narration volume is separate." />
                                     <TextBlock Grid.Column="2" Text="{Binding ReaderSpeechVolume, StringFormat={}{0}%}"
                                                VerticalAlignment="Center" MinWidth="42" TextAlignment="Right"
@@ -1524,7 +1537,8 @@
                                     <Label Target="{Binding ElementName=ReaderRateSlider}" Content="Reader speed" Padding="0" />
                                     <Slider x:Name="ReaderRateSlider" Grid.Column="1" TabIndex="11" Minimum="-5" Maximum="5" Margin="12,0,0,0"
                                             Value="{Binding ReaderSpeechRate}" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            AutomationProperties.Name="Built-in screen reader speech speed slider"
+                                            AutomationProperties.Name="Built-in guidance speech speed"
+                                            AutomationProperties.ItemStatus="{Binding ReaderSpeechRateAccessibleText}"
                                             AutomationProperties.HelpText="Use Left and Right Arrow keys to adjust built-in reader speed one step at a time." />
                                 </Grid>
                                 <CheckBox TabIndex="12" Margin="0,7,0,0"
@@ -1559,7 +1573,7 @@
                                 <Label TabIndex="16" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 3 — Global keyboard shortcuts"
                                        AutomationProperties.Name="Settings chapter 3 of 9, global keyboard shortcuts"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls configure actions that work system-wide while SafeSpeak is running. Use Alt plus 3 to return here." />
+                                       AutomationProperties.HelpText="System-wide keyboard shortcuts. Alt plus 3 returns here." />
                                 <TextBlock Text="Shortcuts work system-wide while SafeSpeak is running, even when another application has focus. Tab to Enter keybind group, press Enter, then Tab through the action boxes. Activate an action, press and release the complete key combination once, and repeat the same combination to confirm it. A matching second entry saves automatically, closes the listener, and returns to that action. Press Escape or choose Exit keybind group when finished. Function keys can be used alone; other non-modifier keys require Control, Alt, Shift, or Windows. Alt plus 1 through 9 opens that chapter on the current page; Alt plus 0 opens chapter 10. If an Alt-number is assigned as a custom global shortcut, that action takes priority and the matching chapter shortcut is unavailable until the binding is changed or disabled."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Button x:Name="GlobalShortcutGroupEntry" TabIndex="17"
@@ -1687,7 +1701,7 @@
                                 <Label TabIndex="20" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 4 — Queue and message-rate limits"
                                        AutomationProperties.Name="Settings chapter 4 of 9, queue and message-rate limits"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls set the pending queue size and per-viewer and whole-stream spam limits. Use Alt plus 4 to return here." />
+                                       AutomationProperties.HelpText="Queue and message-rate limits. Alt plus 4 returns here." />
                                 <TextBlock Text="Set the approved message backlog size and protect your livestream audio from spam surges."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid>
@@ -1791,7 +1805,7 @@
                                     <Label TabIndex="26" Style="{StaticResource ChapterHeading}"
                                            Content="Chapter 5 — Language and audience"
                                            AutomationProperties.Name="Settings chapter 5 of 9, language and audience"
-                                           AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose writing-system protection and who may send messages to speech. Use Alt plus 5 to return here." />
+                                           AutomationProperties.HelpText="Language protection and audience. Alt plus 5 returns here." />
                                     <CheckBox TabIndex="27" IsChecked="{Binding EnglishOnly}" Margin="0,7,0,3"
                                               Content="Filter to English and Latin-script chat"
                                               AutomationProperties.Name="Filter chat to English and Latin script"
@@ -1880,7 +1894,7 @@
                                         <Label TabIndex="33" Style="{StaticResource ChapterHeading}"
                                                Content="Chapter 6 — Stream announcements"
                                                AutomationProperties.Name="Settings chapter 6 of 9, stream announcements"
-                                               AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls choose which stream events may enter speech, including behavior while paused. Use Alt plus 6 to return here." />
+                                               AutomationProperties.HelpText="Stream events and paused behavior. Alt plus 6 returns here." />
                                         <TextBlock Text="Announce stream events" FontWeight="SemiBold" Margin="0,5,0,0" />
                                         <TextBlock Text="Choose which events enter the text-to-speech queue when received."
                                                    Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,2,0,4" />
@@ -1984,7 +1998,7 @@
                                 <Label TabIndex="53" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 7 — Privacy and audit logs"
                                        AutomationProperties.Name="Settings chapter 7 of 9, privacy and audit logs"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls enable local moderation logs and open their folder. Use Alt plus 7 to return here." />
+                                       AutomationProperties.HelpText="Local moderation logs, upload diagnostics, and log folder. Alt plus 7 returns here." />
                                 <TextBlock Text="Manage local moderation decision logs for post-stream auditing and transparency."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <CheckBox TabIndex="54" IsChecked="{Binding EnableStreamAuditLogging}"
@@ -2001,15 +2015,35 @@
                                         Content="Open logs folder"
                                         AutomationProperties.Name="Open stream audit logs folder button"
                                         AutomationProperties.HelpText="Opens the displayed local folder. If Windows cannot open it, SafeSpeak writes and announces an error." />
+                                <TextBlock Text="Upload the last 10 days of logs, saved chat history and system details to SafeSpeak support."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,9,0,4" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button TabIndex="56" Content="Upload diagnostics" Command="{Binding UploadDiagnosticsCommand}"
+                                            AutomationProperties.Name="Upload diagnostic logs to SafeSpeak support"
+                                            AutomationProperties.HelpText="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs." />
+                                    <Button TabIndex="57" Content="Cancel upload" Command="{Binding UploadDiagnosticsCancelCommand}" Margin="8,0,0,0"
+                                            AutomationProperties.Name="Cancel diagnostic upload"
+                                            AutomationProperties.HelpText="Stops the current upload. You can retry later." />
+                                </StackPanel>
+                                <TextBlock Text="{Binding DiagnosticUploadStatus}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <TextBlock Text="Download an offline ZIP support package containing the last 10 days of diagnostic logs and raw stream audit logs."
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,9,0,4" />
+                                <Button TabIndex="58" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                        Command="{Binding CreateDiagnosticSupportPackageCommand}"
+                                        Content="Download offline diagnostics support package"
+                                        AutomationProperties.Name="Download offline diagnostics support package"
+                                        AutomationProperties.HelpText="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically." />
+                                <TextBlock Text="{Binding DiagnosticHostIdDisplay, StringFormat=Diagnostic host ID: {0}}"
+                                           Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource ContentPanel}" Margin="0,0,0,10">
                             <StackPanel>
-                                <Label TabIndex="56" Style="{StaticResource ChapterHeading}"
+                                <Label TabIndex="59" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 8 — Interface and setup"
                                        AutomationProperties.Name="Settings chapter 8 of 9, interface and setup"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following controls change interface text size or run the accessibility setup again. Use Alt plus 8 to return here." />
+                                       AutomationProperties.HelpText="Interface size and accessibility setup. Alt plus 8 returns here." />
                                 <TextBlock Text="Customize application text scaling or launch the first-run configuration setup."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <Grid>
@@ -2017,13 +2051,12 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Label Target="{Binding ElementName=TextScaleSlider}"
-                                           Content="Interface text size" Padding="0" FontWeight="SemiBold" />
+                                    <Label Content="Interface text size" Padding="0" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="{Binding InterfaceTextScalePercent, StringFormat={}{0}%}"
                                                FontWeight="SemiBold" VerticalAlignment="Center"
                                                AutomationProperties.Name="{Binding InterfaceTextScaleAccessibleText}" />
                                 </Grid>
-                                <Slider x:Name="TextScaleSlider" TabIndex="57"
+                                <Slider x:Name="TextScaleSlider" TabIndex="60"
                                         Minimum="100" Maximum="200" TickFrequency="10"
                                         IsSnapToTickEnabled="True"
                                         Value="{Binding InterfaceTextScalePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -2037,7 +2070,7 @@
                                 <TextBlock Text="Setup wizard" FontWeight="SemiBold" FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,0,0,4" />
                                 <TextBlock Text="Rerun the first-time setup flow to review your streaming platform, moderation strength, visual theme, and screen reader guidance."
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                <Button TabIndex="58" HorizontalAlignment="Stretch"
+                                <Button TabIndex="61" HorizontalAlignment="Stretch"
                                         Command="{Binding RerunAccessibilityWizardCommand}"
                                         Content="Run Setup Again"
                                         AutomationProperties.Name="Run SafeSpeak setup again button"
@@ -2047,10 +2080,10 @@
 
                         <Border x:Name="SettingsGuidePanel" Style="{StaticResource ContentPanel}" Margin="0,10,0,10">
                             <StackPanel>
-                                <Label TabIndex="59" Style="{StaticResource ChapterHeading}"
+                                <Label TabIndex="62" Style="{StaticResource ChapterHeading}"
                                        Content="Chapter 9 — Settings guide reference"
                                        AutomationProperties.Name="Settings chapter 9 of 9, Settings guide reference"
-                                       AutomationProperties.HelpText="Press Tab to enter this chapter. The following visible reference contains the complete Settings guide. Guide playback controls may be at the top or bottom of this page. Use Alt plus 9 to return here." />
+                                       AutomationProperties.HelpText="Settings guide reference. Alt plus 9 returns here." />
                                 <TextBlock Text="Settings guide" FontWeight="SemiBold"
                                            FontSize="{DynamicResource SafeSpeakFont17}" Margin="0,4,0,0" />
                                 <ItemsControl ItemsSource="{Binding SettingsGuidePages}" IsTabStop="False" Margin="0,5,0,0"
@@ -2080,23 +2113,23 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <WrapPanel>
-                                        <Button x:Name="SettingsGuideButtonAtEnd" TabIndex="60" Margin="0,0,7,5"
+                                        <Button x:Name="SettingsGuideButtonAtEnd" TabIndex="63" Margin="0,0,7,5"
                                                 Command="{Binding ReadSettingsGuideCommand}"
                                                 Content="Play whole guide"
                                                 AutomationProperties.Name="Play the whole Settings guide button, at the bottom of the page"
                                                 AutomationProperties.HelpText="Reads all eight Settings guide pages through SafeSpeak built-in guidance." />
-                                        <Button x:Name="ReadSettingsGuidePageButtonAtEnd" TabIndex="61" Margin="0,0,7,5"
+                                        <Button x:Name="ReadSettingsGuidePageButtonAtEnd" TabIndex="64" Margin="0,0,7,5"
                                                 Command="{Binding ReadNextSettingsGuidePageCommand}"
                                                 Content="Play guide page"
                                                 AutomationProperties.Name="Play the next Settings guide page button, at the bottom of the page"
                                                 AutomationProperties.HelpText="Reads one Settings guide page and advances to the next page." />
-                                        <Button x:Name="ResetSettingsGuideButtonAtEnd" TabIndex="62" Margin="0,0,7,5"
+                                        <Button x:Name="ResetSettingsGuideButtonAtEnd" TabIndex="65" Margin="0,0,7,5"
                                                 Command="{Binding RestartSettingsGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Settings guide to page 1 button, at the bottom of the page"
                                                 AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback." />
                                     </WrapPanel>
-                                    <Button x:Name="ToggleSettingsGuideButtonAtEnd" Grid.Column="1" TabIndex="63" Margin="7,0,0,5"
+                                    <Button x:Name="ToggleSettingsGuideButtonAtEnd" Grid.Column="1" TabIndex="66" Margin="7,0,0,5"
                                             Command="{Binding ToggleSettingsGuideVisibilityCommand}"
                                             Click="GuidePlacementButton_Click"
                                             Content="{Binding SettingsGuideVisibilityButtonText}"

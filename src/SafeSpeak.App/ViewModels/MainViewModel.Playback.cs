@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Audio;
 using SafeSpeak.Core.Connectors;
+using SafeSpeak.Core.Diagnostics;
 using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
 
@@ -187,12 +188,16 @@ public sealed partial class MainViewModel
         {
             _ttsQueue.ResumeAutomatic();
             _alertQueue.ResumeAutomatic();
+            AppLogger.LogInformation("Lifecycle", "SafeSpeak TTS resumed by user in automatic mode.");
+            PerformanceTracker.LogSnapshot("Resume");
             AnnounceState("Text to speech resumed in automatic mode.");
             return;
         }
 
         _ttsQueue.SetPaused(true);
         _alertQueue.SetPaused(true);
+        AppLogger.LogInformation("Lifecycle", $"SafeSpeak TTS paused by user. Mode={PlaybackModeStatus}, QueueCount={QueueCount}");
+        PerformanceTracker.LogSnapshot("Pause");
         AnnounceState(
             $"Text to speech paused. The current message may finish. {PauseRoutingSummary}");
     }
@@ -208,6 +213,8 @@ public sealed partial class MainViewModel
     [RelayCommand]
     public void EmergencyStop()
     {
+        AppLogger.LogInformation("Lifecycle", "Emergency stop activated by user.");
+        PerformanceTracker.LogSnapshot("EmergencyStop");
         Interlocked.Increment(ref _monitoringGeneration);
         _ttsQueue.EmergencyStop();
         _alertQueue.EmergencyStop();
@@ -252,6 +259,8 @@ public sealed partial class MainViewModel
 
     private void ArmSafeSpeak()
     {
+        AppLogger.LogInformation("Lifecycle", "SafeSpeak armed by user.");
+        PerformanceTracker.LogSnapshot("Arm");
         Interlocked.Increment(ref _monitoringGeneration);
         _sessionDonors.Clear();
         _pipeline.Rules.ResetCooldowns();
@@ -265,6 +274,8 @@ public sealed partial class MainViewModel
 
     private void DisarmSafeSpeak()
     {
+        AppLogger.LogInformation("Lifecycle", "SafeSpeak disarmed by user.");
+        PerformanceTracker.LogSnapshot("Disarm");
         Interlocked.Increment(ref _monitoringGeneration);
         _ttsQueue.Disarm();
         _alertQueue.Disarm();

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Channels;
 using System.Windows;
+using Microsoft.Win32;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SafeSpeak.Core.AI;
@@ -11,6 +12,7 @@ using SafeSpeak.Core.Accessibility;
 using SafeSpeak.Core.Audio;
 using SafeSpeak.Core.Audio.VoiceFramework;
 using SafeSpeak.Core.Connectors;
+using SafeSpeak.Core.Diagnostics;
 using SafeSpeak.Core.Ipc;
 using SafeSpeak.Core.Logging;
 using SafeSpeak.Core.Models;
@@ -42,7 +44,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly StreamDeckIpcServer _ipcServer;
     private readonly AppSettings _settings;
     private readonly Channel<QueuedLivestreamEvent> _incomingEvents =
-        Channel.CreateBounded<QueuedLivestreamEvent>(new BoundedChannelOptions(64)
+        Channel.CreateBounded<QueuedLivestreamEvent>(new BoundedChannelOptions(256)
         {
             SingleReader = true,
             SingleWriter = false,
@@ -111,6 +113,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         ? $"Voice audio boost: plus {SpeechBoost} percent extra amplification."
         : "Voice audio boost: off.";
 
+    public string SpeechRateAccessibleText => DescribeSpeechRate(SpeechRate);
+    public string SpeechVolumeAccessibleText => $"{SpeechVolume} percent";
+    public string ReaderSpeechRateAccessibleText => DescribeSpeechRate(ReaderSpeechRate);
+    public string ReaderSpeechVolumeAccessibleText => $"{ReaderSpeechVolume} percent";
+
     [ObservableProperty]
     private int _readerSpeechRate = 3;
 
@@ -118,7 +125,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _readerSpeechVolume = 100;
 
     [ObservableProperty]
-    private bool _narrateDetailedHelp = true;
+    private bool _narrateDetailedHelp;
 
     [ObservableProperty]
     private bool _narrateTypedCharacters;
@@ -250,6 +257,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private bool _enableStreamAuditLogging;
 
     [ObservableProperty]
+    private string _diagnosticUploadStatus = "No diagnostics uploaded this session.";
+    public string DiagnosticHostIdDisplay => _settings.DiagnosticHostId;
+
+    [ObservableProperty]
     private int _moderationLevel = 3;
 
     [ObservableProperty]
@@ -338,12 +349,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedComputeTierChoice));
             ApplyVoiceFilter();
-            Announcer.AnnounceFocus($"Voice filter set to {SelectedComputeTierChoice?.DisplayName}. {FilteredVoiceCountText}.");
+            OnPropertyChanged(nameof(SelectedComputeTierAccessibleText));
         }
     }
 
     public ComputeTierChoice? SelectedComputeTierChoice =>
         ComputeTierChoices.FirstOrDefault(c => c.Tier == _selectedComputeTier);
+
+    public string SelectedComputeTierAccessibleText => SelectedComputeTierChoice is { } choice
+        ? $"{choice.DisplayName}. {choice.Description}."
+        : "No compute level selected.";
 
     public sealed record SettingsChapterChoice(int ChapterNumber, string DisplayName);
 
@@ -953,7 +968,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         TikTokUsername = _settings.TikTokUsername;
         AreSafetyGuideControlsAtTop = _settings.SafetyGuideControlsAtTop;
         AreSettingsGuideControlsAtTop = _settings.SettingsGuideControlsAtTop;
-        _kokoroManager = new KokoroModelManager();
+        _kokoroManager = new KokoroModelManager(cpuThreads: Math.Min(2, Environment.ProcessorCount), disableThreadSpinning: true);
         _voicePackageManager = new VoicePackageManager();
         _ttsEngine = new ModularTtsEngine(_kokoroManager, _voicePackageManager);
         _audioRouter = new WasapiAudioRouter();
@@ -1058,6 +1073,26 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         _autoConnectTask = AutoConnectSourceAsync();
         _ = StartInstalledQwenModelAsync();
+        InitializePerformanceTracking();
+    }
+
+    private void InitializePerformanceTracking()
+    {
+        PerformanceTracker.AppStateProvider = () => new AppStateSnapshot
+        {
+            IsArmed = IsArmed,
+            PlaybackMode = PlaybackModeStatus,
+            IsPaused = IsPaused,
+            IsSpeaking = IsSpeaking,
+            TtsQueueCount = QueueCount,
+            TtsQueueCapacity = _ttsQueue.Capacity,
+            OldestTtsMessageSeconds = _ttsQueue.OldestPendingMessageSeconds,
+            ActiveSpeechSeconds = _ttsQueue.ActiveSpeechSeconds,
+            AlertQueueCount = _alertQueue?.Count ?? 0,
+            LiveFeedCount = LiveFeed.Count,
+            ConnectorsStatus = ConnectionSummaryText,
+            ChildProcessInfo = _qwenRuntime?.DiagnosticStatus ?? "None"
+        };
     }
 
     private void WireEvents()
@@ -1172,6 +1207,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             await foreach (QueuedLivestreamEvent queuedEvent in
                            _incomingEvents.Reader.ReadAllAsync(cancellationToken))
             {
+                using SubsystemPerformanceMetrics.OperationTimer eventMetric =
+                    SubsystemPerformanceMetrics.Measure("IncomingEvent");
                 try
                 {
                     await HandleIncomingEventAsync(
@@ -1185,6 +1222,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
+                    eventMetric.MarkFailed();
                     Application.Current?.Dispatcher.BeginInvoke(() =>
                         AnnounceState($"A {queuedEvent.Event.Platform} event could not be processed. {ex.Message}"));
                 }
@@ -1214,7 +1252,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             try
             {
                 connector.ApplyState(ConnectionState.Connecting, "Connecting automatically.");
-                await connector.Host.ConnectAsync();
+                using SubsystemPerformanceMetrics.OperationTimer connectorMetric =
+                    SubsystemPerformanceMetrics.Measure("ConnectorConnect");
+                try
+                {
+                    await connector.Host.ConnectAsync();
+                }
+                catch
+                {
+                    connectorMetric.MarkFailed();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
@@ -1372,6 +1420,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    public string SelectedVoiceAccessibleText => SelectedVoiceInfo is { } voice &&
+        !string.IsNullOrEmpty(voice.Id)
+            ? $"{voice.DisplayName}, {voice.ComputeTierBadge}"
+            : "No voice selected";
+
     private void RefreshComputeTierChoices()
     {
         int total = _allVoices.Count;
@@ -1407,6 +1460,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _selectedComputeTier = currentTier;
         OnPropertyChanged(nameof(SelectedComputeTier));
         OnPropertyChanged(nameof(SelectedComputeTierChoice));
+        OnPropertyChanged(nameof(SelectedComputeTierAccessibleText));
     }
 
     private string? _lastValidSelectedVoice;
@@ -1501,6 +1555,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(SelectedVoiceInfo));
         OnPropertyChanged(nameof(SelectedVoiceComputeBadge));
         OnPropertyChanged(nameof(SelectedVoiceComputeDescription));
+        OnPropertyChanged(nameof(SelectedVoiceAccessibleText));
         OnPropertyChanged(nameof(IsCustomVoiceSelected));
         OnPropertyChanged(nameof(FilteredVoiceCountText));
         OnPropertyChanged(nameof(CanTestSelectedVoice));
@@ -1595,20 +1650,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(SelectedVoiceInfo));
         OnPropertyChanged(nameof(SelectedVoiceComputeBadge));
         OnPropertyChanged(nameof(SelectedVoiceComputeDescription));
+        OnPropertyChanged(nameof(SelectedVoiceAccessibleText));
         OnPropertyChanged(nameof(IsCustomVoiceSelected));
         if (_isInitializing) return;
         _settings.SelectedVoiceName = string.IsNullOrEmpty(value) ? null : value;
         SaveSettingsOrReport();
 
-        VoiceInfo? voice = SelectedVoiceInfo;
-        string? displayName = voice != null && !string.IsNullOrEmpty(voice.Id)
-            ? $"{voice.DisplayName}, {voice.ComputeTierBadge}"
-            : "No voice selected";
-        AnnounceOptionSelection(
-            "Voice",
-            displayName,
-            voice is null ? -1 : Voices.IndexOf(voice),
-            Voices.Count);
     }
 
     private void AnnounceOptionSelection(
@@ -1656,6 +1703,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (_ttsQueue is not null) _ttsQueue.SpeechRate = Math.Clamp(value, -5, 5);
         if (_alertQueue is not null) _alertQueue.SpeechRate = Math.Clamp(value, -5, 5);
         UpdateVoicePreviewSettings();
+        OnPropertyChanged(nameof(SpeechRateAccessibleText));
         if (_isInitializing) return;
         _settings.SpeechRate = Math.Clamp(value, -5, 5);
         SaveSettingsOrReport();
@@ -1673,6 +1721,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (_ttsQueue is not null) _ttsQueue.SpeechVolume = normalized;
         if (_alertQueue is not null) _alertQueue.SpeechVolume = normalized;
         UpdateVoicePreviewSettings();
+        OnPropertyChanged(nameof(SpeechVolumeAccessibleText));
         if (_isInitializing) return;
         _settings.SpeechVolume = normalized;
         SaveSettingsOrReport();
@@ -1700,6 +1749,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     partial void OnReaderSpeechRateChanged(int value)
     {
         if (_announcer is not null) _announcer.SpeechRate = Math.Clamp(value, -5, 5);
+        OnPropertyChanged(nameof(ReaderSpeechRateAccessibleText));
         if (_isInitializing) return;
         _settings.ReaderSpeechRate = Math.Clamp(value, -5, 5);
         SaveSettingsOrReport();
@@ -1715,6 +1765,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         if (_announcer is not null) _announcer.SpeechVolume = normalized;
+        OnPropertyChanged(nameof(ReaderSpeechVolumeAccessibleText));
         if (_isInitializing) return;
         _settings.ReaderSpeechVolume = normalized;
         SaveSettingsOrReport();
@@ -1728,6 +1779,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         AnnounceState(value
             ? "Detailed control instructions will be read when focus moves."
             : "Detailed control instructions on focus are off. Focused controls will use short names, values, and states.");
+    }
+
+    private static string DescribeSpeechRate(int value)
+    {
+        int normalized = Math.Clamp(value, -5, 5);
+        string pace = normalized switch
+        {
+            0 => "normal speed",
+            < 0 => $"{Math.Abs(normalized)} {(normalized == -1 ? "step" : "steps")} slower",
+            _ => $"{normalized} {(normalized == 1 ? "step" : "steps")} faster"
+        };
+        return $"{pace}, level {normalized + 6} of 11";
     }
 
     partial void OnNarrateTypedCharactersChanged(bool value)
@@ -2308,20 +2371,39 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        var decision = await _pipeline.ProcessMessageAsync(message, cancellationToken, isSystemEvent: isSystemEvent);
+        ModerationDecision decision;
+        using (SubsystemPerformanceMetrics.OperationTimer moderationMetric =
+               SubsystemPerformanceMetrics.Measure("Moderation"))
+        {
+            try
+            {
+                decision = await _pipeline.ProcessMessageAsync(
+                    message,
+                    cancellationToken,
+                    isSystemEvent: isSystemEvent);
+            }
+            catch
+            {
+                moderationMetric.MarkFailed();
+                throw;
+            }
+        }
         cancellationToken.ThrowIfCancellationRequested();
         if (!IsMonitoringGenerationActive(monitoringGeneration))
         {
             return;
         }
 
-        if (originalEvent != null)
+        using (SubsystemPerformanceMetrics.Measure("AuditLogQueue"))
         {
-            _auditLogger.LogEvent(originalEvent, decision);
-        }
-        else
-        {
-            _auditLogger.LogDecision(message, decision);
+            if (originalEvent != null)
+            {
+                _auditLogger.LogEvent(originalEvent, decision);
+            }
+            else
+            {
+                _auditLogger.LogDecision(message, decision);
+            }
         }
 
         if (Application.Current?.Dispatcher is not { HasShutdownStarted: false } dispatcher)
@@ -2880,6 +2962,95 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
+    public void CreateDiagnosticSupportPackage()
+    {
+        if (!SaveSettingsOrReport()) return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save SafeSpeak diagnostic support package",
+            Filter = "ZIP archive (*.zip)|*.zip",
+            AddExtension = true,
+            DefaultExt = ".zip",
+            FileName = $"SafeSpeak-Diagnostics-{DateTime.Now:yyyy-MM-dd-HHmm}.zip"
+        };
+        if (dialog.ShowDialog() != true)
+        {
+            AnnounceState("Support package creation canceled.");
+            return;
+        }
+
+        try
+        {
+            AppLogger.FlushAll(TimeSpan.FromSeconds(2));
+            string version = typeof(MainViewModel).Assembly.GetName().Version?.ToString() ?? "Unknown";
+            DiagnosticBundleResult result = DiagnosticBundleService.Create(
+                _auditLogger.LogsDirectory,
+                dialog.FileName,
+                includeStreamAuditLogs: true,
+                version, systemInfo: CaptureDiagnosticSystemInfo(version));
+            AnnounceState(
+                $"Diagnostic support package created with {result.FileCount} log files including raw stream audit logs. " +
+                "The ZIP file is selected in File Explorer.");
+
+            var startInfo = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+            startInfo.ArgumentList.Add("/select,");
+            startInfo.ArgumentList.Add(result.ArchivePath);
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.LogError("Diagnostics", $"Could not create support package: {ex.Message}", ex);
+            AnnounceState($"SafeSpeak could not create the support package. {ex.Message}");
+        }
+    }
+
+    [RelayCommand(IncludeCancelCommand = true)]
+    private async Task UploadDiagnosticsAsync(CancellationToken cancellationToken)
+    {
+        if (!SaveSettingsOrReport()) return;
+        string path = Path.Combine(Path.GetTempPath(), $"SafeSpeak-Diagnostics-{Guid.NewGuid():N}.zip");
+        try
+        {
+            AnnounceState("Preparing diagnostics upload.");
+            DiagnosticUploadStatus = "Preparing upload…";
+            AppLogger.FlushAll(TimeSpan.FromSeconds(2));
+            string version = typeof(MainViewModel).Assembly.GetName().Version?.ToString() ?? "Unknown";
+            bool includeChat = true;
+            DiagnosticSystemInfo systemInfo = CaptureDiagnosticSystemInfo(version);
+            await Task.Run(() => DiagnosticBundleService.Create(_auditLogger.LogsDirectory, path, includeChat, version,
+                systemInfo: systemInfo, cancellationToken: cancellationToken), cancellationToken);
+            using var handler = new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false };
+            using var client = new System.Net.Http.HttpClient(handler) { Timeout = TimeSpan.FromMinutes(2) };
+            string receipt = await new DiagnosticUploadService(client).UploadAsync(path, _settings.DiagnosticHostId, cancellationToken);
+            DiagnosticUploadStatus = $"Uploaded. Receipt: {receipt}";
+            AnnounceState("Diagnostics uploaded successfully. The receipt is shown below the upload buttons.");
+        }
+        catch (OperationCanceledException)
+        {
+            DiagnosticUploadStatus = "Canceled or timed out; receipt not confirmed.";
+            AnnounceState("Diagnostics upload canceled or timed out. Receipt was not confirmed.");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.LogError("Diagnostics", "Diagnostics upload failed.", ex);
+            DiagnosticUploadStatus = "Upload failed; receipt not confirmed.";
+            AnnounceState($"Diagnostics could not be uploaded. {ex.Message}");
+        }
+        finally { try { File.Delete(path); } catch { } }
+    }
+
+    private DiagnosticSystemInfo CaptureDiagnosticSystemInfo(string version) => new()
+    {
+        HostId = _settings.DiagnosticHostId,
+        ApplicationVersion = version,
+        ModerationModel = _pipeline.Classifier.ModelName,
+        Voice = SelectedVoice,
+        SpeechThreads = Math.Min(2, Environment.ProcessorCount),
+        Performance = PerformanceTracker.Instance.Capture()
+    };
+
+    [RelayCommand]
     public void RerunAccessibilityWizard()
     {
         _announcer.StopSpeaking();
@@ -3034,6 +3205,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             {
                 AnnounceState("Importing voice package archive...");
                 var package = await _voicePackageManager.ImportPackageFromZipAsync(dialog.FileName);
+                _ttsQueue.ClearSpeechCache();
+                _alertQueue.ClearSpeechCache();
                 SelectedComputeTier = TtsComputeTier.All;
                 LoadSystemAudioAndVoices();
                 SelectedVoice = ModularTtsEngine.VoicePackagePrefix + package.Manifest.Id;
@@ -3053,6 +3226,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (!IsCustomVoiceSelected) return;
         string packageId = SelectedVoice[ModularTtsEngine.VoicePackagePrefix.Length..];
         bool deleted = _voicePackageManager.DeletePackage(packageId);
+        _ttsQueue.ClearSpeechCache();
+        _alertQueue.ClearSpeechCache();
         if (deleted)
         {
             LoadSystemAudioAndVoices();
@@ -3297,6 +3472,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         TryShutdownStep(_announcer.Dispose);
         _incomingEvents.Writer.TryComplete();
         _incomingEventCts.Cancel();
+        UploadDiagnosticsCommand.Cancel();
         foreach (LiveConnectorViewModel connector in _connectorSessions)
         {
             if (connector.Host is not null)
@@ -3323,6 +3499,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        if (UploadDiagnosticsCommand.ExecutionTask is Task uploadTask)
+            await IgnoreShutdownFailureAsync(uploadTask);
+        AppLogger.LogInformation("Shutdown.Core", "Flushing settings and disconnecting active connectors...");
         TryShutdownStep(FlushAllSettingsToDisk);
 
         // Calling connector disposal initiates cancellation immediately. Never
@@ -3338,19 +3517,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         await IgnoreShutdownFailureAsync(_autoConnectTask);
         await IgnoreShutdownFailureAsync(_incomingEventPumpTask);
+
+        AppLogger.LogInformation("Shutdown.Core", "Disposing speech queues and voice outputs...");
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _voicePreviewOutput.DisposeAsync()));
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _ttsQueue.DisposeAsync()));
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _alertQueue.DisposeAsync()));
         await IgnoreShutdownFailureAsync(StartShutdownTask(() => _auditLogger.DisposeAsync()));
 
+        AppLogger.LogInformation("Shutdown.Core", "Disposing moderation pipeline and model runtimes...");
         TryShutdownStep(_pipeline.Dispose);
         await IgnoreShutdownFailureAsync(_qwenRuntime.DisposeAsync().AsTask());
+
+        AppLogger.LogInformation("Shutdown.Core", "Disposing audio routers and announcer...");
         TryShutdownStep(_ttsEngine.Dispose);
         TryShutdownStep(_audioRouter.Dispose);
         TryShutdownStep(_alertAudioRouter.Dispose);
         TryShutdownStep(_voicePreviewAudioRouter.Dispose);
         TryShutdownStep(_announcer.Dispose);
         TryShutdownStep(_incomingEventCts.Dispose);
+        AppLogger.LogInformation("Shutdown.Core", "All core subsystems disposed cleanly.");
     }
 
     private static Task StartShutdownTask(Func<ValueTask> operation)

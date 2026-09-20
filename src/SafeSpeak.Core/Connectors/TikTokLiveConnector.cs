@@ -105,6 +105,7 @@ public sealed class TikTokLiveConnector : ISourceConnector
                         return;
                     }
                     AppLogger.LogWarning("TikTokLiveConnector", $"TikTok closed connection for @{username}. Will retry.");
+                    TikTokLiveSession.ClearCachedTtwid();
                     SetState(ConnectionState.Reconnecting, "TikTok closed the connection. SafeSpeak will retry.");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }

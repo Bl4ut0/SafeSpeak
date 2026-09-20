@@ -15,6 +15,8 @@ public sealed partial class ModerationPipeline : IDisposable
     private readonly object _classifierLifetimeLock = new();
     private readonly List<IIntentClassifier> _retiredClassifiers = new();
     private int _disposed;
+    private readonly SafeSpeak.Core.Diagnostics.BoundedMemoryCache<(IIntentClassifier Classifier, string Text), IntentClassificationResult> _nameScores =
+        new(1024, TimeSpan.FromMinutes(15));
 
     public ModerationConfig Config { get; }
     public RuleEngine Rules => _ruleEngine;
@@ -41,6 +43,7 @@ public sealed partial class ModerationPipeline : IDisposable
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             var old = Interlocked.Exchange(ref _intentClassifier, classifier);
+            _nameScores.Clear();
             if (!ReferenceEquals(old, classifier))
             {
                 _retiredClassifiers.Add(old);
@@ -526,9 +529,15 @@ public sealed partial class ModerationPipeline : IDisposable
 
         try
         {
-            IntentClassificationResult nameIntent = await _intentClassifier.ClassifyAsync(
-                normalized,
-                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            IIntentClassifier classifier = Classifier;
+            var key = (classifier, normalized);
+            if (!_nameScores.TryGet(key, out IntentClassificationResult nameIntent))
+            {
+                nameIntent = await classifier.ClassifyAsync(normalized, cancellationToken);
+                if (nameIntent.IsCacheable && HasValidIntentScores(nameIntent)) _nameScores.Set(key, nameIntent);
+            }
+            else SafeSpeak.Core.Diagnostics.SubsystemPerformanceMetrics.Measure("NameScoreCacheHit").Dispose();
             if (!HasValidIntentScores(nameIntent) ||
                 nameIntent.ToxicityScore >= Config.IntentToxicityThreshold)
             {
@@ -589,6 +598,7 @@ public sealed partial class ModerationPipeline : IDisposable
             };
             classifiers.AddRange(_retiredClassifiers);
             _retiredClassifiers.Clear();
+            _nameScores.Clear();
         }
 
         var disposedClassifiers = new HashSet<IIntentClassifier>(ReferenceEqualityComparer.Instance);

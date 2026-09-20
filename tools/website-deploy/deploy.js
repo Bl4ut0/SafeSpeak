@@ -10,6 +10,7 @@ const helperDirectory = __dirname;
 const repositoryRoot = path.resolve(helperDirectory, "..", "..");
 const sourceDirectory = path.join(repositoryRoot, "local-deployment", "safespeak-web");
 const envPath = path.join(helperDirectory, ".env");
+const receiverMode = process.argv.includes("--receiver");
 
 // Nothing outside this list can be uploaded. In particular, the local upload
 // README, ZIP archive, credentials, source files, and repository files are not
@@ -81,6 +82,12 @@ function validateRemoteDirectory(remoteDirectory) {
 }
 
 function localFiles() {
+    if (receiverMode) {
+        const localPath = path.join(repositoryRoot, "local-deployment", "safespeak-diagnostics", "public", "index.php");
+        const stat = fs.lstatSync(localPath);
+        if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Receiver must be a regular file.");
+        return [{ relativePath: "diagnostics/index.php", localPath, bytes: stat.size }];
+    }
     if (!fs.existsSync(sourceDirectory)) {
         throw new Error(`Website source folder not found: ${sourceDirectory}`);
     }
@@ -239,11 +246,11 @@ async function main() {
     loadEnv(envPath);
 
     const args = new Set(process.argv.slice(2));
-    const allowedArguments = new Set(["--dry-run", "--check", "--verify-only"]);
+    const allowedArguments = new Set(["--dry-run", "--check", "--verify-only", "--receiver"]);
     for (const argument of args) {
         if (!allowedArguments.has(argument)) throw new Error(`Unknown argument: ${argument}`);
     }
-    if (args.size > 1) throw new Error("Choose only one deployment mode.");
+    if (args.size - (receiverMode ? 1 : 0) > 1) throw new Error("Choose only one deployment mode.");
 
     if (args.has("--verify-only")) {
         await verifyPublicWebsite();
@@ -261,9 +268,38 @@ async function main() {
 
     const client = await connect(configuration);
     try {
+        if (receiverMode) {
+            try {
+                await client.cd(path.posix.dirname(configuration.remoteDirectory));
+                console.log("Site parent directory is accessible for private diagnostics storage.");
+            } catch { console.log("Site parent directory is not accessible with the deployment account."); }
+            await client.cd(configuration.remoteDirectory);
+        }
         if (args.has("--check")) {
             console.log("Secure connection, server identity, credentials, and remote directory verified.");
             return;
+        }
+        if (receiverMode) {
+            const privateRoot = path.posix.join(path.posix.dirname(configuration.remoteDirectory), "diagnostics-private");
+            for (const directory of [privateRoot, ...["codes", "tickets", "uploads", "admin"].map(name => path.posix.join(privateRoot, name))]) {
+                await client.ensureDir(directory);
+                await client.send(`SITE CHMOD 700 ${directory}`);
+            }
+            for (const name of ["issue-code.php", "cleanup.php"]) {
+                const localPath = path.join(repositoryRoot, "local-deployment", "safespeak-diagnostics", "admin", name);
+                const remotePath = path.posix.join(privateRoot, "admin", name);
+                await client.uploadFrom(localPath, remotePath);
+                await client.send(`SITE CHMOD 600 ${remotePath}`);
+            }
+            const configPath = path.posix.join(privateRoot, "config.php");
+            const privateFiles = await client.list(privateRoot);
+            if (!privateFiles.some(file => file.name === "config.php")) {
+                await client.uploadFrom(path.join(repositoryRoot, "local-deployment", "safespeak-diagnostics", "config.php"), configPath);
+                await client.send(`SITE CHMOD 600 ${configPath}`);
+                console.log("Private PHP configuration installed with intake disabled.");
+            } else console.log("Existing private PHP configuration preserved.");
+            await client.cd(configuration.remoteDirectory);
+            console.log("Private diagnostics directories and admin scripts installed outside public_html.");
         }
 
         // The root index is last in the allowlist so visitors cannot receive a
@@ -278,10 +314,15 @@ async function main() {
     }
 
     console.log("Upload complete. No remote files were deleted.");
-    await verifyPublicWebsite();
+    if (receiverMode) {
+        const result = await requestUrl(new URL("/diagnostics/index.php", required("PUBLIC_BASE_URL")));
+        if (result.status !== 405 || !result.contentType.includes("application/json")) throw new Error("Receiver verification failed.");
+        console.log("Receiver PHP endpoint verified: HTTP 405 JSON for GET.");
+    } else await verifyPublicWebsite();
 }
 
-main().catch(error => {
+module.exports = { loadEnv, transferConfiguration, connect };
+if (require.main === module) main().catch(error => {
     const message = error && error.message ? error.message : String(error);
     console.error(`Deployment failed: ${message}`);
     process.exitCode = 1;

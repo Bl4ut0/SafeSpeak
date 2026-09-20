@@ -1289,7 +1289,7 @@ public sealed class MainShellAccessibilityContractTests
 
         Assert.Equal("SettingsPanel_PreviewKeyDown",
             settingsPanel.Attribute("PreviewKeyDown")?.Value);
-        Assert.Equal(Enumerable.Range(1, 63), stops.Select(element =>
+        Assert.Equal(Enumerable.Range(1, 66), stops.Select(element =>
             int.Parse(element.Attribute("TabIndex")!.Value)));
         Assert.Equal("SettingsGuideButton", stops[0].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ReadSettingsGuidePageButton", stops[1].Attribute(Xaml + "Name")?.Value);
@@ -1298,8 +1298,8 @@ public sealed class MainShellAccessibilityContractTests
         Assert.Equal("SettingsSourceChapterHeading", stops[4].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ThemeSelector", stops[6].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("SpokenGuidanceToggle", stops[7].Attribute(Xaml + "Name")?.Value);
-        Assert.Equal("Run Setup Again", stops[57].Attribute("Content")?.Value);
-        Assert.Equal("SettingsGuideButtonAtEnd", stops[59].Attribute(Xaml + "Name")?.Value);
+        Assert.Equal("Run Setup Again", stops[60].Attribute("Content")?.Value);
+        Assert.Equal("SettingsGuideButtonAtEnd", stops[62].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("ToggleSettingsGuideButtonAtEnd", stops[^1].Attribute(Xaml + "Name")?.Value);
         Assert.Equal("{Binding ConfiguredConnectors}",
             NamedElement(document, "ItemsControl", "ConfiguredConnectorCards")
@@ -1438,7 +1438,7 @@ public sealed class MainShellAccessibilityContractTests
             Assert.Equal("{StaticResource ChapterHeading}", heading.Attribute("Style")?.Value);
             Assert.StartsWith("Chapter ", heading.Attribute("Content")?.Value, StringComparison.Ordinal);
             Assert.Contains("chapter", Attribute(heading, "AutomationProperties.Name"), StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Press Tab to enter this chapter",
+            Assert.DoesNotContain("Press Tab to enter this chapter",
                 Attribute(heading, "AutomationProperties.HelpText"),
                 StringComparison.Ordinal);
             Assert.Contains("Alt plus",

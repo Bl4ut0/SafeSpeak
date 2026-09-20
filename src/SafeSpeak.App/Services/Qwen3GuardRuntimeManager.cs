@@ -6,6 +6,8 @@ using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text.Json;
+using SafeSpeak.Core.Diagnostics;
+using SafeSpeak.Core.Logging;
 
 namespace SafeSpeak.App.Services;
 
@@ -57,6 +59,38 @@ public sealed class Qwen3GuardRuntimeManager : IAsyncDisposable
     public string RuntimeExecutablePath => Path.Combine(_runtimeDirectory, "ollama.exe");
     public bool IsRuntimeAvailable => File.Exists(RuntimeExecutablePath);
     public bool IsRunning => _process is { HasExited: false };
+    public int? ProcessId => _process is { HasExited: false } ? _process.Id : null;
+
+    public double? WorkingSetMb
+    {
+        get
+        {
+            try
+            {
+                if (_process is { HasExited: false })
+                {
+                    _process.Refresh();
+                    return _process.WorkingSet64 / (1024.0 * 1024.0);
+                }
+            }
+            catch { }
+            return null;
+        }
+    }
+
+    public string DiagnosticStatus
+    {
+        get
+        {
+            if (!IsRuntimeAvailable) return "Unavailable";
+            if (!IsRunning) return "Stopped";
+            double? ws = WorkingSetMb;
+            return ws.HasValue
+                ? $"Running (PID={ProcessId}, RAM={ws.Value:F1}MB)"
+                : $"Running (PID={ProcessId})";
+        }
+    }
+
     public bool IsModelInstalled
     {
         get
@@ -83,6 +117,7 @@ public sealed class Qwen3GuardRuntimeManager : IAsyncDisposable
             }
 
             StopNow();
+            KillOrphanedRuntimeProcesses();
             Directory.CreateDirectory(_modelRoot);
             var startInfo = new ProcessStartInfo
             {
@@ -111,6 +146,15 @@ public sealed class Qwen3GuardRuntimeManager : IAsyncDisposable
                 _process.Dispose();
                 _process = null;
                 return false;
+            }
+
+            try
+            {
+                JobObjectManager.Default?.AssignProcess(_process);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogWarning("Qwen3GuardRuntime", $"Could not assign Ollama process to JobObject: {ex.Message}");
             }
 
             _process.BeginOutputReadLine();
@@ -287,6 +331,35 @@ public sealed class Qwen3GuardRuntimeManager : IAsyncDisposable
         finally
         {
             process.Dispose();
+        }
+    }
+
+    private void KillOrphanedRuntimeProcesses()
+    {
+        try
+        {
+            string targetDir = Path.GetFullPath(_runtimeDirectory).TrimEnd(Path.DirectorySeparatorChar);
+            foreach (Process proc in Process.GetProcessesByName("ollama"))
+            {
+                try
+                {
+                    string? exePath = proc.MainModule?.FileName;
+                    if (exePath is not null && exePath.StartsWith(targetDir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        proc.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    proc.Dispose();
+                }
+            }
+        }
+        catch
+        {
         }
     }
 

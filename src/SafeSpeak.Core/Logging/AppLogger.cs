@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Channels;
+using SafeSpeak.Core.Diagnostics;
 
 namespace SafeSpeak.Core.Logging;
 
@@ -21,6 +22,7 @@ public sealed record AppLogEntry
     public string Source { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
     public string? ExceptionDetails { get; init; }
+    internal TaskCompletionSource? FlushTcs { get; init; }
 
     public override string ToString()
     {
@@ -46,7 +48,9 @@ public sealed record AppLogEntry
 
 /// <summary>
 /// Thread-safe, non-blocking asynchronous diagnostic logger for SafeSpeak subsystems.
-/// Bounded disk persistence (%LOCALAPPDATA%\SafeSpeak\Logs\debug.log) and in-memory ring buffer.
+/// Bounded disk persistence in %LOCALAPPDATA%\SafeSpeak\Logs and an in-memory ring buffer.
+/// Default application instances use separate process-session files so a Store
+/// build and a development build cannot interleave or overwrite each other.
 /// </summary>
 public sealed class AppLogger : IAsyncDisposable, IDisposable
 {
@@ -73,6 +77,20 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
 
     public static void LogError(string source, string message, Exception? ex = null) =>
         Instance.Log(AppLogLevel.Error, source, message, ex);
+
+    public static void FlushAll(TimeSpan? timeout = null) =>
+        Instance.Flush(timeout ?? TimeSpan.FromSeconds(2));
+
+    public static void LogFatalCrash(string source, string message, Exception? ex = null)
+    {
+        try
+        {
+            Instance.Log(AppLogLevel.Error, source, message, ex);
+            Instance.WriteFatalEmergency(source, message, ex);
+            FlushAll(TimeSpan.FromSeconds(2));
+        }
+        catch { }
+    }
 
     public static IReadOnlyList<AppLogEntry> GetRecentEntries() =>
         Instance.GetRecentSnapshot();
@@ -104,12 +122,16 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         int ringBufferCapacity = DefaultRingBufferCapacity,
         bool writeToFile = true)
     {
+        bool usesDefaultLogsDirectory = logsDirectory is null;
         _logsDirectory = logsDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SafeSpeak",
             "Logs");
-        _logFilePath = Path.Combine(_logsDirectory, "debug.log");
-        _oldLogFilePath = Path.Combine(_logsDirectory, "debug.old.log");
+        string sessionSuffix = usesDefaultLogsDirectory
+            ? $"_session_{Environment.ProcessId}"
+            : string.Empty;
+        _logFilePath = Path.Combine(_logsDirectory, $"debug{sessionSuffix}.log");
+        _oldLogFilePath = Path.Combine(_logsDirectory, $"debug{sessionSuffix}.old.log");
         _maxFileSizeBytes = Math.Max(256, maxFileSizeBytes);
         _ringBufferCapacity = Math.Max(2, ringBufferCapacity);
         _writeToFile = writeToFile;
@@ -234,6 +256,11 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
                 // Drain remaining items on shutdown
                 while (_channel.Reader.TryRead(out var entry))
                 {
+                    if (entry.FlushTcs is not null)
+                    {
+                        entry.FlushTcs.TrySetResult();
+                        continue;
+                    }
                     WriteEntry(ref writer, entry);
                 }
             }
@@ -259,6 +286,15 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
 
     private void WriteEntry(ref StreamWriter? writer, AppLogEntry entry)
     {
+        using SubsystemPerformanceMetrics.OperationTimer logMetric =
+            SubsystemPerformanceMetrics.Measure("DiagnosticLogWrite");
+        if (entry.FlushTcs is not null)
+        {
+            writer?.Flush();
+            entry.FlushTcs.TrySetResult();
+            return;
+        }
+
         DateTime today = DateTime.Today;
         if (today > _currentLogDate)
         {
@@ -353,6 +389,67 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         {
             // If rotation fails (e.g. file lock), continue writing to current file
         }
+    }
+
+    public void Flush(TimeSpan? timeout = null)
+    {
+        if (!_writeToFile || _disposed) return;
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entry = new AppLogEntry { FlushTcs = tcs };
+        if (_channel.Writer.TryWrite(entry))
+        {
+            try
+            {
+                if (tcs.Task.Wait(timeout ?? TimeSpan.FromSeconds(2)))
+                {
+                    return;
+                }
+            }
+            catch { }
+        }
+
+        DrainDirectFallback();
+    }
+
+    public void WriteFatalEmergency(string source, string message, Exception? exception = null)
+    {
+        try
+        {
+            var entry = new AppLogEntry
+            {
+                Level = AppLogLevel.Error,
+                Source = source ?? "Fatal",
+                Message = message ?? string.Empty,
+                ExceptionDetails = exception?.ToString()
+            };
+            Directory.CreateDirectory(_logsDirectory);
+            using var stream = new FileStream(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            using var writer = new StreamWriter(stream, Encoding.UTF8);
+            writer.WriteLine(entry.ToString());
+            writer.Flush();
+        }
+        catch { }
+    }
+
+    private void DrainDirectFallback()
+    {
+        try
+        {
+            if (!_writeToFile) return;
+            using var stream = new FileStream(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            using var writer = new StreamWriter(stream, Encoding.UTF8);
+            while (_channel.Reader.TryRead(out var entry))
+            {
+                if (entry.FlushTcs is not null)
+                {
+                    entry.FlushTcs.TrySetResult();
+                    continue;
+                }
+                writer.WriteLine(entry.ToString());
+            }
+            writer.Flush();
+        }
+        catch { }
     }
 
     public void Dispose()

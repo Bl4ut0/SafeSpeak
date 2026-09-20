@@ -107,4 +107,40 @@ public sealed class AppLoggerTests : IDisposable
         var recent = AppLogger.GetRecentEntries();
         Assert.NotEmpty(recent);
     }
+
+    [Fact]
+    public async Task AppLogger_Flush_SynchronouslyFlushesToFile()
+    {
+        await using var logger = new AppLogger(_testDirectory, writeToFile: true);
+        logger.Log(AppLogLevel.Information, "FlushTest", "Message needing immediate flush");
+        logger.Flush(TimeSpan.FromSeconds(2));
+
+        Assert.True(File.Exists(logger.LogFilePath));
+        string content = await ReadLogWithSharingAsync(logger.LogFilePath);
+        Assert.Contains("Message needing immediate flush", content);
+    }
+
+    [Fact]
+    public async Task AppLogger_WriteFatalEmergency_DirectlyWritesToDisk()
+    {
+        await using var logger = new AppLogger(_testDirectory, writeToFile: true);
+        logger.WriteFatalEmergency("EmergencyTest", "Emergency crash sentinel");
+
+        Assert.True(File.Exists(logger.LogFilePath));
+        string content = await ReadLogWithSharingAsync(logger.LogFilePath);
+        Assert.Contains("Emergency crash sentinel", content);
+    }
+
+    [Fact]
+    public void AppLogger_FlushAll_DoesNotThrow()
+    {
+        AppLogger.FlushAll(TimeSpan.FromMilliseconds(500));
+    }
+
+    private static async Task<string> ReadLogWithSharingAsync(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync();
+    }
 }

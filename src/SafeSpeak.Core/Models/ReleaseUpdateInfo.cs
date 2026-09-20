@@ -12,15 +12,16 @@ public static class ReleaseUpdateInfo
     /// Monotonically increasing setup guide version. When incremented, existing
     /// users are automatically prompted on application launch to review what's new.
     /// </summary>
-    public const int CurrentGuideVersion = 4;
+    public const int CurrentGuideVersion = 5;
 
     /// <summary>
     /// Granular bullet points of user-facing changes and improvements in the current release.
     /// </summary>
     public static readonly IReadOnlyList<string> CurrentHighlights = new[]
     {
-        "Chat Speech: Added emoji spam limiting to collapse repeated identical emojis and cap total emojis per message.",
-        "Global Shortcuts: Changed default Arm/Disarm hotkey to Control + Alt + Spacebar.",
+        "Diagnostics: Send diagnostic logs, performance metrics, and stream audit logs directly to developer with one click.",
+        "Stream Stability: Resolved 30-minute buffer lag and session dropouts for long-running TikTok LIVE broadcasts.",
+        "Resource Cleanup: Hardened WASAPI audio device lifecycle to prevent audio latency drift and memory leaks.",
         "Safe and Non-Destructive: Your existing tokens, models, and custom words are preserved."
     };
 

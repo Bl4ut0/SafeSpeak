@@ -195,6 +195,16 @@ public sealed class WasapiAudioRouter : IAudioRouter
                     void OnPlaybackStopped(object? sender, StoppedEventArgs e)
                     {
                         output.PlaybackStopped -= OnPlaybackStopped;
+                        _ = Task.Run(() =>
+                        {
+                            lock (_lock)
+                            {
+                                if (ReferenceEquals(_wasapiOut, output))
+                                {
+                                    StopInternal();
+                                }
+                            }
+                        });
                         if (e.Exception is not null)
                         {
                             tcs.TrySetException(e.Exception);

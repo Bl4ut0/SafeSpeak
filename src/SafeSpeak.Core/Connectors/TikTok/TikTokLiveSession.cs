@@ -141,9 +141,16 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
         }
     }
 
+    private static readonly TimeSpan CachedTtwidTtl = TimeSpan.FromMinutes(20);
+    private static DateTimeOffset _cachedTtwidTimestamp = DateTimeOffset.MinValue;
+
     internal static string? CachedTtwid { get; set; }
 
-    internal static void ClearCachedTtwid() => CachedTtwid = null;
+    internal static void ClearCachedTtwid()
+    {
+        CachedTtwid = null;
+        _cachedTtwidTimestamp = DateTimeOffset.MinValue;
+    }
 
     internal static string? ExtractTtwidCookie(string header)
     {
@@ -178,8 +185,13 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
     {
         if (useCache && !string.IsNullOrEmpty(CachedTtwid))
         {
-            AppLogger.LogDebug("TikTokLiveSession", "Reusing cached session cookie.");
-            return CachedTtwid;
+            if (DateTimeOffset.UtcNow - _cachedTtwidTimestamp <= CachedTtwidTtl)
+            {
+                AppLogger.LogDebug("TikTokLiveSession", "Reusing cached session cookie.");
+                return CachedTtwid;
+            }
+            AppLogger.LogDebug("TikTokLiveSession", "Cached session cookie expired (exceeded 20m TTL). Fetching fresh cookie...");
+            ClearCachedTtwid();
         }
 
         // Endpoint candidates in order of retrieval reliability:
@@ -204,7 +216,11 @@ internal sealed class TikTokLiveSession : ITikTokLiveSession
                 if (cookie is not null)
                 {
                     AppLogger.LogDebug("TikTokLiveSession", $"Acquired session cookie from {uri.AbsolutePath}.");
-                    if (useCache) CachedTtwid = cookie;
+                    if (useCache)
+                    {
+                        CachedTtwid = cookie;
+                        _cachedTtwidTimestamp = DateTimeOffset.UtcNow;
+                    }
                     return cookie;
                 }
             }

@@ -637,6 +637,32 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void Schema12_MigratesAutomaticFocusNarrationToBriefMode()
+    {
+        string path = CreateTemporarySettingsPath();
+        try
+        {
+            WriteSettings(
+                path,
+                """
+                {
+                  "SettingsSchemaVersion": 12,
+                  "NarrateDetailedHelp": true
+                }
+                """);
+
+            AppSettings loaded = AppSettings.Load(path);
+
+            Assert.False(loaded.NarrateDetailedHelp);
+            Assert.Equal(AppSettings.CurrentSettingsSchemaVersion, loaded.SettingsSchemaVersion);
+        }
+        finally
+        {
+            DeleteTemporarySettingsDirectory(path);
+        }
+    }
+
+    [Fact]
     public void MigrateAuditLoggingConsent_SupportsDisablingStreamAuditLoggingInJson()
     {
         string path = CreateTemporarySettingsPath();
