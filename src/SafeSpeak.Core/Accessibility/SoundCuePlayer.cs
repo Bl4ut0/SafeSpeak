@@ -17,12 +17,7 @@ public static class SoundCuePlayer
                 switch (cueType)
                 {
                     case SoundCueType.Armed:
-                        Console.Beep(880, 80);
-                        Console.Beep(1320, 100);
-                        break;
                     case SoundCueType.Disarmed:
-                        Console.Beep(1320, 80);
-                        Console.Beep(880, 100);
                         break;
                     case SoundCueType.MessageApproved:
                         Console.Beep(1046, 50);
@@ -63,8 +58,8 @@ public static class SoundCuePlayer
         ArgumentNullException.ThrowIfNull(audioRouter);
         (int Frequency, int Duration)[] tones = cueType switch
         {
-            SoundCueType.Armed => [(880, 80), (1320, 100)],
-            SoundCueType.Disarmed => [(1320, 80), (880, 100)],
+            SoundCueType.Armed => [],
+            SoundCueType.Disarmed => [],
             SoundCueType.MessageApproved => [(1046, 50)],
             SoundCueType.TikFinityConnected => [(523, 70), (659, 70), (784, 90)],
             SoundCueType.TikFinityDisconnected => [(784, 70), (659, 70), (523, 90)],

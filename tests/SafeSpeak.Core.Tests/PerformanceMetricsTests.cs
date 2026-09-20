@@ -73,7 +73,7 @@ public sealed class PerformanceMetricsTests
         }
 
         SubsystemMetricSnapshot snapshot = Assert.Single(
-            SubsystemPerformanceMetrics.Capture());
+            SubsystemPerformanceMetrics.Capture().Where(metric => metric.Name == "TestSubsystem"));
         Assert.Equal(2, snapshot.OperationCount);
         Assert.Equal(1, snapshot.FailureCount);
         Assert.True(snapshot.MaximumMilliseconds >= snapshot.LastMilliseconds);

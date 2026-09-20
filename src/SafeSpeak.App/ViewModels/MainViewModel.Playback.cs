@@ -266,9 +266,9 @@ public sealed partial class MainViewModel
         _pipeline.Rules.ResetCooldowns();
         _ttsQueue.ArmAutomatic();
         _alertQueue.ArmAutomatic();
-        _announcer.PlayCue(SoundCueType.Armed);
         AnnounceState(
-            "SafeSpeak armed. Monitoring and automatic moderated text to speech are active.");
+            "SafeSpeak armed. Monitoring and automatic moderated text to speech are active.",
+            interrupt: true);
         _ = ConnectEnabledConnectorsOnArmAsync();
     }
 
@@ -279,9 +279,9 @@ public sealed partial class MainViewModel
         Interlocked.Increment(ref _monitoringGeneration);
         _ttsQueue.Disarm();
         _alertQueue.Disarm();
-        _announcer.PlayCue(SoundCueType.Disarmed);
         AnnounceState(
-            "SafeSpeak disarmed. Incoming events are discarded until SafeSpeak is armed again.");
+            "SafeSpeak disarmed. Incoming events are discarded until SafeSpeak is armed again.",
+            interrupt: true);
         _ = DisconnectActiveConnectorsOnDisarmAsync();
     }
 
