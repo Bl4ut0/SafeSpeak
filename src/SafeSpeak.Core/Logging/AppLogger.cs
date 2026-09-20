@@ -276,8 +276,9 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
                         writer.Flush();
                         writer.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        System.Diagnostics.Debug.WriteLine($"Error disposing log writer: {ex}");
                     }
                 }
             }
