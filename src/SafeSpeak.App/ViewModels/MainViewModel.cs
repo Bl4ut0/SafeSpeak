@@ -2248,29 +2248,51 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         if (liveEvent.Type == LivestreamEventType.Chat)
         {
-            if (AnnounceChatMessages)
-            {
-                ChatMessage chatMessage = liveEvent.ToChatMessage() with
-                {
-                    AttributionStyle = IncludePlatformInSpeech
-                        ? SpokenAttributionStyle.SaysOnPlatform
-                        : SpokenAttributionStyle.Says
-                };
-                if (IsSessionDonor(
-                        chatMessage.Platform,
-                        chatMessage.Author,
-                        chatMessage.AuthorDisplayName))
-                {
-                    chatMessage = chatMessage with { IsDonor = true };
-                }
-                await HandleIncomingMessageAsync(
-                    chatMessage,
-                    monitoringGeneration,
-                    cancellationToken);
-            }
+            await HandleIncomingChatEventAsync(
+                liveEvent,
+                monitoringGeneration,
+                cancellationToken);
             return;
         }
 
+        await HandleIncomingSystemEventAsync(
+            liveEvent,
+            monitoringGeneration,
+            cancellationToken);
+    }
+
+    private async Task HandleIncomingChatEventAsync(
+        LivestreamEvent liveEvent,
+        int monitoringGeneration,
+        CancellationToken cancellationToken)
+    {
+        if (AnnounceChatMessages)
+        {
+            ChatMessage chatMessage = liveEvent.ToChatMessage() with
+            {
+                AttributionStyle = IncludePlatformInSpeech
+                        ? SpokenAttributionStyle.SaysOnPlatform
+                        : SpokenAttributionStyle.Says
+            };
+            if (IsSessionDonor(
+                    chatMessage.Platform,
+                    chatMessage.Author,
+                    chatMessage.AuthorDisplayName))
+            {
+                chatMessage = chatMessage with { IsDonor = true };
+            }
+            await HandleIncomingMessageAsync(
+                chatMessage,
+                monitoringGeneration,
+                cancellationToken);
+        }
+    }
+
+    private async Task HandleIncomingSystemEventAsync(
+        LivestreamEvent liveEvent,
+        int monitoringGeneration,
+        CancellationToken cancellationToken)
+    {
         bool enabled = liveEvent.Type switch
         {
             LivestreamEventType.Gift => AnnounceGifts,
@@ -2947,11 +2969,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         try
         {
             Directory.CreateDirectory(_auditLogger.LogsDirectory);
-            Process.Start(new ProcessStartInfo
+            var psi = new ProcessStartInfo
             {
-                FileName = _auditLogger.LogsDirectory,
-                UseShellExecute = true
-            });
+                FileName = "explorer.exe",
+                UseShellExecute = false
+            };
+            psi.ArgumentList.Add(_auditLogger.LogsDirectory);
+            Process.Start(psi);
             AnnounceState("Opening SafeSpeak logs folder.");
         }
         catch

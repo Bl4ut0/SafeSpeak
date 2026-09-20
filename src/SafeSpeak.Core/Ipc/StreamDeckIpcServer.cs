@@ -176,14 +176,7 @@ public sealed class StreamDeckIpcServer : IDisposable
 
     private static bool IsAllowedOrigin(string? origin)
     {
-        if (string.IsNullOrEmpty(origin)) return true;
-        if (string.Equals(origin, "null", StringComparison.OrdinalIgnoreCase)) return true;
-        if (origin.StartsWith("file://", StringComparison.OrdinalIgnoreCase)) return true;
-        if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-        {
-            return uri.IsLoopback || string.Equals(uri.Scheme, "file", StringComparison.OrdinalIgnoreCase);
-        }
-        return false;
+        return string.IsNullOrEmpty(origin);
     }
 
     public void Dispose()

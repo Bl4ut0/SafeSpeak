@@ -61,7 +61,8 @@
                     Command="{Binding AnnounceStatusPrivatelyCommand}"
                     Content="Hear status"
                     AutomationProperties.Name="Hear current SafeSpeak status"
-                    AutomationProperties.HelpText="{Binding HearStatusHelpText}" />
+                    AutomationProperties.HelpText="{Binding HearStatusHelpText}"
+                    ToolTip="{Binding HearStatusHelpText}" />
 
             <TabControl x:Name="MainNavigation"
                     Grid.ColumnSpan="2" TabIndex="2"
@@ -174,7 +175,8 @@
                                                   Command="{Binding ToggleArmCommand}"
                                                   Content="{Binding IsArmed, Converter={StaticResource ArmedToTextConverter}}"
                                                   AutomationProperties.Name="{Binding ArmedStatusText, StringFormat=Arm toggle button: currently {0}}"
-                                                  AutomationProperties.HelpText="{Binding ArmToggleHelpText}" />
+                                                  AutomationProperties.HelpText="{Binding ArmToggleHelpText}"
+                                                  ToolTip="{Binding ArmToggleHelpText}" />
 
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -194,7 +196,8 @@
                                                 IsVisibleChanged="EmergencyStopButton_IsVisibleChanged"
                                                 Command="{Binding EmergencyStopCommand}" Content="Emergency stop"
                                                 AutomationProperties.Name="Emergency stop"
-                                                AutomationProperties.HelpText="{Binding EmergencyStopHelpText}" />
+                                                AutomationProperties.HelpText="{Binding EmergencyStopHelpText}"
+                                                ToolTip="{Binding EmergencyStopHelpText}" />
 
                                         <Button x:Name="PauseOrResumeButton"
                                                 Grid.Row="0" Grid.Column="1" TabIndex="3" Margin="0,0,0,6"
@@ -203,7 +206,8 @@
                                                 Command="{Binding PauseOrResumeTtsCommand}"
                                                 Content="{Binding PauseButtonText}"
                                                 AutomationProperties.Name="{Binding PauseButtonAutomationName}"
-                                                AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback." />
+                                                AutomationProperties.HelpText="Pause lets the current message finish. Resume returns to automatic playback."
+                                                ToolTip="Pause lets the current message finish. Resume returns to automatic playback." />
 
                                         <Button x:Name="UseAutomaticPlaybackButton"
                                                 Grid.Row="0" Grid.Column="1" TabIndex="4" Margin="0,0,0,6"
@@ -212,7 +216,8 @@
                                                 Click="PlaybackModeButton_Click"
                                                 Command="{Binding UseAutomaticPlaybackCommand}" Content="Automatic mode"
                                                 AutomationProperties.Name="Use automatic playback mode button"
-                                                AutomationProperties.HelpText="Approved messages speak automatically while SafeSpeak is armed." />
+                                                AutomationProperties.HelpText="Approved messages speak automatically while SafeSpeak is armed."
+                                                ToolTip="Approved messages speak automatically while SafeSpeak is armed." />
 
                                         <Button x:Name="UseManualPlaybackButton"
                                                 Grid.Row="1" Grid.Column="0" TabIndex="5" Margin="0,0,6,6"
@@ -221,7 +226,8 @@
                                                 Click="PlaybackModeButton_Click"
                                                 Command="{Binding UseManualPlaybackCommand}" Content="Manual mode"
                                                 AutomationProperties.Name="Use manual playback mode button"
-                                                AutomationProperties.HelpText="Approved messages wait until Speak next approved message is chosen." />
+                                                AutomationProperties.HelpText="Approved messages wait until Speak next approved message is chosen."
+                                                ToolTip="Approved messages wait until Speak next approved message is chosen." />
 
                                         <Button x:Name="SpeakNextApprovedMessageButton"
                                                 Grid.Row="1" Grid.Column="0" TabIndex="6" Margin="0,0,6,6"
@@ -229,21 +235,24 @@
                                                 Visibility="{Binding ShowManualControls, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding SpeakNextApprovedMessageCommand}" Content="Speak next"
                                                 AutomationProperties.Name="Speak next approved message button"
-                                                AutomationProperties.HelpText="In manual mode, speaks exactly one approved queued message." />
+                                                AutomationProperties.HelpText="In manual mode, speaks exactly one approved queued message."
+                                                ToolTip="In manual mode, speaks exactly one approved queued message." />
 
                                         <Button Grid.Row="1" Grid.Column="1" TabIndex="7" Margin="0,0,0,6"
                                                 Style="{StaticResource CommandButton}"
                                                 Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding StopCurrentSpeechCommand}" Content="Stop current"
                                                 AutomationProperties.Name="{Binding StopCurrentSpeechAutomationName}"
-                                                AutomationProperties.HelpText="Immediately stops only the message currently speaking." />
+                                                AutomationProperties.HelpText="Immediately stops only the message currently speaking."
+                                                ToolTip="Immediately stops only the message currently speaking." />
 
                                         <Button Grid.Row="2" Grid.ColumnSpan="2" TabIndex="8"
                                                 Style="{StaticResource CommandButton}"
                                                 Visibility="{Binding IsArmed, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Command="{Binding ClearQueueCommand}" Content="Clear queue"
                                                 AutomationProperties.Name="Clear pending text to speech queue button"
-                                                AutomationProperties.HelpText="Removes pending approved messages without stopping the current message or disarming SafeSpeak." />
+                                                AutomationProperties.HelpText="Removes pending approved messages without stopping the current message or disarming SafeSpeak."
+                                                ToolTip="Removes pending approved messages without stopping the current message or disarming SafeSpeak." />
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -859,8 +868,8 @@
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="0,2">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" />
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" AutomationProperties.Name="{Binding DisplayName}" />
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" AutomationProperties.Name="{Binding Description}" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
@@ -901,7 +910,8 @@
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding DisplayName}"
                                                            ToolTip="{Binding Description}"
-                                                           AutomationProperties.Name="{Binding DisplayName}" />
+                                                           AutomationProperties.Name="{Binding DisplayName}"
+                                                           AutomationProperties.HelpText="{Binding Description}" />
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
