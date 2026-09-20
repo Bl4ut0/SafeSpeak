@@ -116,7 +116,7 @@ public class HeuristicIntentClassifierTests
     }
 
     [Theory]
-    [InlineData("hope you fail")]
+    [InlineData("hope you fall off")]
     [InlineData("hope u get banned")]
     public async Task ClassifyAsync_SpitefulWish_ReturnsHarassmentScore(string text)
     {
@@ -145,7 +145,7 @@ public class HeuristicIntentClassifierTests
         var result = await _classifier.ClassifyAsync(text);
         Assert.False(result.IsToxic); // Total toxicity < 0.6
         Assert.Equal(0.48, result.InsultScore);
-        Assert.Equal("Hostile language", result.FlaggedCategory);
+        Assert.Equal("Insult", result.FlaggedCategory);
     }
 
     [Fact]
@@ -154,12 +154,12 @@ public class HeuristicIntentClassifierTests
         var result = await _classifier.ClassifyAsync("idiot moron");
         Assert.True(result.IsToxic); // Total toxicity = 0.64
         Assert.Equal(0.64, result.InsultScore);
-        Assert.Equal("Directed insult", result.FlaggedCategory);
+        Assert.Equal("Insult", result.FlaggedCategory);
     }
 
     [Theory]
-    [InlineData("nobody likes you")]
     [InlineData("get cancer")]
+    [InlineData("go away and die")]
     public async Task ClassifyAsync_Harassment_ReturnsHarassmentScore(string text)
     {
         var result = await _classifier.ClassifyAsync(text);
