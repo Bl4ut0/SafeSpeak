@@ -233,10 +233,10 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         // File I/O transient error; recreate writer if needed
-                        try { writer?.Dispose(); } catch { }
+                        try { writer?.Dispose(); } catch (Exception disposeEx) { System.Diagnostics.Debug.WriteLine($"Error disposing writer: {disposeEx}"); }
                         writer = null;
                         await Task.Delay(250, _cts.Token).ConfigureAwait(false);
-                        try { writer = OpenWriter(); } catch { }
+                        try { writer = OpenWriter(); } catch (Exception openEx) { System.Diagnostics.Debug.WriteLine($"Error opening writer: {openEx}"); }
                     }
                 }
             }
@@ -245,9 +245,10 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
         {
             // Normal shutdown
         }
-        catch
+        catch (Exception ex)
         {
             // Suppress background worker crashes
+            System.Diagnostics.Debug.WriteLine($"AppLogger worker crash: {ex}");
         }
         finally
         {
@@ -264,8 +265,9 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
                     WriteEntry(ref writer, entry);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"AppLogger shutdown drain error: {ex}");
             }
             finally
             {
@@ -276,8 +278,9 @@ public sealed class AppLogger : IAsyncDisposable, IDisposable
                         writer.Flush();
                         writer.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        System.Diagnostics.Debug.WriteLine($"AppLogger writer dispose error: {ex}");
                     }
                 }
             }
