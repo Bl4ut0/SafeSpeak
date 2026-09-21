@@ -266,7 +266,8 @@
                                         Style="{StaticResource CompactButton}"
                                         Command="{Binding RetrySourceConnectionCommand}" Content="Reconnect all"
                                         AutomationProperties.Name="Reconnect all enabled live connectors button"
-                                        AutomationProperties.HelpText="Reconnects every enabled connector. Press Tab to move through each configured connector toggle." />
+                                        AutomationProperties.HelpText="Reconnects every enabled connector. Press Tab to move through each configured connector toggle."
+                                        ToolTip="Reconnects every enabled connector. Press Tab to move through each configured connector toggle." />
                                 <StackPanel>
                                     <TextBlock Text="Live connectors" Style="{StaticResource SectionTitle}" />
                                     <TextBlock Text="{Binding ConnectionSummaryText}" Style="{StaticResource SecondaryText}"
@@ -343,13 +344,15 @@
                                     Command="{Binding ToggleFilteredContentVisibilityCommand}"
                                     Content="{Binding FilteredContentToggleText}"
                                     AutomationProperties.Name="{Binding FilteredContentToggleAutomationName}"
-                                    AutomationProperties.HelpText="Explicitly reveals or hides both the original username and original text for every filtered entry in the live feed. Filtered content is never sent to broadcast speech." />
+                                    AutomationProperties.HelpText="Explicitly reveals or hides both the original username and original text for every filtered entry in the live feed. Filtered content is never sent to broadcast speech."
+                                    ToolTip="Explicitly reveals or hides both the original username and original text for every filtered entry in the live feed. Filtered content is never sent to broadcast speech." />
                             <Button DockPanel.Dock="Right" TabIndex="11" Margin="10,0,0,0"
                                     Style="{StaticResource CompactButton}"
                                     Command="{Binding AnnounceLiveFeedReviewStatusCommand}"
                                     Content="Hear review status"
                                     AutomationProperties.Name="Hear live activity review status button"
-                                    AutomationProperties.HelpText="Reports whether visual feed updates are paused and how many received messages are retained for review." />
+                                    AutomationProperties.HelpText="Reports whether visual feed updates are paused and how many received messages are retained for review."
+                                    ToolTip="Reports whether visual feed updates are paused and how many received messages are retained for review." />
                             <TextBlock Text="Live activity" Style="{StaticResource SectionTitle}"
                                        VerticalAlignment="Center" />
                         </DockPanel>
