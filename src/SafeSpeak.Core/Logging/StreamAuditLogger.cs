@@ -534,8 +534,9 @@ public sealed class StreamAuditLogger : IAsyncDisposable
         {
             writer.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
+            AppLogger.LogWarning("StreamAuditLogger", "Failed to dispose audit log writer.", ex);
         }
     }
     public async ValueTask DisposeAsync()
