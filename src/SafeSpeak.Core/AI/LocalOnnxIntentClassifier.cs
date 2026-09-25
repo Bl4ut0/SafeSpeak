@@ -451,7 +451,8 @@ public sealed class LocalOnnxIntentClassifier : IIntentClassifier
 
         public static BertWordPieceTokenizer Load(string tokenizerPath)
         {
-            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(tokenizerPath));
+            using FileStream stream = File.OpenRead(tokenizerPath);
+            using JsonDocument document = JsonDocument.Parse(stream);
             JsonElement vocabularyJson = document.RootElement
                 .GetProperty("model")
                 .GetProperty("vocab");
