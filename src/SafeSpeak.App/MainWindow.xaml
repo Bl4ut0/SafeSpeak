@@ -2034,10 +2034,12 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                     <Button TabIndex="56" Content="Upload diagnostics" Command="{Binding UploadDiagnosticsCommand}"
                                             AutomationProperties.Name="Upload diagnostic logs to SafeSpeak support"
-                                            AutomationProperties.HelpText="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs." />
+                                            AutomationProperties.HelpText="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs."
+                                            ToolTip="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs." />
                                     <Button TabIndex="57" Content="Cancel upload" Command="{Binding UploadDiagnosticsCancelCommand}" Margin="8,0,0,0"
                                             AutomationProperties.Name="Cancel diagnostic upload"
-                                            AutomationProperties.HelpText="Stops the current upload. You can retry later." />
+                                            AutomationProperties.HelpText="Stops the current upload. You can retry later."
+                                            ToolTip="Stops the current upload. You can retry later." />
                                 </StackPanel>
                                 <TextBlock Text="{Binding DiagnosticUploadStatus}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                 <TextBlock Text="Download an offline ZIP support package containing the last 10 days of diagnostic logs and raw stream audit logs."
@@ -2046,7 +2048,8 @@
                                         Command="{Binding CreateDiagnosticSupportPackageCommand}"
                                         Content="Download offline diagnostics support package"
                                         AutomationProperties.Name="Download offline diagnostics support package"
-                                        AutomationProperties.HelpText="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically." />
+                                        AutomationProperties.HelpText="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically."
+                                        ToolTip="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically." />
                                 <TextBlock Text="{Binding DiagnosticHostIdDisplay, StringFormat=Diagnostic host ID: {0}}"
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </StackPanel>

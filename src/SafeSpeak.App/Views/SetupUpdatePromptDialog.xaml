@@ -91,7 +91,8 @@
                         FontWeight="SemiBold"
                         Click="YesButton_Click"
                         AutomationProperties.Name="Review setup guide now (Y)"
-                        AutomationProperties.HelpText="Press Y or Enter to launch the guided setup wizard." />
+                        AutomationProperties.HelpText="Press Y or Enter to launch the guided setup wizard."
+                        ToolTip="Press Y or Enter to launch the guided setup wizard." />
 
                 <Button x:Name="DeclineButton"
                         DockPanel.Dock="Left"
@@ -102,7 +103,8 @@
                         Content="Keep Current Settings (N)"
                         Click="DeclineButton_Click"
                         AutomationProperties.Name="Keep current settings (N)"
-                        AutomationProperties.HelpText="Press N or Escape to keep current configuration and open SafeSpeak." />
+                        AutomationProperties.HelpText="Press N or Escape to keep current configuration and open SafeSpeak."
+                        ToolTip="Press N or Escape to keep current configuration and open SafeSpeak." />
             </DockPanel>
         </StackPanel>
     </Border>
