@@ -1140,6 +1140,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
         catch (OperationCanceledException)
         {
+            // Normal cancellation when superseded or stopped.
         }
         catch (Exception ex)
         {
@@ -1507,6 +1508,7 @@ public sealed partial class AccessibilitySetupViewModel : ObservableObject, IDis
         }
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
         {
+            // Normal cancellation during app shutdown.
         }
         catch (Exception ex)
         {
