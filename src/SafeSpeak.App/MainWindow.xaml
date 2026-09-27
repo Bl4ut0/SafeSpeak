@@ -437,24 +437,28 @@
                                                 Command="{Binding ReadModerationGuideCommand}"
                                                 Content="Play whole guide"
                                                 AutomationProperties.Name="Play the whole Safety guide button"
-                                                AutomationProperties.HelpText="Reads every Safety guide page through SafeSpeak built-in guidance. Use the configured Shut up built-in guidance shortcut to stop playback." />
+                                                AutomationProperties.HelpText="Reads every Safety guide page through SafeSpeak built-in guidance. Use the configured Shut up built-in guidance shortcut to stop playback."
+                                                ToolTip="Reads every Safety guide page through SafeSpeak built-in guidance. Use the configured Shut up built-in guidance shortcut to stop playback." />
                                         <Button x:Name="ReadModerationGuidePageButton" TabIndex="2" Margin="0,0,7,5"
                                                 Command="{Binding ReadNextModerationGuideSectionCommand}"
                                                 Content="Play guide page"
                                                 AutomationProperties.Name="Play the next Safety guide page button"
-                                                AutomationProperties.HelpText="Reads one Safety guide page and advances to the next page, wrapping to page 1 after the final page." />
+                                                AutomationProperties.HelpText="Reads one Safety guide page and advances to the next page, wrapping to page 1 after the final page."
+                                                ToolTip="Reads one Safety guide page and advances to the next page, wrapping to page 1 after the final page." />
                                         <Button x:Name="ResetModerationGuideButton" TabIndex="3" Margin="0,0,7,5"
                                                 Command="{Binding RestartModerationGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Safety guide to page 1 button"
-                                                AutomationProperties.HelpText="Returns the Safety guide to page 1 without starting playback." />
+                                                AutomationProperties.HelpText="Returns the Safety guide to page 1 without starting playback."
+                                                ToolTip="Returns the Safety guide to page 1 without starting playback." />
                                     </WrapPanel>
                                     <Button x:Name="ToggleSafetyGuideButton" Grid.Column="1" TabIndex="4" Margin="7,0,0,5"
                                             Command="{Binding ToggleSafetyGuideVisibilityCommand}"
                                             Click="GuidePlacementButton_Click"
                                             Content="{Binding SafetyGuideVisibilityButtonText}"
                                             AutomationProperties.Name="{Binding SafetyGuideVisibilityButtonAutomationName}"
-                                            AutomationProperties.HelpText="Moves all four Safety guide controls, including this button, to the bottom of the page. Navigate to the bottom of the Safety page to find this button again, labeled Move controls to top. The guide text remains visible." />
+                                            AutomationProperties.HelpText="Moves all four Safety guide controls, including this button, to the bottom of the page. Navigate to the bottom of the Safety page to find this button again, labeled Move controls to top. The guide text remains visible."
+                                            ToolTip="Moves all four Safety guide controls, including this button, to the bottom of the page. Navigate to the bottom of the Safety page to find this button again, labeled Move controls to top. The guide text remains visible." />
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -523,7 +527,8 @@
                                                     IsEnabled="{Binding CanInstallQwenModel}"
                                                     Content="Install optional model"
                                                     AutomationProperties.Name="Install optional Qwen3Guard model button"
-                                                    AutomationProperties.HelpText="Downloads, verifies, and activates the model inside SafeSpeak. No separate Ollama installation or terminal command is needed." />
+                                                    AutomationProperties.HelpText="Downloads, verifies, and activates the model inside SafeSpeak. No separate Ollama installation or terminal command is needed."
+                                                    ToolTip="Downloads, verifies, and activates the model inside SafeSpeak. No separate Ollama installation or terminal command is needed." />
                                             <Button x:Name="CancelQwenModelInstallButton" TabIndex="9" Margin="0,0,7,5"
                                                     Command="{Binding CancelQwenModelInstallCommand}"
                                                     IsEnabled="{Binding CanCancelQwenModelInstall}"
@@ -534,7 +539,8 @@
                                                     IsEnabled="{Binding CanRemoveQwenModel}"
                                                     Content="Remove optional model"
                                                     AutomationProperties.Name="Remove optional Qwen3Guard model button"
-                                                    AutomationProperties.HelpText="Removes the optional model from SafeSpeak local data and returns contextual filtering to the built-in enhanced model." />
+                                                    AutomationProperties.HelpText="Removes the optional model from SafeSpeak local data and returns contextual filtering to the built-in enhanced model."
+                                                    ToolTip="Removes the optional model from SafeSpeak local data and returns contextual filtering to the built-in enhanced model." />
                                         </WrapPanel>
                                         <ProgressBar Height="8" Minimum="0" Maximum="100"
                                                      Value="{Binding ModerationModelDownloadProgress}"
@@ -633,7 +639,8 @@
                                     <Button DockPanel.Dock="Right" TabIndex="17" Margin="8,0,0,0"
                                             Command="{Binding AddCustomAllowedTermCommand}" Content="Add allowed"
                                             AutomationProperties.Name="Add allowed term button"
-                                            AutomationProperties.HelpText="Adds this word or phrase to the custom allowed list without disabling built-in or contextual safety checks." />
+                                            AutomationProperties.HelpText="Adds this word or phrase to the custom allowed list without disabling built-in or contextual safety checks."
+                                            ToolTip="Adds this word or phrase to the custom allowed list without disabling built-in or contextual safety checks." />
                                     <TextBox x:Name="AllowedTermInput" TabIndex="16"
                                              Text="{Binding CustomAllowedInput, UpdateSourceTrigger=PropertyChanged}"
                                              AutomationProperties.Name="New allowed word or phrase input box. Type a term and press Enter or Add allowed.">
@@ -800,24 +807,28 @@
                                                 Command="{Binding ReadModerationGuideCommand}"
                                                 Content="Play whole guide"
                                                 AutomationProperties.Name="Play the whole Safety guide button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Reads every Safety guide page through SafeSpeak built-in guidance." />
+                                                AutomationProperties.HelpText="Reads every Safety guide page through SafeSpeak built-in guidance."
+                                                ToolTip="Reads every Safety guide page through SafeSpeak built-in guidance." />
                                                 <Button x:Name="ReadModerationGuidePageButtonAtEnd" TabIndex="25" Margin="0,0,7,5"
                                                 Command="{Binding ReadNextModerationGuideSectionCommand}"
                                                 Content="Play guide page"
                                                 AutomationProperties.Name="Play the next Safety guide page button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Reads one Safety guide page and advances to the next page." />
+                                                AutomationProperties.HelpText="Reads one Safety guide page and advances to the next page."
+                                                ToolTip="Reads one Safety guide page and advances to the next page." />
                                                 <Button x:Name="ResetModerationGuideButtonAtEnd" TabIndex="26" Margin="0,0,7,5"
                                                 Command="{Binding RestartModerationGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Safety guide to page 1 button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Returns the Safety guide to page 1 without starting playback." />
+                                                AutomationProperties.HelpText="Returns the Safety guide to page 1 without starting playback."
+                                                ToolTip="Returns the Safety guide to page 1 without starting playback." />
                                     </WrapPanel>
                                             <Button x:Name="ToggleSafetyGuideButtonAtEnd" Grid.Column="1" TabIndex="27" Margin="7,0,0,5"
                                             Command="{Binding ToggleSafetyGuideVisibilityCommand}"
                                             Click="GuidePlacementButton_Click"
                                             Content="{Binding SafetyGuideVisibilityButtonText}"
                                             AutomationProperties.Name="{Binding SafetyGuideVisibilityButtonAutomationName}"
-                                            AutomationProperties.HelpText="Moves all four Safety guide controls, including this button, to the top of the page. Navigate to the top of the Safety page to find this button again, labeled Move controls to bottom. The guide text remains visible." />
+                                            AutomationProperties.HelpText="Moves all four Safety guide controls, including this button, to the top of the page. Navigate to the top of the Safety page to find this button again, labeled Move controls to bottom. The guide text remains visible."
+                                            ToolTip="Moves all four Safety guide controls, including this button, to the top of the page. Navigate to the top of the Safety page to find this button again, labeled Move controls to bottom. The guide text remains visible." />
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -940,12 +951,14 @@
                                                     Command="{Binding EnableWindowsOneCoreVoicesCommand}"
                                                     Content="Refresh Windows Natural voices"
                                                     AutomationProperties.Name="Refresh Windows Natural voices button"
-                                                    AutomationProperties.HelpText="Scans and refreshes Windows Natural voices directly in the application." />
+                                                    AutomationProperties.HelpText="Scans and refreshes Windows Natural voices directly in the application."
+                                                    ToolTip="Scans and refreshes Windows Natural voices directly in the application." />
                                             <Button Margin="0,0,0,4" Padding="10,7"
                                                     Command="{Binding OpenWindowsSpeechSettingsCommand}"
                                                     Content="Download voices in Windows Settings"
                                                     AutomationProperties.Name="Open Windows Speech Settings button"
-                                                    AutomationProperties.HelpText="Opens Windows Time and Language Speech Settings where you can download more Microsoft Natural language voices." />
+                                                    AutomationProperties.HelpText="Opens Windows Time and Language Speech Settings where you can download more Microsoft Natural language voices."
+                                                    ToolTip="Opens Windows Time and Language Speech Settings where you can download more Microsoft Natural language voices." />
                                         </WrapPanel>
                                     </StackPanel>
                                 </Border>
@@ -1059,7 +1072,8 @@
                                           IsChecked="{Binding AdaptiveInterMessageGap, Mode=TwoWay}"
                                           Content="Shorten the delay automatically when the queue is busy"
                                           AutomationProperties.Name="Adaptive queued-voice spacing"
-                                          AutomationProperties.HelpText="When enabled, SafeSpeak uses the selected value as the maximum delay, cuts it in half with two queued messages, uses one quarter with five, and removes it with ten or more. Speech never overlaps." />
+                                          AutomationProperties.HelpText="When enabled, SafeSpeak uses the selected value as the maximum delay, cuts it in half with two queued messages, uses one quarter with five, and removes it with ten or more. Speech never overlaps."
+                                          ToolTip="When enabled, SafeSpeak uses the selected value as the maximum delay, cuts it in half with two queued messages, uses one quarter with five, and removes it with ten or more. Speech never overlaps." />
                             </StackPanel>
                         </Border>
 
@@ -1073,7 +1087,8 @@
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                 <CheckBox TabIndex="12" IsChecked="{Binding BroadcastOutputEnabled}" Margin="0,4,0,7"
                                           Content="Send approved speech to the stream output"
-                                          AutomationProperties.HelpText="When checked, approved TTS audio plays through the selected broadcast output device." />
+                                          AutomationProperties.HelpText="When checked, approved TTS audio plays through the selected broadcast output device."
+                                          ToolTip="When checked, approved TTS audio plays through the selected broadcast output device." />
                                 <Label Target="{Binding ElementName=OutputCombo}" Content="Output device" Padding="0,0,0,4" />
                                 <ComboBox x:Name="OutputCombo" TabIndex="13"
                                           ItemsSource="{Binding AudioEndpoints}"
