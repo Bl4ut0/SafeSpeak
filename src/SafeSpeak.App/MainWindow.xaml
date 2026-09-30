@@ -2034,10 +2034,12 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                     <Button TabIndex="56" Content="Upload diagnostics" Command="{Binding UploadDiagnosticsCommand}"
                                             AutomationProperties.Name="Upload diagnostic logs to SafeSpeak support"
-                                            AutomationProperties.HelpText="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs." />
+                                            AutomationProperties.HelpText="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs."
+                                            ToolTip="Sends a ten-day support package directly to SafeSpeak support. Includes saved raw chat history and moderation logs." />
                                     <Button TabIndex="57" Content="Cancel upload" Command="{Binding UploadDiagnosticsCancelCommand}" Margin="8,0,0,0"
                                             AutomationProperties.Name="Cancel diagnostic upload"
-                                            AutomationProperties.HelpText="Stops the current upload. You can retry later." />
+                                            AutomationProperties.HelpText="Stops the current upload. You can retry later."
+                                            ToolTip="Stops the current upload. You can retry later." />
                                 </StackPanel>
                                 <TextBlock Text="{Binding DiagnosticUploadStatus}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                 <TextBlock Text="Download an offline ZIP support package containing the last 10 days of diagnostic logs and raw stream audit logs."
@@ -2046,7 +2048,8 @@
                                         Command="{Binding CreateDiagnosticSupportPackageCommand}"
                                         Content="Download offline diagnostics support package"
                                         AutomationProperties.Name="Download offline diagnostics support package"
-                                        AutomationProperties.HelpText="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically." />
+                                        AutomationProperties.HelpText="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically."
+                                        ToolTip="Flushes current logs, packages the last 10 days including raw stream audit logs, and lets you choose where to save the ZIP. It does not upload anything automatically." />
                                 <TextBlock Text="{Binding DiagnosticHostIdDisplay, StringFormat=Diagnostic host ID: {0}}"
                                            Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </StackPanel>
@@ -2088,7 +2091,8 @@
                                         Command="{Binding RerunAccessibilityWizardCommand}"
                                         Content="Run Setup Again"
                                         AutomationProperties.Name="Run SafeSpeak setup again button"
-                                        AutomationProperties.HelpText="Reviews streaming-platform, filtering, spoken-guidance, and theme choices. Cancel preserves your current settings, logs, imported voices, and downloaded models." />
+                                        AutomationProperties.HelpText="Reviews streaming-platform, filtering, spoken-guidance, and theme choices. Cancel preserves your current settings, logs, imported voices, and downloaded models."
+                                        ToolTip="Reviews streaming-platform, filtering, spoken-guidance, and theme choices. Cancel preserves your current settings, logs, imported voices, and downloaded models." />
                             </StackPanel>
                         </Border>
 
@@ -2131,24 +2135,28 @@
                                                 Command="{Binding ReadSettingsGuideCommand}"
                                                 Content="Play whole guide"
                                                 AutomationProperties.Name="Play the whole Settings guide button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Reads all eight Settings guide pages through SafeSpeak built-in guidance." />
+                                                AutomationProperties.HelpText="Reads all eight Settings guide pages through SafeSpeak built-in guidance."
+                                                ToolTip="Reads all eight Settings guide pages through SafeSpeak built-in guidance." />
                                         <Button x:Name="ReadSettingsGuidePageButtonAtEnd" TabIndex="64" Margin="0,0,7,5"
                                                 Command="{Binding ReadNextSettingsGuidePageCommand}"
                                                 Content="Play guide page"
                                                 AutomationProperties.Name="Play the next Settings guide page button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Reads one Settings guide page and advances to the next page." />
+                                                AutomationProperties.HelpText="Reads one Settings guide page and advances to the next page."
+                                                ToolTip="Reads one Settings guide page and advances to the next page." />
                                         <Button x:Name="ResetSettingsGuideButtonAtEnd" TabIndex="65" Margin="0,0,7,5"
                                                 Command="{Binding RestartSettingsGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Settings guide to page 1 button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback." />
+                                                AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback."
+                                                ToolTip="Returns the Settings guide to page 1 without starting playback." />
                                     </WrapPanel>
                                     <Button x:Name="ToggleSettingsGuideButtonAtEnd" Grid.Column="1" TabIndex="66" Margin="7,0,0,5"
                                             Command="{Binding ToggleSettingsGuideVisibilityCommand}"
                                             Click="GuidePlacementButton_Click"
                                             Content="{Binding SettingsGuideVisibilityButtonText}"
                                             AutomationProperties.Name="{Binding SettingsGuideVisibilityButtonAutomationName}"
-                                            AutomationProperties.HelpText="Moves all four Settings guide controls, including this button, to the top of the page. Navigate to the top of the Settings page to find this button again, labeled Move controls to bottom. The guide text remains visible." />
+                                            AutomationProperties.HelpText="Moves all four Settings guide controls, including this button, to the top of the page. Navigate to the top of the Settings page to find this button again, labeled Move controls to bottom. The guide text remains visible."
+                                            ToolTip="Moves all four Settings guide controls, including this button, to the top of the page. Navigate to the top of the Settings page to find this button again, labeled Move controls to bottom. The guide text remains visible." />
                                 </Grid>
                             </StackPanel>
                         </Border>
