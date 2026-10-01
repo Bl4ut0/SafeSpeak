@@ -1172,7 +1172,8 @@
                                     IsEnabled="{Binding CanTestVoice}"
                                     Content="Test Voice"
                                     AutomationProperties.Name="Test selected voice"
-                                    AutomationProperties.HelpText="Play a short sample using the selected voice." />
+                                    AutomationProperties.HelpText="Play a short sample using the selected voice."
+                                    ToolTip="Play a short sample using the selected voice." />
                         </Grid>
                         <!-- Voice Tier Guide Text -->
                         <TextBlock Text="Level 1 = Windows Desktop voices • Level 2 = Windows Natural voices • Level 3 = Studio Kokoro neural voices"
@@ -1195,7 +1196,8 @@
                                 IsEnabled="{Binding CanInstallKokoro}"
                                 Content="{Binding KokoroInstallButtonText}"
                                 AutomationProperties.Name="{Binding KokoroInstallButtonText}"
-                                AutomationProperties.HelpText="{Binding KokoroInstallStatus}" />
+                                AutomationProperties.HelpText="{Binding KokoroInstallStatus}"
+                                ToolTip="{Binding KokoroInstallStatus}" />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Level 3: Kokoro Neural Voices (~330 MB)" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont14}" />
                             <TextBlock Text="{Binding KokoroInstallStatus}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,3,0,0" />
@@ -1216,7 +1218,8 @@
                                 Command="{Binding OpenWindowsSpeechSettingsCommand}"
                                 Content="Open Windows Speech Settings"
                                 AutomationProperties.Name="Open Windows Speech Settings"
-                                AutomationProperties.HelpText="Open Windows system speech settings to manage installed system voices." />
+                                AutomationProperties.HelpText="Open Windows system speech settings to manage installed system voices."
+                                ToolTip="Open Windows system speech settings to manage installed system voices." />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Windows System Voices" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
                             <TextBlock Text="Install additional natural voices and language packs in Windows Settings." Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" TextWrapping="Wrap" />
@@ -1351,7 +1354,8 @@
                                 IsEnabled="{Binding CanInstallQwen}"
                                 Content="{Binding QwenInstallButtonText}"
                                 AutomationProperties.Name="Download and install Qwen3Guard model"
-                                AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)." />
+                                AutomationProperties.HelpText="Download the on-device Qwen3Guard model (~500 MB)."
+                                ToolTip="Download the on-device Qwen3Guard model (~500 MB)." />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Qwen3Guard 0.6B LLM Setup" FontWeight="Bold" FontSize="{DynamicResource SafeSpeakFont13}" />
                             <TextBlock Text="{Binding QwenInstallStatus}" Style="{StaticResource SecondaryText}" FontSize="{DynamicResource SafeSpeakFont12}" Margin="0,2,0,0" />

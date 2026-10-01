@@ -1202,7 +1202,8 @@
                                                 Command="{Binding RestartSettingsGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Settings guide to page 1 button"
-                                                AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback." />
+                                                AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback."
+                                                ToolTip="Returns the Settings guide to page 1 without starting playback." />
                                     </WrapPanel>
                                     <Button x:Name="ToggleSettingsGuideButton" Grid.Column="1" TabIndex="4" Margin="7,0,0,5"
                                             Command="{Binding ToggleSettingsGuideVisibilityCommand}"
@@ -2131,24 +2132,28 @@
                                                 Command="{Binding ReadSettingsGuideCommand}"
                                                 Content="Play whole guide"
                                                 AutomationProperties.Name="Play the whole Settings guide button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Reads all eight Settings guide pages through SafeSpeak built-in guidance." />
+                                                AutomationProperties.HelpText="Reads all eight Settings guide pages through SafeSpeak built-in guidance."
+                                                ToolTip="Reads all eight Settings guide pages through SafeSpeak built-in guidance." />
                                         <Button x:Name="ReadSettingsGuidePageButtonAtEnd" TabIndex="64" Margin="0,0,7,5"
                                                 Command="{Binding ReadNextSettingsGuidePageCommand}"
                                                 Content="Play guide page"
                                                 AutomationProperties.Name="Play the next Settings guide page button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Reads one Settings guide page and advances to the next page." />
+                                                AutomationProperties.HelpText="Reads one Settings guide page and advances to the next page."
+                                                ToolTip="Reads one Settings guide page and advances to the next page." />
                                         <Button x:Name="ResetSettingsGuideButtonAtEnd" TabIndex="65" Margin="0,0,7,5"
                                                 Command="{Binding RestartSettingsGuideCommand}"
                                                 Content="Reset guide"
                                                 AutomationProperties.Name="Reset the Settings guide to page 1 button, at the bottom of the page"
-                                                AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback." />
+                                                AutomationProperties.HelpText="Returns the Settings guide to page 1 without starting playback."
+                                                ToolTip="Returns the Settings guide to page 1 without starting playback." />
                                     </WrapPanel>
                                     <Button x:Name="ToggleSettingsGuideButtonAtEnd" Grid.Column="1" TabIndex="66" Margin="7,0,0,5"
                                             Command="{Binding ToggleSettingsGuideVisibilityCommand}"
                                             Click="GuidePlacementButton_Click"
                                             Content="{Binding SettingsGuideVisibilityButtonText}"
                                             AutomationProperties.Name="{Binding SettingsGuideVisibilityButtonAutomationName}"
-                                            AutomationProperties.HelpText="Moves all four Settings guide controls, including this button, to the top of the page. Navigate to the top of the Settings page to find this button again, labeled Move controls to bottom. The guide text remains visible." />
+                                            AutomationProperties.HelpText="Moves all four Settings guide controls, including this button, to the top of the page. Navigate to the top of the Settings page to find this button again, labeled Move controls to bottom. The guide text remains visible."
+                                            ToolTip="Moves all four Settings guide controls, including this button, to the top of the page. Navigate to the top of the Settings page to find this button again, labeled Move controls to bottom. The guide text remains visible." />
                                 </Grid>
                             </StackPanel>
                         </Border>
