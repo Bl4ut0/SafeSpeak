@@ -685,7 +685,8 @@
                             Style="{StaticResource TikFinityCardStyle}"
                             Command="{Binding ToggleTikFinityCommand}"
                             AutomationProperties.Name="Use TikFinity for TikTok chat"
-                            AutomationProperties.HelpText="When selected, SafeSpeak connects to your local TikFinity application. Press to toggle.">
+                            AutomationProperties.HelpText="When selected, SafeSpeak connects to your local TikFinity application. Press to toggle."
+                            ToolTip="When selected, SafeSpeak connects to your local TikFinity application. Press to toggle.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -729,7 +730,8 @@
                             Style="{StaticResource TikTokDirectCardStyle}"
                             Command="{Binding OpenTikTokDirectConfigCommand}"
                             AutomationProperties.Name="Use TikTok Direct by username"
-                            AutomationProperties.HelpText="When selected, SafeSpeak connects directly to TikTok LIVE chat. Press to configure or edit username.">
+                            AutomationProperties.HelpText="When selected, SafeSpeak connects directly to TikTok LIVE chat. Press to configure or edit username."
+                            ToolTip="When selected, SafeSpeak connects directly to TikTok LIVE chat. Press to configure or edit username.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -773,7 +775,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="twitch"
                             AutomationProperties.Name="Twitch connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="Twitch direct IRC and EventSub connector is planned for a future update.">
+                            AutomationProperties.HelpText="Twitch direct IRC and EventSub connector is planned for a future update."
+                            ToolTip="Twitch direct IRC and EventSub connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -817,7 +820,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="youtube-live"
                             AutomationProperties.Name="YouTube Live connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="YouTube Live streaming chat API connector is planned for a future update.">
+                            AutomationProperties.HelpText="YouTube Live streaming chat API connector is planned for a future update."
+                            ToolTip="YouTube Live streaming chat API connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -861,7 +865,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="kick"
                             AutomationProperties.Name="Kick connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="Kick streaming live chat connector is planned for a future update.">
+                            AutomationProperties.HelpText="Kick streaming live chat connector is planned for a future update."
+                            ToolTip="Kick streaming live chat connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -905,7 +910,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="facebook-live"
                             AutomationProperties.Name="Facebook Live connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="Facebook Live video comments connector is planned for a future update.">
+                            AutomationProperties.HelpText="Facebook Live video comments connector is planned for a future update."
+                            ToolTip="Facebook Live video comments connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -949,7 +955,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="instagram-live"
                             AutomationProperties.Name="Instagram Live connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="Instagram Live broadcast comments connector is planned for a future update.">
+                            AutomationProperties.HelpText="Instagram Live broadcast comments connector is planned for a future update."
+                            ToolTip="Instagram Live broadcast comments connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -993,7 +1000,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="x-live"
                             AutomationProperties.Name="X Twitter Live connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="X Spaces and live broadcast chat connector is planned for a future update.">
+                            AutomationProperties.HelpText="X Spaces and live broadcast chat connector is planned for a future update."
+                            ToolTip="X Spaces and live broadcast chat connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -1037,7 +1045,8 @@
                             Command="{Binding OpenPlaceholderModalCommand}"
                             CommandParameter="trovo"
                             AutomationProperties.Name="Trovo connector. Coming soon. Press to view roadmap details."
-                            AutomationProperties.HelpText="Trovo live chat API connector is planned for a future update.">
+                            AutomationProperties.HelpText="Trovo live chat API connector is planned for a future update."
+                            ToolTip="Trovo live chat API connector is planned for a future update.">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
