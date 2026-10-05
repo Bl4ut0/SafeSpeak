@@ -1982,27 +1982,33 @@
                                             <CheckBox TabIndex="47" IsChecked="{Binding InstantAlertsGifts}" Margin="0,3"
                                                       Content="Instant gifts"
                                                       AutomationProperties.Name="Play gift announcements instantly on dedicated alert track"
-                                                      AutomationProperties.HelpText="When checked, gift announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
+                                                      AutomationProperties.HelpText="When checked, gift announcements bypass the chat queue and play immediately on their own audio track alongside chat."
+                                                      ToolTip="When checked, gift announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
                                             <CheckBox TabIndex="48" IsChecked="{Binding InstantAlertsFollows}" Margin="0,3"
                                                       Content="Instant follows"
                                                       AutomationProperties.Name="Play follow announcements instantly on dedicated alert track"
-                                                      AutomationProperties.HelpText="When checked, follow announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
+                                                      AutomationProperties.HelpText="When checked, follow announcements bypass the chat queue and play immediately on their own audio track alongside chat."
+                                                      ToolTip="When checked, follow announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
                                             <CheckBox TabIndex="49" IsChecked="{Binding InstantAlertsShares}" Margin="0,3"
                                                       Content="Instant shares"
                                                       AutomationProperties.Name="Play share announcements instantly on dedicated alert track"
-                                                      AutomationProperties.HelpText="When checked, share announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
+                                                      AutomationProperties.HelpText="When checked, share announcements bypass the chat queue and play immediately on their own audio track alongside chat."
+                                                      ToolTip="When checked, share announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
                                             <CheckBox TabIndex="50" IsChecked="{Binding InstantAlertsSubscriptions}" Margin="0,3"
                                                       Content="Instant subscriptions"
                                                       AutomationProperties.Name="Play subscription announcements instantly on dedicated alert track"
-                                                      AutomationProperties.HelpText="When checked, subscription announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
+                                                      AutomationProperties.HelpText="When checked, subscription announcements bypass the chat queue and play immediately on their own audio track alongside chat."
+                                                      ToolTip="When checked, subscription announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
                                             <CheckBox TabIndex="51" IsChecked="{Binding InstantAlertsJoins}" Margin="0,3"
                                                       Content="Instant joins"
                                                       AutomationProperties.Name="Play viewer join announcements instantly on dedicated alert track"
-                                                      AutomationProperties.HelpText="When checked, viewer join announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
+                                                      AutomationProperties.HelpText="When checked, viewer join announcements bypass the chat queue and play immediately on their own audio track alongside chat."
+                                                      ToolTip="When checked, viewer join announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
                                             <CheckBox TabIndex="52" IsChecked="{Binding InstantAlertsLikes}" Margin="0,3"
                                                       Content="Instant likes"
                                                       AutomationProperties.Name="Play like announcements instantly on dedicated alert track"
-                                                      AutomationProperties.HelpText="When checked, like announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
+                                                      AutomationProperties.HelpText="When checked, like announcements bypass the chat queue and play immediately on their own audio track alongside chat."
+                                                      ToolTip="When checked, like announcements bypass the chat queue and play immediately on their own audio track alongside chat." />
                                         </UniformGrid>
                                     </StackPanel>
                         </Border>
