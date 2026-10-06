@@ -692,6 +692,7 @@
                             Margin="6,5"
                             Style="{StaticResource TikFinityCardStyle}"
                             Command="{Binding ToggleTikFinityCommand}"
+                            ToolTip="When selected, SafeSpeak connects to your local TikFinity application. Press to toggle."
                             AutomationProperties.Name="Use TikFinity for TikTok chat"
                             AutomationProperties.HelpText="When selected, SafeSpeak connects to your local TikFinity application. Press to toggle.">
                         <Grid>
@@ -736,6 +737,7 @@
                             Margin="6,5"
                             Style="{StaticResource TikTokDirectCardStyle}"
                             Command="{Binding OpenTikTokDirectConfigCommand}"
+                            ToolTip="When selected, SafeSpeak connects directly to TikTok LIVE chat. Press to configure or edit username."
                             AutomationProperties.Name="Use TikTok Direct by username"
                             AutomationProperties.HelpText="When selected, SafeSpeak connects directly to TikTok LIVE chat. Press to configure or edit username.">
                         <Grid>
