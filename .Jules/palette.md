@@ -1,3 +1,7 @@
-## 2024-05-30 - WPF ToolTip and AutomationProperties.HelpText Parity
-**Learning:** In this WPF application, ensuring accessibility metadata translates to visual UX can be done by bridging `AutomationProperties.HelpText` to `ToolTip`. However, this should be applied carefully and specifically to highly interactive graphical elements (like connector choice cards). We must explicitly *avoid* mass-applying this attribute or applying it to UI elements where the HelpText describes keyboard-only shortcuts (e.g. "Alt plus 1") to prevent confusing mouse users.
-**Action:** When adding missing tooltips, target specific interactive elements where the tooltip directly aids the mouse user (e.g. large buttons without standard text context). Do not run bulk replaces.
+## 2026-09-24 - Adding ToolTips to match AutomationProperties.HelpText
+**Learning:** For sighted mouse users, the accessibility context provided in 'AutomationProperties.HelpText' is invisible. By mapping 'ToolTip' to match the HelpText on interactive UI elements in WPF applications, we bridge the gap between accessibility metadata (for screen readers) and visual UX (for hover states), creating a more universally helpful interface. This aligns with the 'Palette' agent constraint to improve UX/UI, specifically by surfacing hidden explanations as helpful tooltips.
+**Action:** When updating WPF XAML UI elements, I will ensure that interactive elements with 'AutomationProperties.HelpText' also have a corresponding 'ToolTip' property containing the exact same text or binding, except where the HelpText specifically references keyboard-only shortcuts (like "Alt plus 1 returns here").
+
+## 2024-05-30 - Focused ToolTip application for live connections
+**Learning:** Some UI elements are actively being refactored or updated in other PRs (like placeholder streaming connectors). Applying global or broad UX changes risks merge conflicts with parallel work.
+**Action:** When adding missing tooltips or minor UX touches, restrict the changes to fully functional and stable components (e.g. TikFinity and TikTok Direct active connections) and skip WIP or placeholder elements unless specifically requested.
