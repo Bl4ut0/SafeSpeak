@@ -1164,7 +1164,8 @@
                                       SelectedValuePath="Id"
                                       SelectedValue="{Binding SelectedVoice}"
                                       AutomationProperties.Name="Select speech voice"
-                                      AutomationProperties.HelpText="Choose the active TTS voice for SafeSpeak. Displays voice name and quality level.">
+                                      AutomationProperties.HelpText="Choose the active TTS voice for SafeSpeak. Displays voice name and quality level."
+                                      ToolTip="Choose the active TTS voice for SafeSpeak. Displays voice name and quality level.">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <DockPanel LastChildFill="True">
@@ -1189,7 +1190,8 @@
                                     IsEnabled="{Binding CanTestVoice}"
                                     Content="Test Voice"
                                     AutomationProperties.Name="Test selected voice"
-                                    AutomationProperties.HelpText="Play a short sample using the selected voice." />
+                                    AutomationProperties.HelpText="Play a short sample using the selected voice."
+                                    ToolTip="Play a short sample using the selected voice." />
                         </Grid>
                         <!-- Voice Tier Guide Text -->
                         <TextBlock Text="Level 1 = Windows Desktop voices • Level 2 = Windows Natural voices • Level 3 = Studio Kokoro neural voices"
